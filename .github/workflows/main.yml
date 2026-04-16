@@ -32,7 +32,7 @@ jobs:
           cd libs/nuvotifier
           chmod +x gradlew
           ./gradlew build -x test --no-daemon
-          cp universal/build/libs/*.jar ../nuvotifier.jar
+          cp universal/build/libs/nuvotifier-universal-3.0.0-SNAPSHOT-dist.jar ../nuvotifier.jar
 
       - name: Build with Maven
         run: mvn clean package --batch-mode
