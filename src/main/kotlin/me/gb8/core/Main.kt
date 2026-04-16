@@ -27,7 +27,7 @@ import me.gb8.core.patch.EndPortalGateways
 import me.gb8.core.tablist.TabSection
 import me.gb8.core.tpa.TPASection
 import me.gb8.core.util.GlobalUtils
-import me.gb8.core.util.MapCreationLogger
+
 import me.gb8.core.vote.VoteSection
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -176,13 +176,7 @@ class Main : JavaPlugin(), Listener {
             }
         }
 
-        try {
-            for (handler in MapCreationLogger.logger.handlers) {
-                handler.close()
-            }
-        } catch (e: Exception) {
-            // Logger not initialized
-        }
+
     }
 
     override fun reloadConfig() {
