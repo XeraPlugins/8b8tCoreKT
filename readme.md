@@ -106,7 +106,7 @@ Built with JDK 21 and Kotlin 1.9.24.
 - Auto announcements
 - Violation tracking
 - Database storage (SQLite)
-- Localization (12 languages)
+- Localization (13 languages)
 
 ## Contributing
 
@@ -128,7 +128,7 @@ Edit `config.yml` after first run. All settings are documented inline.
 
 ## Languages
 
-English, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Japanese, Dutch, Hindi, Arabic, Turkish
+English, Hebrew, Spanish, French, German, Italian, Portuguese, Russian, Chinese, Japanese, Dutch, Hindi, Arabic, Turkish
 
 ## License
 
