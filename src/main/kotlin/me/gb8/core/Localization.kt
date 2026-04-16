@@ -36,7 +36,7 @@ class Localization(private val config: Configuration) {
                 return
             }
 
-            val locales = arrayOf("ar", "en", "es", "fr", "hi", "it", "ja", "nl", "pt", "ru", "tr", "zh")
+            val locales = arrayOf("ar", "en", "es", "fr", "he", "hi", "it", "ja", "nl", "pt", "ru", "tr", "zh")
             for (locale in locales) {
                 val file = File(localeDir, "$locale.yml")
                 GlobalUtils.unpackResource("Localization/$locale.yml", file)

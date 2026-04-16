@@ -1,0 +1,569 @@
+#Basic messages
+ignore_successful: "&3שחקן התעלם בהצלחה&r&a %s&r"
+already_ignoring: "&cאתה כבר מתעלם משחקן זה"
+ignore_command_syntax: "&cאנא הוסף שחקן /ignore <שם_שחקן>"
+unignore_successful: "&3שחקן הפסיק להתעלם בהצלחה&r&a %s&r"
+unignore_not_ignoring: "&cאתה לא מתעלם מ%s"
+unignore_command_syntax: "&cאנא הוסף שחקן /unignore <שם_שחקן>"
+ignorelist_successful: "&3שחקנים שהתעלמו מהם: &c%s"
+ignorelist_not_ignoring: "&cאתה לא מתעלם מאף אחד"
+ignorelist_failed: "&cלא ניתן לאחזר את רשימת ההתעלמות."
+whisper_from: "&d%s לוחש: %s"
+whisper_to: "&dאל %s: %s"
+whisper_ignoring: "&c%s מתעלם ממך"
+whisper_you_are_ignoring: "&cאתה לא יכול לשלוח הודעה לשחקן שהתעלמת ממנו"
+msg_could_not_find_player: "&cלא ניתן למצוא את השחקן %s"
+msg_command_syntax: "&cאנא הוסף יעד והודעה /msg <יעד> <הודעה>"
+reply_player_offline: "&cהשחקן %s לא מחובר"
+reply_no_target: "&cלא שלחת הודעה לאף אחד עדיין"
+reply_command_syntax: "&cאנא הוסף הודעה /r <הודעה>"
+togglechat_chat_enabled: "&aצ'אט הופעל"
+togglechat_chat_disabled: "&cצ'אט הושבת"
+cmdwhitelist_cmd_not_allowed: "&cהפקודה&r&a %s&r&c לא מותרת"
+chat_cooldown: "&3אנא המתן לפחות&r&a %d&r&3 שניות בין הודעות צ'אט"
+delhome_no_homes: "&3אין לך שום בתים"
+delhome_specify_home: "&3אנא הוסף את שם הבית למחיקה. בתים נוכחיים: (&r&a%s&r&3)&r"
+delhome_home_not_found: "&3הבית&r&a %s&r&3 לא נמצא"
+delhome_success: "&3הבית&r&a %s&r&3 נמחק"
+delhome_fail: "&3לא ניתן למחוק&r&a %s&r"
+home_no_homes: "&3לא נמצאו בתים"
+home_specify_home: "&3הוסף את שם הבית שלך. בתים נוכחיים (&r&a%s&r&3): &r&a%s&r&3"
+home_too_close: "&3אתה חייב להיות&r&a %d&r&3 בלוקים מהספאן כדי להשתמש ב/home"
+home_success: "&3מטלפורט לבית&r&a %s&r&3..."
+home_not_found: "&3הבית&r&a %s&r&3 לא נמצא"
+home_world_not_loaded: "&3העולם&r&a %s&r&3 לא נטען. לא ניתן להטלפורט לבית."
+sethome_include_name: "&3אנא הוסף שם לבית החדש שלך"
+sethome_home_already_exists: "&cבית בשם&r&a %s&r&c כבר קיים."
+sethome_max_reached: "&3הגעת למספר המקסימלי של בתים!"
+sethome_success: "&3הבית&r&a %s &r&3הוגדר"
+back_teleported: "&3מטלפורט למיקום האחרון שלך..."
+back_no_last_location: "&cאין לך מיקומים קודמים רשומים."
+kick_restarting: "&3השרת מתחיל מחדש"
+elytra_tile_entities_too_fast: "&cישנם ישויות רבות מדי באזור זה. המהירות שלך לא יכולה לעלות על %s בלוקים לשנייה."
+elytra_too_fast: "&cהמהירות המקסימלית המותרת היא %s בלוקים לשנייה."
+elytras_disabled: "&3אליטרות מושבתות כרגע בגלל עומס על השרת. הן אמורות לחזור בקרוב"
+bookban_inventory_clear: "&cהמלאי שלך נוקה כדי למנוע ממך להיחסם מ-Book Ban"
+bookban_removed_item: "&cהוסרו&r&3 %s &r&cמהמלאי שלך כדי למנוע ממך להיחסם"
+kick_lever_ratelimit: "&cאתה מתקשר מהר מדי"
+kick_pps_limit: "&cאתה שולח מדי הרבה פאקטים!"
+kick_failed_to_inject: "&cההזרקה נכשלה"
+join_message: "&a▲&8 השחקן &7%s&r&8 הצטרף."
+first_join_message: "&a▲&8 השחקן &7%s&r&8 הצטרף בפעם הראשונה."
+leave_message: "&c▼&8 השחקן &7%s&r&8 עזב."
+kick_message: "&7%s נענש עבור \"%s\""
+could_not_translate_message: "התרגום של ההודעה נכשל בגלל %s"
+message_auto_translated: "הודעה זו תורגמה אוטומטית.\n\nטקסט מקורי: %s"
+welcome_message: "&3ברוכים הבאים ל-8b8t"
+vote_announcement: "&c%s &8הצביע עבור %prefix% &8וקיבל /nc חינם, 2 מרחק רינדור נוסף, 5 בתים נוספים, וגישה לדונקי דופה ל-%days% ימים"
+vote_thanks: "&8תודה שהצבעת עבור %prefix%! &8קיבלת /nc חינם, 2 מרחק רינדור נוסף, 5 בתים נוספים, וגישה לדונקי דופה ל-%days% ימים"
+vote_info: "&8אתה יכול להצביע עבור %prefix% &8ב-&chttps://votefor.8b8t.me"
+tpa_syntax: "&cאנא הוסף שחקן לטלפורט אליו. /tpa <שחקן>"
+tpa_player_not_online: "&cהשחקן %s לא מחובר"
+tpa_no_request_found: "&cלא נמצאה בקשת TPA"
+tpa_self_tpa: "&cאתה לא יכול לבקש TPA אל עצמך"
+tpa_request_received: "&a%s&r&3 רוצה להטלפורט אליך&r &a/tpayes &3שם_משתמש &c/tpano &3שם_משתמש"
+tpa_request_sent: "&3בקשה נשלחה אל&r&a %s"
+tpa_requests_disabled: "&3בקשות מושבתות. כל הבקשות הנכנסות נמחקו."
+tpa_requests_enabled: "&3בקשות הופעלו."
+tpa_requests_blocked: "&3בקשות מ&a%s&r&3 נחסמו/נמחקו."
+tpa_requests_unblocked: "&3בקשות מ&a%s&r&3 שוחררו."
+tpa_block_syntax: "&cאנא הוסף שחקן לחסימה/ביטול חסימה"
+tpa_already_sent: "&cכבר יש לך בקשה תלויה"
+tpahere_syntax: "&cאנא הוסף שחקן להטלפורט אליך /tpahere <שחקן>"
+tpatoggle_syntax: "&cאנא אל תספק ארגומנטים."
+tpahere_request_received: "&a%s&r&3 רוצה להטלפורט אותך אליו&r &a/tpayes &3שם_משתמש &c/tpano &3שם_משתמש"
+tpa_too_close: "&3אתה חייב להיות&r&a %d&r&3 בלוקים מהספאן כדי להשתמש ב/tpa"
+tpa_requested_too_close: "&cהשחקן %s לא יכול להגיע כל כך קרוב לספאן"
+tpa_teleporting: "&3מטלפורט&r&a..."
+tpa_request_timeout_from: "&cבקשת ה-TPA ששלחת אל &a%s&r&c פגה."
+tpa_request_timeout_to: "&cבקשת ה-TPA שקיבלת מ&a%s&r&c פגה."
+tpa_request_cancelled_from: "&3בקשת ה-TPA ששלחת אל &a%s&r&3 בוטלה בהצלחה."
+tpa_request_cancelled_to: "&cבקשת ה-TPA שקיבלת מ&a%s&r&c בוטלה."
+tpa_request_denied_from: "&a%s&r&c דחה את הבקשה שלך"
+tpa_request_denied_to: "&3הבקשה נדחתה בהצלחה"
+tpa_request_blocked: "&cלשחקן זה בקשות TPA מושבתות."
+tpa_pending_request: "&a%s&r &cיש בקשה תלויה"
+tpa_to_left: "&cTPA בוטל כי&r&a %s&r&c עזב"
+op_not_allowed: "&cאתה לא מורשה להיות OP"
+framedupe_cooldown: "&cאתה משכפל מהר מדי"
+framedupe_items_limit: "&cיש כבר יותר מדי פריטים שנזרקו באזור זה"
+dupe_permission: "&cהוטרלת על שניסית לשכפל כל כך בקלות."
+dupe_failed: "&cאתה חייב להחזיק פריט כדי לשכפל אותו."
+dupe_success: "&3הפריט שוכפל בהצלחה."
+nbtPatch_deleted_item: "&c&6%s&r&c הוסר מהמלאי שלך כדי למנוע ממך להיחסם."
+chest_cooldown: "&cאתה פותח ארונות מהר מדי. אנא המתן!"
+chestlimiter_deleted_chest: "&c&6%s&r&c ארונות הוסרו כי הם עברו את המקסימום של &c&6%s&r&c ארונות לאזור"
+repair_success: "&3הפריט תוקן בהצלחה!"
+repair_no_item: "&cאתה חייב להחזיק פריט לתיקון ביד."
+repair_not_repairable: "&cפריט זה לא ניתן לתיקון."
+repair_all_success: "&3כל הפריטים במלאי שלך תוקנו בהצלחה!"
+nick_success: "&3סיום! שם הכינוי שלך עכשיו הוא &3%s&r&3."
+nick_no_permission: "&cפקודה זו מיועדת ל-DONOR5 בלבד &3https://shop.8b8t.me/&c."
+nick_no_name_provided: "&cאתה חייב להזין כינוי &3/nick <כינוי>&c."
+nick_user_protection: "&cהכינוי חייב להיות זהה לשם המשתמש שלך &3/nick <כינוי>&c."
+nc_success: "&3סיום! שם הכינוי שלך עכשיו הוא &3%s&r&3."
+nc_no_permission: "&cאתה חייב להצביע כדי להשתמש בפקודה זו."
+nc_invalid_color: "&cאתה יכול להשתמש רק בסגנונות מהרשימה &3/nc <צבע> <סגנונות...>&c."
+nc_usage: "&cאתה חייב להזין לפחות צבע &3/nc <צבע> <סגנונות...>&c."
+ic_success: "&3סיום! הפריט שלך עכשיו נקרא &3%s&r&3."
+ic_no_permission: "&cפקודה זו מיועדת ל-DONOR4 בלבד &3https://shop.8b8t.me/&c."
+ic_invalid_color: "&cאתה יכול להשתמש רק בסגנונות מהרשימה &3/ic <צבע> <סגנונות...>&c."
+ic_invalid_item: "&cפריט זה לא תקין."
+ic_no_item: "&cאתה חייב להחזיק פריט ביד כדי לשנות את הצבע שלו."
+ic_usage: "&cאתה חייב להזין לפחות צבע &3/ic <צבע> <סגנונות...>&c."
+rename_success: "&3סיום! הפריט שלך עכשיו נקרא &3%s&r&3."
+rename_no_permission: "&cפקודה זו מיועדת ל-DONOR5 בלבד &3https://shop.8b8t.me/&c."
+rename_invalid_item: "&cפריט זה לא תקין."
+rename_no_item: "&cאתה חייב להחזיק פריט ביד כדי לשנות את הצבע שלו."
+rename_no_name_provided: "&cאתה חייב להזין שם &3/rename <שם_פריט>&c."
+nick_too_large: "&cהכינוי חייב להיות עד %s תווים."
+nick_reset: "&3הכינוי שלך אופס לשם המשתמש המקורי שלך."
+nick_usage: "&cשימוש: %s"
+gradient_usage: "&cשימוש: %s"
+gradient_invalid: "&cגרדיאנט לא תקין: &e%s&c. השתמש בפורמט הקסדצימלי כמו #FF0000:#00FF00"
+gradient_animation_invalid: "&cסוג אנימציה לא תקין: &e%s&c. סוגים תקינים: wave, pulse, rainbow, shift, none"
+gradient_invalid_color: "&cצבע לא תקין: %s. השתמש בפורמט הקסדצימלי כמו #FF0000"
+gradient_set: "&3גרדיאנט הוגדר ל: &r%s"
+gradient_success: "&3גרדיאנט הוחל בהצלחה!"
+ic_too_large: "&cשם הפריט חייב להיות עד 50 תווים."
+title_no_ranks: "&cאין לך שום דרגות זמינות לעבור ביניהן."
+title_cleared: "&3התואר שלך נמחק."
+title_success: "&3תואר הוגדר ל: &a%s"
+title_no_permission_for_rank: "&cאין לך הרשאה לדרגה זו."
+leaderboard_vanilla: "&3עברת ללוח הישגים ונילה. השתמש ב/toggleleaderboard כדי לחזור."
+leaderboard_custom: "&3עברת ללוח הישגים מותאם עם דרגות."
+hotspot_no_perms_create: "&cאין לך הרשאה ליצור הוטספוט."
+hotspot_no_playername: "&cאנא הוסף שחקן להטלפורט אליו /hotspot teleport <שחקן>."
+hotspot_already_created: "&cכבר יש לך הוטספוט פעיל, אתה חייב להמתין כדי ליצור עוד אחד."
+hotspot_created: "&3ההוטספוט שלך נוצר בהצלחה."
+hotspot_deleted: "&3ההוטספוט שלך נמחק בהצלחה."
+hotspot_creation_cooldown: "&cאתה חייב להמתין &a%s&c שניות לפני יצירת הוטספוט נוסף."
+dps_enabled: "&3יצירת פאנטומים &aהופעלה&3 עבורך."
+dps_disabled: "&3יצירת פאנטומים &cהושבתה&3 עבורך."
+hotspot_not_active: "&cאין לך הוטספוט פעיל כרגע."
+hotspot_not_found_for_player: "&r&a%s&c אין לו הוטספוט פעיל."
+hotspot_teleported_to_player: "&3מטלפורט להוטספוט של &r&a%s&3."
+hotspot_not_found: "&cאין הוטספוטים פעילים להטלפורט אליהם."
+hotspot_teleported_to: "&3מטלפורט להוטספוט הקרוב ביותר..."
+hotspot_created_to_everyone: "&r&a%s&3 יצר הוטספוט חדש, השתמש ב<blue><underlined><hover:show_text:'<gray>לחץ להטלפורט'><click:run_command:'/hotspot teleport %s'>/hotspot</click></hover></underlined></blue> כדי להטלפורט אליו"
+repair_fail_while_pvp: "&cאתה לא יכול להשתמש בפקודה זו במהלך PvP או מיד אחריו!"
+sign_success: "&3סיום! הפריט נחתם בהצלחה."
+sign_fail_already_signed: "&cפריט זה כבר נחתם."
+sign_fail_no_item: "&cאתה חייב להחזיק פריט ביד כדי לחתום אותו."
+antiillegal_flagged_placement: "&cהצבתך בוטלה כי הפריט מכיל רכיבים לא חוקיים: &6%s"
+show_join_leave_messages_false: "&8הודעות כניסה/יציאה מוסתרות עכשיו &8. כדי להציג אותן שוב, השתמש בפקודה זו."
+show_join_leave_messages_true: "&8הודעות כניסה/יציאה מוצגות עכשיו &8."
+mapart_deleted_inventory: "&cמאפרט מושבת הוסר מהמלאי שלך. אם תיתפס שוב עם סוג חומר זה, תיאסר מהשרת."
+mapart_deleted_frame: "&cמאפרט מושבת הוסר מהבסיס שלך. אם תיתפס שוב עם סוג חומר זה, תיאסר מהשרת."
+spam_alert: "&cאנא אל תספאם."
+vanish_true: "&8אתה עכשיו ב&3מצב נעלם&8. כדי לצאת, השתמש בפקודה /vanish שוב."
+vanish_false: "&8אתה עכשיו &3גלוי &8לשחקנים אחרים."
+table_usage: "&cאתה חייב לציין סוג טבלה &3/table <סוג>&c."
+table_invalid_type: "&cסוג טבלה לא תקין. השתמש בהשלמה אוטומטית כדי לראות אפשרויות תקינות &3/table <סוג>&c."
+
+#Complex messages
+HelpMessage:
+  - '&3---------------------------------------'
+  - '&8בקר ב-&chttps://www.8b8t.me/terms &8כדי לקרוא את החוקים'
+  - '&3---------------------------------------'
+  - '&6פקודות:'
+  - '&c/tpa &8להטלפורט לשחקן אחר'
+  - '&c/tpahere &8להטלפורט שחקן אליך'
+  - '&c/tpayes &8לקבל בקשת טלפורט'
+  - '&c/tpano &8לדחות בקשת טלפורט'
+  - '&c/tpacancel &8לבטל בקשות tpa שנשלחו'
+  - '&c/back &8לחזור למיקום האחרון שלך'
+  - '&c/hotspot &8להטלפורט להוטספוט או ליצור חדש'
+  - '&c/sethome &8להגדיר בית במיקומך'
+  - '&c/delhome &8למחוק בית שהגדרת'
+  - '&c/home &8להטלפורט לבית שהגדרת'
+  - '&c/skin set &8להגדיר את הסקין שלך'
+  - '&c/vote &8להצביע עבור 8b8t'
+  - '&c/discord &8לקבל הזמנה לדיסקורד של 8b8t'
+  - '&c/kill &8להתאבד'
+  - '&c/ignore &8להתעלם משחקנים אחרים'
+  - '&c/unignore &8להפסיק להתעלם משחקנים'
+  - '&c/ignorelist &8להציג את השחקנים שאתה מתעלם מהם'
+  - '&c/msg &8לשלוח הודעות לשחקנים אחרים'
+  - '&c/changepass &8לשנות את הסיסמה שלך'
+  - '&c/worldstats &8לראות את גודל העולם'
+  - '&c/pvp &8להתחבר לשרת PvP של 8b8t'
+  - '&c/lobby &8להתחבר ללובי'
+  - '&c/tpsinfo &8לבדוק את טיקים לשנייה של השרת'
+  - '&c/announcements &8להחליף הכרזות'
+  - '&c/dps &8מחליף יצירת פאנטומים'
+  - '&c/achievements &8מחליף הישגים'
+  - '&c/deathmessage &8מחליף הודעות מוות'
+  - '&c/joindate &8מציג את תאריך הצטרפות השחקן'
+  - '&c/lastseen &8מציג את התאריך האחרון שנראה של השחקן'
+  - '&c/toggleprefix &8מחליף את הקידומת של השחקן'
+  - '&c/toggleleaderboard &8מחליף לוח הישגים ונילה'
+  - '&c/togglejoinmessage &8מחליף הודעות כניסה/יציאה'
+  - '&c/togglechat &8מחליף צ''אט'
+  - '&3---------------------------------------'
+  - '&6משתמשים מדורגים בלבד:'
+  - '&c/rename &8לתת שם לפריט'
+  - '&c/echest &8לפתוח את האנדר צ'סט שלך'
+  - '&c/hotspot &8ליצור הוטספוט (דרגת אולטרה בלבד)'
+  - '&c/cosmetics nick &8לשנות כינוי קוסמטיקה'
+  - '&c/cosmetics item &8לשנות קוסמטיקת פריט'
+  - '&c/cosmetics title &8לשנות תואר קוסמטיקה (דרגה מותאמת בלבד)'
+  - '&8בקר ב&chttps://shop.8b8t.me'
+  - '&3---------------------------------------'
+
+TabList:
+  Header:
+    - ''
+    - '&9&l8builders&7&l8tools'
+    - ''
+    - '&r&c&oנהנה מ-8b8t.me ? שקול לרכוש דרגה ב-https://shop.8b8t.me'
+    - ''
+
+  Footer:
+    - ''
+    - '&7טיקים לשנייה:&r %tps% &7זמן לטיק:&r %mspt% &7פינג: &r%ping% &7שחקנים: &f%players% &7זמן פעילות: &r%uptime%'
+    - ''
+    - '&7צור קשר: contact@8b8t.me'
+    - '&7דיונים: https://discord.8b8t.me'
+    - '&7אתר: https://www.8b8t.me'
+    - '&7אלה הם האתרים והקשרים הרשמיים היחידים של 8b8t'
+    - ''
+TpsMessage:
+  - '&3--------------------------------------'
+  - '&6מידע טיקים לשנייה:'
+  - '&8טיקים לשנייה: %s &8זמן לטיק: %s'
+  - '&8האזור עם הטיקים הנמוך ביותר: %s'
+  - '&8שחקנים מקוונים &a%s'
+  - '&3--------------------------------------'
+tps_failed: '&cאתה לא מורשה לבדוק טיקים לשנייה'
+
+announcements:
+  - "%prefix% &7>>&r&8 בקר ב-<red><hover:show_text:'<gray>לחץ לפתוח את הקישור'><click:open_url:'https://votefor.8b8t.me'>https://votefor.8b8t.me</click></hover></red> <dark_gray>והצבע כדי לקבל 2 מרחק רינדור נוסף, 5 בתים נוספים וגישה לדונקי דופה בחינם</dark_gray>"
+  - "%prefix% &7>>&r&8 תרום כדי לתמוך ב-8b8t ב-<red><hover:show_text:'<gray>לחץ לפתוח את הקישור'><click:open_url:'https://shop.8b8t.me'>https://shop.8b8t.me</click></hover></red>"
+  - "%prefix% &7>> &8הצטרף לשרת הדיסקורד הרשמי להכרזות ב-<red><hover:show_text:'<gray>לחץ לפתוח את הקישור'><click:open_url:'https://discord.8b8t.me'>https://discord.8b8t.me</click></hover></red>"
+  - "%prefix% &7>> &8הצטרף לצ'אט המטריקס הרשמי ב-<red><hover:show_text:'<gray>לחץ לפתוח את הקישור'><click:open_url:'https://matrix.8b8t.me'>https://matrix.8b8t.me</click></hover></red>"
+# Death messages
+global-pvp-death-messages:
+  - "&3%victim%&r&4 נהרג על ידי &3%killer%&r&4"
+  - "&3%victim%&r&4 נהרג על ידי &3%killer%&r&4 באמצעות &6[%kill-weapon%&6]"
+  - "&3%victim%&r&4 הושלך על ידי &3%killer%&r&4"
+  - "&3%victim%&r&4 הובס על ידי &3%killer%&r&4 עם &6[%kill-weapon%&6]"
+  - "&3%killer%&r&4 כתש את &3%victim%&r&4 באמצעות &6[%kill-weapon%&6]"
+  - "&3%victim%&r&4 הושמד על ידי &3%killer%&r&4"
+  - "&3%victim%&r&4 הושמד על ידי &3%killer%&r&4 וה&6[%kill-weapon%&6] האדיר שלו"
+  - "&3%victim%&r&4 נכנע בקלות על ידי &3%killer%&r&4 באמצעות &6[%kill-weapon%&6]"
+
+melee-death-messages:
+  - "&3%victim%&r&4 נשפט על ידי &3%killer%&r&4"
+  - "&3%victim%&r&4 הוכה &3%killer%&r&4"
+  - "&3%victim%&r&4 נחבט על ידי &3%killer%&r&4"
+
+fall-damage-messages:
+  - "&3%victim%&r&4 החליט לבדוק את כוח הכבידה והפסיד"
+  - "&3%victim%&r&4 שכח להביא מצנח"
+  - "&3%victim%&r&4 חשב שהוא יכול לעוף... הוא לא"
+
+drowning-messages:
+  - "&3%victim%&r&4 החליט לישון עם הדגים"
+  - "&3%victim%&r&4 חשב שהוא יכול להגיע לחמצן בזמן"
+  - "&3%victim%&r&4 ניסה לשחות מהר יותר מהמים"
+
+suffocation-messages:
+  - "&3%victim%&r&4 לא הצליח לנשום בתוך בלוק"
+  - "&3%victim%&r&4 לא יכול היה לנשום בתוך בלוק"
+  - "&3%victim%&r&4 הושפל על ידי בלוק"
+
+cramming-messages:
+  - "&3%victim%&r&4 נדחס לכדי אין-סוף"
+  - "&4ה&3%victim%&r&4 העני, הוא חשב שהוא יכול לחיות במרחב 1x1"
+
+thorns-messages:
+  - "&3%victim%&r&4 נדחה על ידי שריון הקוצים של &3%killer%&r&4"
+  - "&3%victim%&r&4 הפך את הקוצים של &3%killer%&r&4 נגדו"
+
+lava-messages:
+  - "&3%victim%&r&4 נשרף בבור לבה"
+  - "&3%victim%&r&4 שחה בלבה ונשרף"
+
+magma-block-messages:
+  - "&3%victim%&r&4 הוסר על ידי בלוק מאגמה &6חם"
+  - "&3%victim%&r&4 הרגליים הפכו לבייקון על ידי בלוק &6מאגמה"
+
+elytra-messages:
+  - "&3%victim%&r&4 טס לקיר ומת...?"
+  - "&3%victim%&r&4 התרסק לקיר עם האליטרה שלו"
+
+wither-messages:
+  - "&3%victim%&r&4 נדבק במחלת ה&9ווית'ר &4"
+  - "&3%victim%&r&4 &9נבל &4לממד הרביעי"
+
+suicide-messages:
+  - "&3%victim%&r&4 התאבד"
+  - "&3%victim%&r&4 קיבל התמוטטות נפשית ומת"
+
+fire-messages:
+  - "&3%victim%&r&4 עמד באח"
+  - "&3%victim%&r&4 שיחק עם האש"
+
+fire-tick-messages:
+  - "&3%victim%&r&4 שכח לעצור, ליפול ולהתגלגל"
+
+starvation-messages:
+  - "&3%victim%&r&4 שכח לאכול"
+  - "&3%victim%&r&4 אמא שלו אמרה שיש לנו אוכל בבית"
+
+cactus-messages:
+  - "&3%victim%&r&4 נדקר למוות"
+  - "&3%victim%&r&4 ניסה דיקור סיני, אבל מת"
+  - "&3%victim%&r&4 חיבק קקטוס למוות"
+
+potion-messages:
+  - "&3%victim%&r&4 נפל קורבן לשיקוי רע"
+  - "&3%victim%&r&4 מת מקורונה"
+
+void-messages:
+  - "&3%victim%&r&4 חשב שזה יהיה כיף לטוס בחלל"
+  - "&3%victim%&r&4 עשה טיול חד-כיווני לחלל"
+  - "&3%victim%&r&4 יצא להרפתקה קוסמית... בלי חללית"
+
+lightning-messages:
+  - "&3%victim%&r&4 הוכה על ידי התערבות אלוהית"
+  - "&3%victim%&r&4 הוכה על ידי האלים"
+  - "&3%victim%&r&4 קיבל תזכורת מחשמלת מלמעלה"
+
+falling-block-messages:
+  - "&3%victim%&r&4 נמעך על ידי בלוק נופל"
+  - "&3%victim%&r&4 התמזג עם הבלוק הנופל"
+  - "&3%victim%&r&4 פגש את מותו בבלוק נופל"
+
+freeze-messages:
+  - "&3%victim%&r&4 לא שרד את מערבולת הקוטב"
+  - "&3%victim%&r&4 שכח את המעיל החורפי שלו"
+  - "&3%victim%&r&4 קפא מהר יותר מקוביית קרח"
+
+firework-messages:
+  - "&3%victim%&r&4 הדליק את המרגו לפני הזמן"
+  - "&3%victim%&r&4 ניסה לעוף בסטייל... והתרסק"
+  - "&3%victim%&r&4 גילה את סכנות הפירוטכניקה החובבנית"
+
+slime-messages:
+  - "&3%victim%&r&4 נמעך על ידי &2ג'לי ענק"
+  - "&3%victim%&r&4 &2נג'לי &4למוות בזמן איסוף כדורי ג'לי"
+
+zombie-messages:
+  - "&3%victim%&r&4 נאכל בחיים על ידי &2זומבי"
+  - "&3%victim%&r&4 חשב ש&2זומבי &4היה ידידותי"
+
+pigman-messages:
+  - "&3%victim%&r&4 העיר את ה&eחזיר-אדם &4ונאכל בחיים"
+  - "&3%victim%&r&4 כעס את ה&eחזיר-אדם &4והפך לבייקון שלהם"
+
+skeleton-messages:
+  - "&3%victim%&r&4 נתפס על ידי &fשלד &4רע עם ריבים"
+  - "&3%victim%&r&4 נורה על ידי &fשלד"
+
+magmacube-messages:
+  - "&3%victim%&r&4 נמעך על ידי &6קוביית מאגמה ענקית"
+
+husk-messages:
+  - "&3%victim%&r&4 נאכל על ידי תושב מדבר AKA &3האסק"
+
+spider-messages:
+  - "&3%victim%&r&4 הושפל על ידי &1עכביש &4ערמומי"
+  - "&3%victim%&r&4 &1נאכל על ידי עכביש"
+
+cavespider-messages:
+  - "&3%victim%&r&4 ננשך למוות על ידי &1עכביש מערה"
+  - "&3%victim%&r&4 קיבל חיבוק ארסי מ&1עכביש מערה"
+
+witherskeleton-messages:
+  - "&3%victim%&r&4 הושמד על ידי &0שלד ווית'ר &4עם חרב אבן"
+  - "&3%victim%&r&4 נלמד על ידי &0שלד ווית'ר &4עם חרב אבן"
+
+witherboss-messages:
+  - "&3%victim%&r&4 קיבל את ראשו מושלך על ידי ה&0ווית'ר"
+  - "&3%victim%&r&4 אתגר את ה&0ווית'ר &4ואיבד את ראשו"
+  - "&3%victim%&r&4 קיבל שיעור קשה מה&0ווית'ר"
+
+dragon-messages:
+  - "&3%victim%&r&4 נקרע לגזרים על ידי &5דרקון האנדר"
+  - "&3%victim%&r&4 קיבל את ראשו מושלך על ידי &5דרקון האנדר"
+  - "&3%victim%&r&4 מצא מסך התחדשות, לא שער האנדר"
+
+dragon-breath-messages:
+  - "&3%victim%&r&4 עשה אמבטיה בנשימת &5דרקון האנדר"
+  - "&3%victim%&r&4 שאף קצת יותר מדי מנשימת &5דרקון האנדר"
+  - "&3%victim%&r&4 נשרף על ידי התקפת נשימת &5דרקון האנדר&4"
+
+elderguardian-messages:
+  - "&3%victim%&r&4 ניסה לנקות אנדרת ים אבל ה&bשומר הבכיר &4אמר לא"
+  - "&3%victim%&r&4 חשב שהוא יכול לכבוש אנדת ים, אבל ל&bשומר הבכיר &4היו תוכניות אחרות"
+
+tnt-messages:
+  - "&3%victim%&r&4 קיבל את ראשו מושלך על ידי &4TNT"
+  - "&3%victim%&r&4 התפוצץ על ידי &4TNT"
+  - "&3%victim%&r&4 גילה על נפיצות בדרך הקשה"
+
+end-crystal-messages:
+  - "&3%victim%&r&4 נדקר על ידי &5קריסטל אנד"
+  - "&3%victim%&r&4 התפוצץ על ידי &5קריסטל אנד"
+
+creeper-messages:
+  - "&3%victim%&r&4 הוצג בעצלנות ל&aאישיות הנפיצה של קריפר&4"
+  - "&3%victim%&r&4 נתקל ב&aקריפר &4ונעל לשמיים"
+  - "&3%victim%&r&4 העריך את רדיוס הפיצוץ של &aקריפר"
+  - "&3%victim%&r&4 ניסה לנטרל &aקריפר&4... זה לא עבד"
+
+ghast-messages:
+  - "&3%victim%&r&4 נפגע מכדור אש על ידי &bגאסט"
+
+enderman-messages:
+  - "&3%victim%&r&4 הביט ב&5אנדרמן &4בעיניים"
+  - "&3%victim%&r&4 ניסה לשחק פקי-בו עם &5אנדרמן"
+
+silverfish-messages:
+  - "&3%victim%&r&4 נאכל על ידי &7סילוופיש"
+
+witch-messages:
+  - "&3%victim%&r&4 נכשף על ידי &9מכשפה &4ערמומית"
+  - "&3%victim%&r&4 הפך לצפרדע על ידי &9מכשפה &4נקמנית"
+
+shulker-messages:
+  - "&3%victim%&r&4 מת בניסיון להשיג קוצי &dשאלקר &4"
+  - "&3%victim%&r&4 נורה על ידי &dשאלקר"
+  - "&3%victim%&r&4 הושמד על ידי &dשאלקר"
+
+guardian-messages:
+  - "&3%victim%&r&4 נהרג על ידי &7שומר"
+  - "&3%victim%&r&4 הוכה על ידי &7שומר &4חשמלי"
+  - "&3%victim%&r&4 הושפל על ידי &7שומר &4ערמומי"
+
+golem-messages:
+  - "&3%victim%&r&4 הפך את &7גולם הברזל &4למשוגע"
+  - "&3%victim%&r&4 הפריע את זעמו של &7גולם הברזל&4"
+  - "&3%victim%&r&4 קיבל שיעור בדיפלומטיה של &7גולם הברזל&4"
+
+zombievillager-messages:
+  - "&3%victim%&r&4 הפך לארוחה על ידי &2זומבי כפרי"
+
+endermite-messages:
+  - "&3%victim%&r&4 נתקל ב&5אנדרמייט &4וננשך למוות"
+  - "&3%victim%&r&4 הושפל על ידי &5אנדרמייט"
+
+phantom-messages:
+  - "&3%victim%&r&4 נחטף על ידי &1פאנטום"
+
+drowned-messages:
+  - "&3%victim%&r&4 הלך לשחות מאוחר בלילה ונאכל על ידי &2זומבי טבוע"
+  - "&3%victim%&r&4 גילה ש&2טבועים &4לא רק שחיינים רגילים"
+
+pillager-messages:
+  - "&3%victim%&r&4 נורה על ידי &3פילאג'ר"
+
+ravager-messages:
+  - "&3%victim%&r&4 נדרס על ידי &3ראבאג'ר"
+
+illusioner-messages:
+  - "&3%victim%&r&4 נשלח לעולם האשליות על ידי &6אילוזיוניסט"
+  - "&3%victim%&r&4 הוטרד על ידי &6אילוזיוניסט"
+  - "&3%victim%&r&4 נהרג על ידי &6אילוזיוניסט"
+
+bee-messages:
+  - "&3%victim%&r&4 נעקץ על ידי &6דבורה"
+  - "&3%victim%&r&4 פגש &6דבורה &4וגילה שהן לא רק מייצרות דבש"
+  - "&3%victim%&r&4 נעקץ על ידי &6דבורה &4עקשנית"
+
+wolf-messages:
+  - "&3%victim%&r&4 נקרע לגזרים על ידי &7זאב"
+  - "&3%victim%&r&4 הפריע ל&7זאב"
+
+llama-messages:
+  - "&3%victim%&r&4 נירק על ידי &eלמה"
+  - "&3%victim%&r&4 נתקע ב&eלמה של יריקה&4"
+  - "&3%victim%&r&4 קיבל קיא של &llama &4בפה"
+
+blaze-messages:
+  - "&3%victim%&r&4 נחרך על ידי &6בלייז"
+  - "&3%victim%&r&4 צלוי על ידי &6בלייז &4לוהט"
+  - "&3%victim%&r&4 למד בדרך הקשה לא לשחק עם אש &6בלייזים"
+
+stray-messages:
+  - "&3%victim%&r&4 נתפס על ידי &7סטריי"
+
+vex-messages:
+  - "&3%victim%&r&4 נאכל על ידי &bווקס &4קטן ומעופף"
+  - "&3%victim%&r&4 הוטרד על ידי &bווקס"
+
+vindicator-messages:
+  - "&3%victim%&r&4 נצוד על ידי &4וינדיקייטור"
+  - "&3%victim%&r&4 העריך את הכוח של &4וינדיקייטור"
+  - "&3%victim%&r&4 נתקע במסלול ההרס של &4וינדיקייטור&4"
+
+evoker-messages:
+  - "&3%victim%&r&4 הובא למתים על ידי &4איבוקר"
+  - "&3%victim%&r&4 ניסה את זעמו של &4איבוקר"
+  - "&3%victim%&r&4 הובא על ידי &4איבוקר"
+
+pufferfish-messages:
+  - "&3%victim%&r&4 העריך את הרעילות של &eדג קוצן"
+  - "&3%victim%&r&4 פגש &eדג קוצן &4ולמד בדרך הקשה לא לגעת"
+
+polar-bear-messages:
+  - "&3%victim%&r&4 נקרע על ידי &fדוב קוטב &4קר כקרח"
+  - "&3%victim%&r&4 הפך לשלג על ידי &fדוב קוטב"
+
+dolphin-messages:
+  - "&3%victim%&r&4 הפריע ל&bדולפין&4... והפסיד?"
+  - "&3%victim%&r&4 הכה &bדולפין &4והם התגוננו"
+
+panda-messages:
+  - "&3%victim%&r&4 הפך לארוחה של &8פנדות&4"
+  - "&3%victim%&r&4 ניסה לגנוב במבוק של &8פנדות&4"
+
+piglin-messages:
+  - "&3%victim%&r&4 פגש את יוצרו נגד ה&6פיגלינים&4 החדשים"
+  - "&3%victim%&r&4 התעמת עם &6פיגלינים &4וקיבל שיעור בהישרדות"
+  - "&3%victim%&r&4 פגש &6פיגלינים &4וגילה שהם לא מתמקחים"
+
+hoglin-messages:
+  - "&3%victim%&r&4 נדרס על ידי &6הוגלין&4, קצת לא נעים?"
+  - "&3%victim%&r&4 לא קרא את העדכונים על &6הוגלינים"
+
+zoglin-messages:
+  - "&3%victim%&r&4 אכל קרן של &6זוגלינים &4לארוחת ערב"
+  - "&3%victim%&r&4 נדרס על ידי &6זוגלין"
+
+goat-messages:
+  - "&3%victim%&r&4 נחבט בראש על ידי &4עז"
+  - "&3%victim%&r&4 ננעץ על ידי קרן של &4עז&4"
+
+zombified-piglin-messages:
+  - "&3%victim%&r&4 לקח &6פיגלין &4לעולם העליון ונרצח על ידי חיית המחמד הידידותית החדשה שלו"
+  - "&3%victim%&r&4 מת מ&6פיגלין&4... אני מתכוון, חזיר-אדם... אני מתכוון, פיגלין זומבי"
+
+fox-messages:
+  - "&3%victim%&r&4 &6שיחק עם שועל&4 וגילה"
+  - "&3%victim%&r&4 נלעס על ידי &6שועל"
+
+warden-messages:
+  - "&3%victim%&r&4 נהרג על ידי &1וורדן&4... אני מתכוון, מה ציפית?"
+  - "&3%victim%&r&4 העריך את הכוח של ה&1וורדן&4"
+  - "&3%victim%&r&4 התקרב יותר מדי לטריטוריה של ה&1וורדן&4"
+
+warden-sonic-boom-messages:
+  - "&3%victim%&r&4 נפגע מבום על-קולי על ידי &1וורדן"
+  - "&3%victim%&r&4 קיבל את האוזניים מושמדות על ידי בום על-קולי של &1וורדן"
+
+unknown-messages:
+  - "&3%victim%&r&4 מת מסיבות לא ידועות"
+  - "&3%victim%&r&4 מת"
+  - "&3%victim%&r&4 נהרג"
+
+fireball-messages:
+  - "&3%victim%&r&4 נצלה על ידי התקפת &4כדור אש &4לא צפויה"
+  - "&3%victim%&r&4 נתקע בסערת אש של &4כדורי אש"
+  - "&3%victim%&r&4 נשרף על ידי מטח של &4כדורי אש"
+
+arrow-messages:
+  - "&3%victim%&r&4 נתפס בגשם של &5חצים"
+  - "&3%victim%&r&4 ניסה לברוח מ&5חצים&4... זה לא עבד"
