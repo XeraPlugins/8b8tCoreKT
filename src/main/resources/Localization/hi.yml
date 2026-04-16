@@ -1,0 +1,528 @@
+#Basic messages
+ignore_successful: "&3खिलाड़ी&r&a %s&r&3 को सफलतापूर्वक ignore कर दिया गया"
+already_ignoring: "&cआप पहले से ही उस खिलाड़ी को ignore कर रहे हैं"
+ignore_command_syntax: "&cकृपया खिलाड़ी का नाम शामिल करें /ignore <playerName>"
+unignore_successful: "&3खिलाड़ी&r&a %s&r&3 को सफलतापूर्वक unignore कर दिया गया"
+unignore_not_ignoring: "&cआप %s को ignore नहीं कर रहे हैं"
+unignore_command_syntax: "&cकृपया खिलाड़ी का नाम शामिल करें /unignore <playerName>"
+ignorelist_successful: "&3Ignore किए गए खिलाड़ी: &c%s"
+ignorelist_not_ignoring: "&cआप किसी को भी ignore नहीं कर रहे हैं"
+ignorelist_failed: "&cइग्नोर लिस्ट की जानकारी प्राप्त करने में असमर्थ।"
+whisper_from: "&d%s का संदेश: %s"
+whisper_to: "&d%s को: %s"
+whisper_ignoring: "&c%s आपको ignore कर रहा है"
+whisper_you_are_ignoring: "&cआप उस खिलाड़ी को संदेश नहीं भेज सकते जिसे आपने ignore किया है"
+msg_could_not_find_player: "&cखिलाड़ी %s नहीं मिला"
+msg_command_syntax: "&cकृपया लक्ष्य और संदेश शामिल करें /msg <target> <message>"
+reply_player_offline: "&cखिलाड़ी %s ऑफलाइन है"
+reply_no_target: "&cआपने अभी तक किसी को संदेश नहीं भेजा है"
+reply_command_syntax: "&cकृपया संदेश शामिल करें /r <message>"
+togglechat_chat_enabled: "&aचैट सक्षम (Enabled) किया गया"
+togglechat_chat_disabled: "&cचैट अक्षम (Disabled) किया गया"
+cmdwhitelist_cmd_not_allowed: "&cकमांड&r&a %s&r&c की अनुमति नहीं है"
+chat_cooldown: "&3कृपया चैट संदेशों के बीच कम से कम&r&a %d&r&3 सेकंड प्रतीक्षा करें"
+delhome_no_homes: "&3आपके पास कोई होम (home) नहीं है"
+delhome_specify_home: "&3कृपया डिलीट करने के लिए होम का नाम लिखें। वर्तमान होम: (&r&a%s&r&3)&r"
+delhome_home_not_found: "&3होम&r&a %s&r&3 नहीं मिला"
+delhome_success: "&3होम&r&a %s&r&3 डिलीट कर दिया गया है"
+delhome_fail: "&3&r&a %s&r&3 को डिलीट नहीं किया जा सका"
+home_no_homes: "&3कोई होम नहीं मिला"
+home_specify_home: "&3अपने होम का नाम शामिल करें। वर्तमान होम (&r&a%s&r&3): &r&a%s&r&3"
+home_too_close: "&3/home का उपयोग करने के लिए आपको स्पॉन (spawn) से&r&a %d&r&3 ब्लॉक दूर होना चाहिए"
+home_success: "&3होम&r&a %s&r&3 पर टेलीपोर्ट हो रहे हैं..."
+home_not_found: "&3होम&r&a %s&r&3 नहीं मिला"
+home_world_not_loaded: "&3दुनिया&r&a %s&r&3 लोडेड नहीं है। होम पर टेलीपोर्ट नहीं किया जा सकता।"
+sethome_include_name: "&3कृपया अपने नए होम के लिए एक नाम शामिल करें"
+sethome_home_already_exists: "&c&r&a %s&r&c नाम का होम पहले से मौजूद है।"
+sethome_max_reached: "&3होम की अधिकतम सीमा पूरी हो गई!"
+sethome_success: "&3होम&r&a %s &r&3सेट हो गया"
+back_teleported: "&3आपके पिछले स्थान पर टेलीपोर्ट हो रहे हैं..."
+back_no_last_location: "&cआपका कोई पिछला स्थान दर्ज नहीं है।"
+kick_restarting: "&3सर्वर रीस्टार्ट हो रहा है"
+elytra_tile_entities_too_fast: "&cइस चंक (chunk) में बहुत सारी एंटिटी हैं। आपकी गति %s ब्लॉक प्रति सेकंड से अधिक नहीं हो सकती।"
+elytra_too_fast: "&cअधिकतम अनुमत गति %s ब्लॉक प्रति सेकंड है।"
+elytras_disabled: "&3सर्वर लैग के कारण एलाइट्रा (Elytras) वर्तमान में अक्षम हैं। वे जल्द ही वापस आ जाएंगे"
+bookban_inventory_clear: "&cबुक बैन (book ban) से बचाने के लिए आपकी इन्वेंट्री साफ़ कर दी गई है"
+bookban_removed_item: "&cबुक बैन रोकने के लिए आपकी इन्वेंट्री से सभी&r&3 %s&r&c हटा दिए गए"
+kick_lever_ratelimit: "&cआप बहुत तेजी से इंटरैक्ट कर रहे हैं"
+kick_pps_limit: "&cआप बहुत तेजी से पैकेट भेज रहे हैं!"
+kick_failed_to_inject: "&cइंजेक्ट करने में विफल"
+join_message: "&a▲&8 खिलाड़ी &7%s&r&8 शामिल हुआ।"
+first_join_message: "&a▲&8 खिलाड़ी &7%s&r&8 पहली बार शामिल हुआ।"
+leave_message: "&c▼&8 खिलाड़ी &7%s&r&8 चला गया।"
+kick_message: "&7%s को \"%s\" के लिए निकाल दिया गया"
+could_not_translate_message: "%s के कारण संदेश का अनुवाद करने में विफल"
+message_auto_translated: "यह संदेश स्वचालित रूप से अनुवादित किया गया है।\n\nमूल टेक्स्ट: %s"
+welcome_message: "&38b8t में आपका स्वागत है"
+vote_announcement: "&c%s &8ने %prefix% &8के लिए वोट किया और %days% दिनों के लिए मुफ्त /nc, +2 रेंडर डिस्टेंस, +5 होम, और गधे वाले dupe का एक्सेस प्राप्त किया"
+vote_thanks: "&8%prefix% के लिए वोट करने के लिए धन्यवाद! आपको %days% दिनों के लिए मुफ्त /nc, +2 रेंडर डिस्टेंस, +5 होम, और गधे वाले dupe का एक्सेस मिला है"
+vote_info: "&8आप %prefix% &8के लिए &chttps://votefor.8b8t.me &8पर वोट कर सकते हैं"
+tpa_syntax: "&cकृपया tpa करने के लिए एक खिलाड़ी का नाम लिखें। /tpa <player>"
+tpa_player_not_online: "&cखिलाड़ी %s ऑनलाइन नहीं है"
+tpa_no_request_found: "&cकोई TPA अनुरोध नहीं मिला"
+tpa_self_tpa: "&cआप स्वयं को TPA नहीं कर सकते"
+tpa_request_received: "&a%s&r&3 आपके पास टेलीपोर्ट होना चाहता है&r &a/tpayes &3USERNAME &c/tpano &3USERNAME"
+tpa_request_sent: "&3अनुरोध&r&a %s को भेज दिया गया"
+tpa_requests_disabled: "&3अनुरोध अक्षम (Disabled)। सभी इनकमिंग अनुरोध हटा दिए गए।"
+tpa_requests_enabled: "&3अनुरोध सक्षम (Enabled)।"
+tpa_requests_blocked: "&a%s&r&3 के अनुरोध ब्लॉक कर दिए गए हैं।"
+tpa_requests_unblocked: "&a%s&r&3 के अनुरोध अनब्लॉक कर दिए गए हैं।"
+tpa_block_syntax: "&cकृपया ब्लॉक/अनब्लॉक करने के लिए एक खिलाड़ी का नाम लिखें"
+tpa_already_sent: "&cआपका एक अनुरोध पहले से ही पेंडिंग है"
+tpahere_syntax: "&cकृपया किसी खिलाड़ी को अपने पास टेलीपोर्ट करने के लिए लिखें /tpahere <player>"
+tpatoggle_syntax: "&cकृपया कोई तर्क (arguments) न दें।"
+tpahere_request_received: "&a%s&r&3 आपको अपने पास टेलीपोर्ट करना चाहता है&r &a/tpayes &3USERNAME &c/tpano &3USERNAME"
+tpa_too_close: "&3/tpa का उपयोग करने के लिए आपको स्पॉन से&r&a %d&r&3 ब्लॉक दूर होना चाहिए"
+tpa_requested_too_close: "&cखिलाड़ी %s स्पॉन के इतने करीब नहीं आ सकता"
+tpa_teleporting: "&3टेलीपोर्ट हो रहे हैं&r&a..."
+tpa_request_timeout_from: "&c&a%s&r&c को भेजा गया आपका TPA अनुरोध समाप्त हो गया है।"
+tpa_request_timeout_to: "&c&a%s&r&c से प्राप्त TPA अनुरोध समाप्त हो गया है।"
+tpa_request_cancelled_from: "&3&a%s&r&3 को भेजा गया TPA अनुरोध सफलतापूर्वक रद्द कर दिया गया।"
+tpa_request_cancelled_to: "&c&a%s&r&c से प्राप्त TPA अनुरोध रद्द कर दिया गया।"
+tpa_request_denied_from: "&a%s&r&c ने आपका अनुरोध अस्वीकार कर दिया है"
+tpa_request_denied_to: "&3अनुरोध सफलतापूर्वक अस्वीकार कर दिया गया"
+tpa_request_blocked: "&cइस खिलाड़ी ने TPA अनुरोध अक्षम कर रखे हैं।"
+tpa_pending_request: "&a%s&r &cका एक अनुरोध पेंडिंग है"
+tpa_to_left: "&c&r&a %s&r&c के जाने के कारण TPA रद्द कर दिया गया"
+op_not_allowed: "&cआपको OP बनने की अनुमति नहीं है"
+framedupe_cooldown: "&cआप बहुत जल्दी डुप्लिकेट (dupe) कर रहे हैं"
+framedupe_items_limit: "&cइस चंक में पहले से ही बहुत सारे आइटम गिरे हुए हैं"
+dupe_permission: "&cइतनी आसानी से डुप्लिकेट करने की कोशिश के लिए आपको ट्रोल किया गया।"
+dupe_failed: "&cडुप्लिकेट करने के लिए आपके हाथ में एक आइटम होना चाहिए।"
+dupe_success: "&3आइटम सफलतापूर्वक डुप्लिकेट हो गया।"
+nbtPatch_deleted_item: "&cअत्यधिक डेटा के कारण आपकी इन्वेंट्री से&c&6 %s&r&c हटा दिया गया"
+chest_cooldown: "&cआप चेस्ट बहुत जल्दी खोल रहे हैं। कृपया प्रतीक्षा करें!"
+chestlimiter_deleted_chest: "&c&6%s&r&c चेस्ट हटा दिए गए क्योंकि वे प्रति चंक&c&6 %s&r&c चेस्ट की सीमा से अधिक थे"
+repair_success: "&3आइटम सफलतापूर्वक रिपेयर हो गया!"
+repair_no_item: "&cरिपेयर करने के लिए आपके हाथ में एक आइटम होना चाहिए।"
+repair_not_repairable: "&cयह आइटम रिपेयर करने योग्य नहीं है।"
+repair_all_success: "&3आपकी इन्वेंट्री के सभी आइटम सफलतापूर्वक रिपेयर हो गए!"
+nick_success: "&3हो गया! आपका निकनेम अब &3%s&r&3 है।"
+nick_no_permission: "&cयह कमांड केवल DONOR5 के लिए है &3https://shop.8b8t.me/&c।"
+nick_no_name_provided: "&cआपको एक निकनेम दर्ज करना होगा &3/nick <nickname>&c।"
+nick_user_protection: "&cनिकनेम आपके यूजरनेम जैसा ही होना चाहिए &3/nick <nickname>&c।"
+nc_success: "&3हो गया! आपका निकनेम अब &3%s&r&3 है।"
+nc_no_permission: "&cइस कमांड का उपयोग करने के लिए आपको वोट करना होगा।"
+nc_invalid_color: "&cआप केवल सूची के स्टाइल ही उपयोग कर सकते हैं &3/nc <color> <styles...>&c।"
+nc_usage: "&cआपको कम से कम रंग दर्ज करना होगा &3/nc <color> <styles...>&c।"
+ic_success: "&3हो गया! आपके आइटम का नाम अब &3%s&r&3 है।"
+ic_no_permission: "&cयह कमांड केवल DONOR4 के लिए है &3https://shop.8b8t.me/&c।"
+ic_invalid_color: "&cआप केवल सूची के स्टाइल ही उपयोग कर सकते हैं &3/ic <color> <styles...>&c।"
+ic_invalid_item: "&cयह आइटम मान्य नहीं है।"
+ic_no_item: "&cरंग बदलने के लिए आपके हाथ में एक आइटम होना चाहिए।"
+ic_usage: "&cआपको कम से कम रंग दर्ज करना होगा &3/ic <color> <styles...>&c।"
+rename_success: "&3हो गया! आपके आइटम का नाम अब &3%s&r&3 है।"
+rename_no_permission: "&cयह कमांड केवल DONOR5 के लिए है &3https://shop.8b8t.me/&c।"
+rename_invalid_item: "&cयह आइटम मान्य नहीं है।"
+rename_no_item: "&cरंग बदलने के लिए आपके हाथ में एक आइटम होना चाहिए।"
+rename_no_name_provided: "&cआपको एक नाम दर्ज करना होगा &3/rename <item name>&c।"
+nick_too_large: "&cनिकनेम अधिकतम %s अक्षरों का होना चाहिए।"
+nick_reset: "&3आपका निकनेम आपके मूल यूजरनेम पर रीसेट कर दिया गया है।"
+nick_usage: "&cउपयोग: %s"
+gradient_usage: "&cउपयोग: %s"
+gradient_invalid: "&cअमान्य ग्रेडिएंट: &e%s&c। #FF0000:#00FF00 जैसे हेक्स प्रारूप का उपयोग करें"
+gradient_animation_invalid: "&cअमान्य एनीमेशन प्रकार: &e%s&c। मान्य प्रकार: wave, pulse, rainbow, shift, none"
+gradient_invalid_color: "&cअमान्य रंग: %s। HEX प्रारूप जैसे #FF0000 का उपयोग करें"
+gradient_set: "&3ग्रेडिएंट (Gradient) सेट किया गया: &r%s"
+gradient_success: "&3ग्रेडिएंट सफलतापूर्वक लागू हो गया!"
+ic_too_large: "&cआइटम का नाम अधिकतम 50 अक्षरों का होना चाहिए।"
+title_no_ranks: "&cआपके पास बदलने के लिए कोई रैंक उपलब्ध नहीं है।"
+title_cleared: "&3आपका टाइटल हटा दिया गया है।"
+title_success: "&3टाइटल सेट किया गया: &a%s"
+title_no_permission_for_rank: "&cआपके पास उस रैंक की अनुमति नहीं है।"
+leaderboard_vanilla: "&3वैनिला लीडरबोर्ड पर स्विच किया गया। वापस जाने के लिए /toggleleaderboard का उपयोग करें।"
+leaderboard_custom: "&3रैंक वाले कस्टम लीडरबोर्ड पर स्विच किया गया।"
+hotspot_no_perms_create: "&cआपके पास हॉटस्पॉट बनाने की अनुमति नहीं है।"
+hotspot_no_playername: "&cकृपया टेलीपोर्ट करने के लिए एक खिलाड़ी शामिल करें /hotspot teleport <player>।"
+hotspot_already_created: "&cआपका एक हॉटस्पॉट पहले से ही सक्रिय है, नया बनाने के लिए प्रतीक्षा करनी होगी।"
+hotspot_created: "&3आपका हॉटस्पॉट सफलतापूर्वक बनाया गया।"
+hotspot_deleted: "&3आपका हॉटस्पॉट सफलतापूर्वक हटा दिया गया।"
+hotspot_creation_cooldown: "&cअगला हॉटस्पॉट बनाने से पहले आपको &a%s&c सेकंड रुकना होगा।"
+hotspot_not_active: "&cवर्तमान में आपका कोई सक्रिय हॉटस्पॉट नहीं है।"
+dps_enabled: "&3आपके लिए फैंटम स्पॉनिंग &aसक्षम&3 कर दी गई है।"
+dps_disabled: "&3आपके लिए फैंटम स्पॉनिंग &cअक्षम&3 कर दी गई है।"
+hotspot_not_found_for_player: "&r&a%s&c का कोई सक्रिय हॉटस्पॉट नहीं है।"
+hotspot_teleported_to_player: "&r&a%s&3 के हॉटस्पॉट पर टेलीपोर्ट हो रहे हैं।"
+hotspot_not_found: "&cटेलीपोर्ट करने के लिए कोई सक्रिय हॉटस्पॉट नहीं मिला।"
+hotspot_teleported_to: "&3निकटतम हॉटस्पॉट पर टेलीपोर्ट हो रहे हैं..."
+hotspot_created_to_everyone: "&r&a%s&3 ने एक नया हॉटस्पॉट बनाया, वहाँ जाने के लिए <blue><underlined><hover:show_text:'<gray>टेलीपोर्ट करने के लिए क्लिक करें'><click:run_command:'/hotspot teleport %s'>/hotspot</click></hover></underlined></blue> का उपयोग करें"
+repair_fail_while_pvp: "&cआप PvP के दौरान या उसके तुरंत बाद इस कमांड का उपयोग नहीं कर सकते!"
+sign_success: "&3हो गया! आपने आइटम पर सफलतापूर्वक हस्ताक्षर (sign) किए।"
+sign_fail_already_signed: "&cयह आइटम पहले से हस्ताक्षरित है।"
+sign_fail_no_item: "&cहस्ताक्षर करने के लिए आपके हाथ में एक आइटम होना चाहिए।"
+antiillegal_flagged_placement: "&cआपका प्लेसमेंट रद्द कर दिया गया क्योंकि आइटम में अवैध घटक हैं: &6%s"
+show_join_leave_messages_false: "&8आगमन/प्रस्थान संदेश अब &cछिपे&8 हुए हैं। फिर से दिखाने के लिए इस कमांड का उपयोग करें।"
+show_join_leave_messages_true: "&8आगमन/प्रस्थान संदेश अब &aदिख&8 रहे हैं।"
+mapart_deleted_inventory: "&cआपकी इन्वेंट्री से एक प्रतिबंधित मैपआर्ट (mapart) हटा दिया गया है। यदि आप फिर से पकड़े गए, तो आपको सर्वर से बैन कर दिया जाएगा।"
+mapart_deleted_frame: "&cआपके बेस से एक प्रतिबंधित मैपआर्ट हटा दिया गया है। यदि आप फिर से पकड़े गए, तो आपको सर्वर से बैन कर दिया जाएगा।"
+spam_alert: "&cकृपया स्पैम न करें।"
+vanish_true: "&8अब आप &3वैनिश (vanish) मोड&8 में हैं। बाहर निकलने के लिए फिर से /vanish कमांड का उपयोग करें।"
+vanish_false: "&8अब आप अन्य खिलाड़ियों को &3दिख&8 रहे हैं।"
+table_usage: "&cआपको एक टेबल प्रकार निर्दिष्ट करना होगा &3/table <type>&c।"
+table_invalid_type: "&cअमान्य टेबल प्रकार। विकल्प देखने के लिए टैब का उपयोग करें &3/table <type>&c।"
+
+#Complex messages
+HelpMessage:
+  - '&3---------------------------------------'
+  - '&8Rules पढ़ने के लिए यहाँ जाएँ: &chttps://www.8b8t.me/terms'
+  - '&3---------------------------------------'
+  - '&6Commands:'
+  - '&c/tpa &8किसी दूसरे प्लेयर के पास जाने के लिए (Request)'
+  - '&c/tpahere &8किसी प्लेयर को अपने पास बुलाने के लिए'
+  - '&c/tpayes &8टेलीपोर्ट रिक्वेस्ट स्वीकार (Accept) करने के लिए'
+  - '&c/tpano &8टेलीपोर्ट रिक्वेस्ट मना (Deny) करने के लिए'
+  - '&c/tpacancel &8भेजी गई रिक्वेस्ट कैंसिल करने के लिए'
+  - '&c/back &8अपनी पिछली लोकेशन पर वापस जाने के लिए'
+  - '&c/hotspot &8हॉटस्पॉट पर जाने या नया बनाने के लिए'
+  - '&c/sethome &8अपनी जगह पर "home" सेट करने के लिए'
+  - '&c/delhome &8सेट किया हुआ "home" डिलीट करने के लिए'
+  - '&c/home &8अपने सेट किए हुए "home" पर जाने के लिए'
+  - '&c/skin set &8अपनी स्किन सेट करने के लिए'
+  - '&c/vote &88b8t को वोट देने के लिए'
+  - '&c/discord &88b8t का डिस्कोर्ड इनवाइट लिंक पाने के लिए'
+  - '&c/kill &8आत्महत्या (Respawn) करने के लिए'
+  - '&c/ignore &8दूसरे प्लेयर्स को इग्नोर करने के लिए'
+  - '&c/unignore &8प्लेयर्स को अन-इग्नोर करने के लिए'
+  - '&c/ignorelist &8अपनी इग्नोर लिस्ट देखने के लिए'
+  - '&c/msg &8दूसरे प्लेयर्स को प्राइवेट मैसेज भेजने के लिए'
+  - '&c/changepass &8अपना पासवर्ड बदलने के लिए'
+  - '&c/worldstats &8वर्ल्ड का साइज़ देखने के लिए'
+  - '&c/pvp &88b8t के PVP सर्वर से जुड़ने के लिए'
+  - '&c/lobby &8लॉबी में जाने के लिए'
+  - '&c/tpsinfo &8सर्वर की परफॉरमेंस (TPS) चेक करने के लिए'
+  - '&c/announcements &8अनाउंसमेंट को ऑन/ऑफ करने के लिए'
+  - '&c/dps &8फैंटम स्पॉनिंग ऑन/ऑफ करने के लिए'
+  - '&c/achievements &8अचीवमेंट्स को ऑन/ऑफ करने के लिए'
+  - '&c/deathmessage &8डेथ मैसेजेस को ऑन/ऑफ करने के लिए'
+  - '&c/joindate &8प्लेयर ने कब जॉइन किया था, यह देखने के लिए'
+  - '&c/lastseen &8प्लेयर आखिरी बार कब ऑनलाइन था, यह देखने के लिए'
+  - '&c/toggleprefix &8प्लेयर्स का प्रीफिक्स ऑन/ऑफ करने के लिए'
+  - '&c/toggleleaderboard &8लीडरबोर्ड को ऑन/ऑफ करने के लिए'
+  - '&c/togglejoinmessage &8जॉइन/लीव मैसेजेस ऑन/ऑफ करने के लिए'
+  - '&c/togglechat &8चैट को ऑन/ऑफ करने के लिए'
+  - '&3---------------------------------------'
+  - '&6Ranked Users के लिए:'
+  - '&c/rename &8आइटम का नाम बदलने के लिए'
+  - '&c/echest &8अपना एंडर चेस्ट खोलने के लिए'
+  - '&c/hotspot &8नया हॉटस्पॉट बनाने के लिए (Ultra रैंक)'
+  - '&c/cosmetics nick &8निकनेम की सजावट बदलने के लिए'
+  - '&c/cosmetics item &8आइटम की सजावट बदलने के लिए'
+  - '&c/cosmetics title &8टाइटल की सजावट बदलने के लिए (Custom रैंक)'
+  - '&8हमारी शॉप देखें: &chttps://shop.8b8t.me'
+  - '&3---------------------------------------'
+  -
+TabList:
+  Header:
+    - ''
+    - '&9&l8builders&7&l8tools'
+    - ''
+    - '&r&c&o8b8t.me पसंद आ रहा है? https://shop.8b8t.me पर रैंक खरीदने पर विचार करें'
+    - ''
+
+  Footer:
+    - ''
+    - '&7tps:&r %tps% &7mspt:&r %mspt% &7ping: &r%ping% &7खिलाड़ी: &f%players% &7अपटाइम: &r%uptime%'
+    - ''
+    - '&7संपर्क: contact@8b8t.me'
+    - '&7चर्चा: https://discord.8b8t.me'
+    - '&7वेबसाइट: https://www.8b8t.me'
+    - '&7ये एकमात्र आधिकारिक 8b8t वेबसाइट और संपर्क हैं'
+    - ''
+TpsMessage:
+  - '&3--------------------------------------'
+  - '&6TPS जानकारी:'
+  - '&8TPS: %s &8MSPT: %s'
+  - '&8सबसे कम रीजन TPS: %s'
+  - '&8ऑनलाइन खिलाड़ी &a%s'
+  - '&3--------------------------------------'
+tps_failed: '&cआपको TPS चेक करने की अनुमति नहीं है'
+
+announcements:
+  - "%prefix% &7>>&r&8 <red><hover:show_text:'<gray>लिंक खोलने के लिए क्लिक करें'><click:open_url:'https://votefor.8b8t.me'>https://votefor.8b8t.me</click></hover></red> <dark_gray>पर जाएं और वोट करें ताकि आपको मुफ्त में +2 रेंडर डिस्टेंस, +5 होम और गधे वाले dupe का एक्सेस मिले</dark_gray>"
+  - "%prefix% &7>>&r&8 8b8t को सपोर्ट करने के लिए डोनेट करें <red><hover:show_text:'<gray>लिंक खोलने के लिए क्लिक करें'><click:open_url:'https://shop.8b8t.me'>https://shop.8b8t.me</click></hover></red>"
+  - "%prefix% &7>> &8आधिकारिक डिस्कॉर्ड सर्वर से जुड़ें <red><hover:show_text:'<gray>लिंक खोलने के लिए क्लिक करें'><click:open_url:'https://discord.8b8t.me'>https://discord.8b8t.me</click></hover></red>"
+  - "%prefix% &7>> &8आधिकारिक मैट्रिक्स चैट से जुड़ें <red><hover:show_text:'<gray>लिंक खोलने के लिए क्लिक करें'><click:open_url:'https://matrix.8b8t.me'>https://matrix.8b8t.me</click></hover></red>"
+
+# Death messages
+global-pvp-death-messages:
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने मार डाला"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने &6[%kill-weapon%&6] &r&4का उपयोग करके ढेर कर दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने शांत कर दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने अपनी &6[%kill-weapon%&6] &r&4से पछाड़ा"
+  - "&3%killer%&r&4 ने &6[%kill-weapon%&6] &r&4से &3%victim%&r&4 का कचूमर निकाल दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने नष्ट कर दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 और उनकी शक्तिशाली &6[%kill-weapon%&6] &r&4ने बर्बाद कर दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने &6[%kill-weapon%&6] &r&4से आसानी से हरा दिया"
+
+melee-death-messages:
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने थप्पड़ मार दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने नॉकआउट कर दिया"
+  - "&3%victim%&r&4 को &3%killer%&r&4 ने हिला कर रख दिया"
+
+fall-damage-messages:
+  - "&3%victim%&r&4 ने गुरुत्वाकर्षण (gravity) का परीक्षण किया और हार गया"
+  - "&3%victim%&r&4 अपना पैराशूट लाना भूल गया"
+  - "&3%victim%&r&4 को लगा कि वह उड़ सकता है... पर वह नहीं उड़ सका"
+
+drowning-messages:
+  - "&3%victim%&r&4 ने मछलियों के साथ सोने का फैसला किया"
+  - "&3%victim%&r&4 को लगा कि वह समय पर ऑक्सीजन तक पहुँच जाएगा"
+  - "&3%victim%&r&4 ने पानी से तेज तैरने की कोशिश की"
+
+suffocation-messages:
+  - "&3%victim%&r&4 ब्लॉक के अंदर सांस नहीं ले सका"
+  - "&3%victim%&r&4 एक ब्लॉक के अंदर दबकर मर गया"
+
+cramming-messages:
+  - "&3%victim%&r&4 को भीड़ में कुचल दिया गया"
+  - "&4बेचारा &3%victim%&r&4, उसे लगा कि वह 1x1 जगह में रह सकता है"
+
+thorns-messages:
+  - "&3%victim%&r&4 को &3%killer%&r&4 के काँटेदार कवच ने मार गिराया"
+  - "&3%victim%&r&4 का पाला &3%killer%&r&4 के काँटों से पड़ा"
+
+lava-messages:
+  - "&3%victim%&r&4 लावे के गड्ढे में जल गया"
+  - "&3%victim%&r&4 लावे में तैरने गया और कबाब बन गया"
+
+magma-block-messages:
+  - "&3%victim%&r&4 को एक गर्म &6मैग्मा ब्लॉक&r&4 ने हटा दिया"
+  - "&3%victim%&r&4 के पैर &6मैग्मा ब्लॉक&r&4 पर भुन गए"
+
+elytra-messages:
+  - "&3%victim%&r&4 दीवार से टकराया और मर गया...?"
+  - "&3%victim%&r&4 को उसके एलाइट्रा ने दीवार में ठोक दिया"
+
+wither-messages:
+  - "&3%victim%&r&4 को &9विदर (wither) &4की बीमारी हो गई"
+  - "&3%victim%&r&4 &9विदर &4के कारण चौथी दुनिया में चला गया"
+
+suicide-messages:
+  - "&3%victim%&r&4 ने खुद को मार डाला"
+  - "&3%victim%&r&4 को मानसिक आघात लगा और वह मर गया"
+
+fire-messages:
+  - "&3%victim%&r&4 आग की भट्टी में खड़ा हो गया"
+  - "&3%victim%&r&4 आग से खेल रहा था"
+
+fire-tick-messages:
+  - "&3%victim%&r&4 रुकना, झुकना और लुढ़कना भूल गया"
+
+starvation-messages:
+  - "&3%victim%&r&4 खाना भूल गया"
+  - "&3%victim%&r&4 की मम्मी ने कहा था कि घर पर खाना है, पर वह नहीं पहुँचा"
+
+cactus-messages:
+  - "&3%victim%&r&4 को काँटों ने गोद डाला"
+  - "&3%victim%&r&4 ने एक्यूटपंक्चर की कोशिश की, पर मर गया"
+  - "&3%victim%&r&4 ने कैक्टस को गले लगाया और जान गंवा दी"
+
+potion-messages:
+  - "&3%victim%&r&4 एक खराब पोशन का शिकार हो गया"
+  - "&3%victim%&r&4 कोरोना वायरस से मर गया"
+
+void-messages:
+  - "&3%victim%&r&4 को लगा कि शून्य (void) की यात्रा मजेदार होगी"
+  - "&3%victim%&r&4 ने शून्य के लिए वन-वे टिकट ले लिया"
+  - "&3%victim%&r&4 बिना स्पेसशिप के ब्रह्मांड की यात्रा पर निकल गया"
+
+lightning-messages:
+  - "&3%victim%&r&4 पर बिजली गिर गई"
+  - "&3%victim%&r&4 देवताओं के क्रोध का शिकार हुआ"
+  - "&3%victim%&r&4 को ऊपर से एक 'शॉक' लगा"
+
+falling-block-messages:
+  - "&3%victim%&r&4 गिरते हुए ब्लॉक के नीचे दब गया"
+  - "&3%victim%&r&4 गिरते हुए ब्लॉक के साथ एक हो गया"
+
+freeze-messages:
+  - "&3%victim%&r&4 ध्रुवीय ठंड (polar vortex) को नहीं झेल सका"
+  - "&3%victim%&r&4 अपनी जैकेट पहनना भूल गया"
+  - "&3%victim%&r&4 बर्फ के टुकड़े से भी तेज जम गया"
+
+firework-messages:
+  - "&3%victim%&r&4 ने आतिशबाजी में बहुत जल्दी आग लगा दी"
+  - "&3%victim%&r&4 ने स्टाइल से उड़ने की कोशिश की... और क्रैश हो गया"
+
+slime-messages:
+  - "&3%victim%&r&4 को एक &2विशाल स्लाइम (SLIME) &4ने कुचल दिया"
+  - "&3%victim%&r&4 स्लाइम बॉल्स इकट्ठा करते समय &2स्लाइम&4 में दबकर मर गया"
+
+zombie-messages:
+  - "&3%victim%&r&4 को एक &2जॉम्बी&4 ने जिंदा खा लिया"
+  - "&3%victim%&r&4 को लगा कि वह &2जॉम्बी&4 मिलनसार है"
+
+pigman-messages:
+  - "&3%victim%&r&4 ने &eपिगमैन&4 को गुस्सा दिलाया और जिंदा खा लिया गया"
+  - "&3%victim%&r&4 ने &eपिगमैन&4 को चिढ़ाया और उनका नाश्ता बन गया"
+
+skeleton-messages:
+  - "&3%victim%&r&4 को एक &fकंकाल&4 ने स्नाइपर शॉट मार दिया"
+  - "&3%victim%&r&4 को &fकंकाल&4 ने तीर मार दिया"
+
+magmacube-messages:
+  - "&3%victim%&r&4 को एक &6विशाल मैग्मा क्यूब&4 ने कुचल दिया"
+
+husk-messages:
+  - "&3%victim%&r&4 को एक रेगिस्तानी &3हस्क (Husk)&4 ने खा लिया"
+
+spider-messages:
+  - "&3%victim%&r&4 एक चालाक &1मकड़ी&4 का शिकार हुआ"
+  - "&3%victim%&r&4 &1मकड़ी&4 का स्नैक बन गया"
+
+cavespider-messages:
+  - "&3%victim%&r&4 को एक &1गुफा मकड़ी&4 ने काटकर मार डाला"
+
+witherskeleton-messages:
+  - "&3%victim%&r&4 को एक &0विदर स्केलेटन&4 ने पत्थर की तलवार से खत्म कर दिया"
+
+witherboss-messages:
+  - "&3%victim%&r&4 का सिर &0विदर (Wither)&4 ने उड़ा दिया"
+  - "&3%victim%&r&4 ने &0विदर&4 को चुनौती दी और सिर गंवा बैठा"
+
+dragon-messages:
+  - "&3%victim%&r&4 को &5एंडर ड्रैगन&4 ने चीर दिया"
+  - "&3%victim%&r&4 को एंड पोर्टल नहीं बल्कि रिस्पॉन स्क्रीन मिली"
+
+dragon-breath-messages:
+  - "&3%victim%&r&4 ने &5एंडर ड्रैगन की सांस&4 में स्नान कर लिया"
+  - "&3%victim%&r&4 ने &5एंडर ड्रैगन की सांस&4 ज्यादा ही सूंघ ली"
+
+elderguardian-messages:
+  - "&3%victim%&r&4 ने ओशन मॉन्यूमेंट साफ़ करने की कोशिश की पर &bएल्डर गार्जियन&4 ने मना कर दिया"
+
+tnt-messages:
+  - "&3%victim%&r&4 का सिर &4TNT&4 ने उड़ा दिया"
+  - "&3%victim%&r&4 &4TNT&4 से उड़ गया"
+
+end-crystal-messages:
+  - "&3%victim%&r&4 को एक &5एंड क्रिस्टल (End Crystal)&4 ने टुकड़ों में बाँट दिया"
+
+creeper-messages:
+  - "&3%victim%&r&4 का पाला एक &aक्रीपर&4 के विस्फोटक स्वभाव से पड़ा"
+  - "&3%victim%&r&4 ने एक &aक्रीपर&4 को देखा और वह आसमान में पहुँच गया"
+  - "&3%victim%&r&4 ने एक &aक्रीपर&4 को डिफ्यूज करने की कोशिश की... पर असफल रहा"
+
+ghast-messages:
+  - "&3%victim%&r&4 को एक &bघास्ट (Ghast)&4 ने फायरबॉल मार दिया"
+
+enderman-messages:
+  - "&3%victim%&r&4 ने एक &5एंडरमैन&4 की आँखों में देख लिया"
+  - "&3%victim%&r&4 ने &5एंडरमैन&4 के साथ लुका-छिपी खेलने की कोशिश की"
+
+silverfish-messages:
+  - "&3%victim%&r&4 को एक &7सिल्वरफिश&4 ने खा लिया"
+
+witch-messages:
+  - "&3%victim%&r&4 को एक शातिर &9चुड़ैल (Witch)&4 ने मार डाला"
+
+shulker-messages:
+  - "&3%victim%&r&4 शल्कर शेल्स पाने की कोशिश में मर गया"
+  - "&3%victim%&r&4 को एक &dशल्कर&4 ने गोली मार दी"
+
+guardian-messages:
+  - "&3%victim%&r&4 को एक &7गार्जियन&4 ने मार डाला"
+  - "&3%victim%&r&4 को एक बिजली वाले &7गार्जियन&4 ने झटका दिया"
+
+golem-messages:
+  - "&3%victim%&r&4 ने &7आयरन गोलम&4 को गुस्सा दिला दिया"
+  - "&3%victim%&r&4 गोलम के हाथों हवा में पहुँच गया"
+
+zombievillager-messages:
+  - "&3%victim%&r&4 एक &2जॉम्बी विलेजर&4 का रात का खाना बन गया"
+
+endermite-messages:
+  - "&3%victim%&r&4 का पाला एक &5एंडरमाइट&4 से पड़ा और वह मारा गया"
+
+phantom-messages:
+  - "&3%victim%&r&4 को एक &1फैंटम (Phantom)&4 ने अगवा कर लिया"
+
+drowned-messages:
+  - "&3%victim%&r&4 देर रात तैरने गया और &2ड्रॉन्ड (Drowned)&4 का शिकार बना"
+
+pillager-messages:
+  - "&3%victim%&r&4 को &3पिलेजर&4 ने मार दिया"
+
+ravager-messages:
+  - "&3%victim%&r&4 को &3रैवेजर&4 ने टक्कर मार दी"
+
+illusioner-messages:
+  - "&3%victim%&r&4 को एक &6इल्यूजनर&4 ने भ्रम की दुनिया में भेज दिया"
+
+bee-messages:
+  - "&3%victim%&r&4 को &6मधुमक्खी&4 ने डंक मार दिया"
+  - "&3%victim%&r&4 ने &6मधुमक्खी&4 से पंगा लिया और हार गया"
+
+wolf-messages:
+  - "&3%victim%&r&4 को एक &7भेड़िए&4 ने फाड़ डाला"
+
+llama-messages:
+  - "&3%victim%&r&4 को &eलामा&4 के थूक ने मार दिया"
+
+blaze-messages:
+  - "&3%victim%&r&4 को एक &6ब्लेज&4 ने जला दिया"
+  - "&3%victim%&r&4 एक जलते हुए &6ब्लेज&4 का शिकार हुआ"
+
+stray-messages:
+  - "&3%victim%&r&4 को एक &7स्ट्रे (Stray)&4 ने मार गिराया"
+
+vex-messages:
+  - "&3%victim%&r&4 को एक छोटे उड़ने वाले &bवेक्स (Vex)&4 ने खा लिया"
+
+vindicator-messages:
+  - "&3%victim%&r&4 का शिकार एक &4विंडिकेटर&4 ने किया"
+
+evoker-messages:
+  - "&3%victim%&r&4 को एक &4इवोकर (Evoker)&4 ने मार डाला"
+
+pufferfish-messages:
+  - "&3%victim%&r&4 ने &eपफरफिश (Pufferfish)&4 के जहर को हल्के में लिया"
+
+polar-bear-messages:
+  - "&3%victim%&r&4 को एक बर्फीले &fध्रुवीय भालू&4 ने मार डाला"
+
+dolphin-messages:
+  - "&3%victim%&r&4 ने &bडॉल्फिन&4 को छेड़ा... और जान गंवाई"
+
+panda-messages:
+  - "&3%victim%&r&4 एक &8पांडा&4 का भोजन बन गया"
+
+piglin-messages:
+  - "&3%victim%&r&4 नए &6पिगलिन्स&4 से हार गया"
+  - "&3%victim%&r&4 ने &6पिगलिन्स&4 से पंगा लिया और जान गंवा दी"
+
+hoglin-messages:
+  - "&3%victim%&r&4 को एक &6होगलिन&4 ने हवा में उछाल दिया"
+
+zoglin-messages:
+  - "&3%victim%&r&4 को एक &6जोगलिन (Zoglin)&4 ने मार गिराया"
+
+goat-messages:
+  - "&3%victim%&r&4 को एक &4बकरी&4 ने टक्कर मार दी"
+
+zombified-piglin-messages:
+  - "&3%victim%&r&4 एक &6पिगलिन&4 को ओवरवर्ल्ड में लाया और उसी ने उसे मार डाला"
+
+fox-messages:
+  - "&3%victim%&r&4 ने &6लोमड़ी&4 के साथ पंगा लिया और हार गया"
+
+warden-messages:
+  - "&3%victim%&r&4 को &1वार्डन (Warden)&4 ने मार डाला... और आप क्या उम्मीद कर रहे थे?"
+  - "&3%victim%&r&4 ने &1वार्डन&4 की ताकत को कम करके आँका"
+
+warden-sonic-boom-messages:
+  - "&3%victim%&r&4 को &1वार्डन&4 के सोनिक बूम ने नष्ट कर दिया"
+  - "&3%victim%&r&4 के कान &1वार्डन&4 के सोनिक बूम से फट गए"
+
+unknown-messages:
+  - "&3%victim%&r&4 अज्ञात कारणों से मर गया"
+  - "&3%victim%&r&4 मर गया"
+  - "&3%victim%&r&4 की मौत हो गई"
+
+fireball-messages:
+  - "&3%victim%&r&4 अचानक आए &4फायरबॉल&4 हमले में जल गया"
+  - "&3%victim%&r&4 &4फायरबॉल&4 की आंधी में फंस गया"
+
+arrow-messages:
+  - "&3%victim%&r&4 &5तीरों&4 की बारिश में फंस गया"
+  - "&3%victim%&r&4 ने &5तीरों&4 से तेज भागने की कोशिश की... पर असफल रहा"

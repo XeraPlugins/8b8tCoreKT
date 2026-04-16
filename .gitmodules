@@ -1,0 +1,3 @@
+[submodule "libs/nuvotifier"]
+	path = libs/nuvotifier
+	url = https://github.com/8b8tDev/NuVotifier.git

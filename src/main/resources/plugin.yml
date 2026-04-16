@@ -1,0 +1,215 @@
+name: 8b8tCore
+main: me.gb8.core.Main
+version: 1.0.0
+author: 8b8tTeam
+description: 8b8tCore Kotlin Edition
+api-version: 1.21
+folia-supported: true
+softdepend:
+  - VotifierPlus
+commands:
+  msg:
+    aliases: [message, whisper, tell, w]
+  reply:
+    aliases: [r]
+  ignore:
+  togglechat:
+  unignore:
+  ignorelist:
+  tpa:
+    aliases: []
+  tpahere:
+  tpayes:
+    aliases: []
+  tpano:
+    aliases: []
+  tpacancel:
+  tpatoggle:
+  home:
+    aliases: []
+  sethome:
+    aliases: []
+  delhome:
+  back:
+  hotspot:
+  lef:
+  discord:
+  help:
+  open:
+  say:
+  spawn:
+  speed:
+  uptime:
+  world:
+  vote:
+  tpsinfo:
+  repair:
+  rename:
+  sign:
+  togglejoinmessages:
+    aliases: []
+  toggleprefix:
+  deathmessage:
+  announcements:
+  achievements:
+  shadowmute:
+    aliases: [mute, sm]
+  vanish:
+    aliases: []
+  clearentities:
+    aliases: [ce]
+  gmc:
+  gmsp:
+  gms:
+  table:
+  jihad:
+  joindate:
+  kill:
+  lastseen:
+  cosmetics:
+    aliases: []
+  toggleleaderboard:
+    aliases: []
+  dps:
+    aliases: []
+    description: Disable phantom spawning for yourself
+    permission: 8b8tcore.command.dps
+permissions:
+  8b8tcore.viewdistance.default:
+    description: Permission for the default view distance
+    default: true
+  8b8tcore.viewdistance.4:
+    description: Permission to set a view distance of 4 chunks
+    default: false
+  8b8tcore.viewdistance.6:
+    description: Permission to set a view distance of 6 chunks
+    default: false
+  8b8tcore.viewdistance.8:
+    description: Permission to set a view distance of 8 chunks
+    default: false
+  8b8tcore.viewdistance.16:
+    description: Permission to set a view distance of 16 chunks
+    default: false
+  8b8tcore.viewdistance.32:
+    description: Permission to set a view distance of 32 chunks
+    default: false
+  8b8tcore.simulationdistance.default:
+    description: Permission for the default simulation distance
+    default: true
+  8b8tcore.simulationdistance.4:
+    description: Permission to set a simulation distance of 4 chunks
+    default: false
+  8b8tcore.simulationdistance.6:
+    description: Permission to set a simulation distance of 6 chunks
+    default: false
+  8b8tcore.simulationdistance.8:
+    description: Permission to set a simulation distance of 8 chunks
+    default: false
+  8b8tcore.simulationdistance.16:
+    description: Permission to set a simulation distance of 16 chunks
+    default: false
+  8b8tcore.simulationdistance.32:
+    description: Permission to set a simulation distance of 32 chunks
+    default: false
+  8b8tcore.tpsinfo:
+    description: Permission to show TPS information
+    default: false
+  8b8tcore.prefix.bot:
+    description: Nametag Prefix for VERIFIED BOTS
+    default: false
+  8b8tcore.prefix.donator1:
+    description: Nametag Prefix for DONATOR 1
+    default: false
+  8b8tcore.prefix.donator2:
+    description: Nametag Prefix for DONATOR 2
+    default: false
+  8b8tcore.prefix.donator3:
+    description: Nametag Prefix for DONATOR 3
+    default: false
+  8b8tcore.prefix.donator4:
+    description: Nametag Prefix for DONATOR 4
+    default: false
+  8b8tcore.prefix.donator5:
+    description: Nametag Prefix for DONATOR 5
+    default: false
+  8b8tcore.prefix.donator6:
+    description: Nametag Prefix for DONATOR 6
+    default: false
+  8b8tcore.prefix.dev:
+    description: Nametag Prefix for DEV
+    default: false
+  8b8tcore.prefix.owner:
+    description: Nametag Prefix for Owner
+    default: false
+  8b8tcore.prefix.youtuber:
+    description: Nametag Prefix for Youtubers
+    default: false
+  8b8tcore.prefix.thetroll2001:
+    description: Nametag Prefix for Troll
+    default: false
+  8b8tcore.prefix.qtdonkey:
+    description: Nametag Prefix for Television
+    default: false
+  8b8tcore.prefix.lucky2007:
+    description: Nametag Prefix for Addict
+    default: false
+  8b8tcore.command.toggleprefix:
+    description: Permission to toggle prefix visibility
+    default: true
+  8b8tcore.command.jihad:
+    description: Permission to use the jihad command
+    default: true
+  8b8tcore.command.deathmessage:
+    description: Permission to toggle death message visibility
+    default: true
+  8b8tcore.command.announcements:
+    description: Permission to toggle server announcements visibility
+    default: true
+  8b8tcore.command.badges:
+    description: Permission to toggle advancement announcements visibility
+    default: true
+  8b8tcore.command.joindate:
+    description: Permission to check your own join date
+    default: true
+  8b8tcore.command.joindate.others:
+    description: Permission to check other players' join dates
+    default: false
+  8b8tcore.command.joindate.reload:
+    description: Permission to reload join date configuration
+    default: false
+  8b8tcore.command.kill.others:
+    description: Permission to kill other players
+    default: false
+  8b8tcore.command.lastseen:
+    description: Permission to check when a player was last seen
+    default: true
+  8b8tcore.command.lastseen.location:
+    description: Permission to see player's last location
+    default: false
+  8b8tcore.command.kill:
+    description: Permission to kill yourself
+    default: true
+  8b8tcore.command.suicide:
+    description: Permission to commit suicide
+    default: true
+  8b8tcore.command.dps:
+    description: Permission to use the dps command
+    default: true
+  8b8tcore.command.title:
+    description: Permission to switch between earned titles
+    default: true
+  8b8tcore.command.toggleleaderboard:
+    description: Permission to toggle between custom and vanilla tablist
+    default: true
+  8b8tcore.command.nc:
+    description: Permission to use the nickname color command (voters/donators)
+    default: false
+  8b8tcore.prefix.custom:
+    description: Permission for custom rank with customizable gradient
+    default: false
+  8b8tcore.command.cosmetics:
+    description: Permission to access the main cosmetics menu
+    default: true
+  8b8tcore.command.nick:
+    description: Permission to set a nickname
+    default: false

@@ -1,0 +1,248 @@
+#8b8tCore Version 1.9.2
+AntiIllegal:
+  Enabled: true
+  EnableIllegalBlocksCleaner: true
+  IllegalBlocks:
+    - BEDROCK
+    - BARRIER
+    - COMMAND_BLOCK
+    - CHAIN_COMMAND_BLOCK
+    - REPEATING_COMMAND_BLOCK
+    - STRUCTURE_BLOCK
+    - STRUCTURE_VOID
+    - JIGSAW
+    - END_PORTAL
+    - END_PORTAL_FRAME
+    - LIGHT
+    - REINFORCED_DEEPSLATE
+  IllegalBlocksCleaner:
+    Batch: 128
+    DelayTicks: 5
+    Version: 1
+  MaxItemNameLength: 51
+  IllegalItems:
+    - 'BEDROCK'
+    - 'BARRIER'
+    - 'END_PORTAL_FRAME'
+    - 'SPAWNER'
+    - 'STRUCTURE_BLOCK'
+    - 'STRUCTURE_VOID'
+    - '*SPAWN_EGG*'
+    - '*COMMAND_BLOCK*'
+    - 'KNOWLEDGE_BOOK'
+    - 'DIRT_PATH'
+    - 'FARMLAND'
+    - 'REINFORCED_DEEPSLATE'
+    - 'DEBUG_STICK'
+    - 'LIGHT'
+AnnouncementInterval: 90
+AntiLagChest:
+  enabled: true
+  openCooldown: 2000L
+  maxItemSizeAllowed: 50000
+NbtBanItemChecker:
+  maxItemSizeAllowed: 50000
+ChatControl:
+  PreventLinks: true
+  Cooldown: 2
+  Blocked:
+    - 'Anar Anarchy'
+    - '5b5t'
+    - 'Deja de buscar un servidor y gastar dinero comprando kits y mejor unete al mejor servidor con Kits y Sorteos 100% Grati'
+    - 'snowanarchy'
+    - 'demonmc'
+    - 'snowan'
+    - 'Anar'
+    - 'AnarAnarchy'
+    - '.org'
+    - 'EndPortal'
+    - 'endportal'
+    - 'NetherPortal'
+    - 'netherportal'
+    - '89.35.49.34:19175'
+    - 'SurvivalCraft'
+    - 'Joooin'
+    - '.at'
+    - 'Join 89,35,49,34:19175 Semi-Anarchy Bedrock'
+    - 'Semi-Anarchy'
+    - 'Join'
+    - 'Entra'
+    - '89,35'
+    - 'JOIN'
+    - 'fuck 8b8t'
+    - 'mc.latinomc.tk'
+    - 'AnarchyLatam.ploudos.me'
+    - 'anarchyvn.net'
+    - '9aJSETCQTr'
+    - 'Nar6nCnS8T'
+    - 'gg/9aJSETCQTr'
+    - 'gg/Nar6nCnS8T'
+    - 'lunecraft'
+    - '3b3t.shock.gg'
+    - 'snowаnarchy,оrg'
+    - 'ＳｎｏｗＡｎａｒｃｈｙ,ｏｒｇ ｈａ ａｂｉｅｒｔｏ ｓｕｓ ｐｕｅｒｔａｓ ａ ｊｕｇａｄｏｒｅｓ ｅｓｐａñｏｌｅｓ ｙ ｉｎｇｌｅｓｅｓ， ｅｎｔｒａ ｙ ｄｉｓｆｒｕｔａ'
+    - 'ＳｎｏｗＡｎａｒｃｈｙ,ｏｒg'
+    - 'chad-sigma-topg'
+    - '3b3t,shock,gg'
+    - '3b3t'
+    - '3B3T'
+    - 'DeathAnarchy.nether-zone.com'
+    - '9b9t'
+    - 'discord'
+  CommandWhitelist:
+    - '/ignore'
+    - '/unignore'
+    - '/ignorelist'
+    - '/togglechat'
+    - '/msg'
+    - '/message'
+    - '/whisper'
+    - '/tell'
+    - '/w'
+    - '/reply'
+    - '/r'
+    - '/home'
+    - '/sethome'
+    - '/delhome'
+    - '/back'
+    - '/help'
+    - '/kill'
+    - '/jihad'
+    - '/dupe'
+    - '/stats'
+    - '/tpa'
+    - '/tpahere'
+    - '/tpayes'
+    - '/tpano'
+    - '/tpacancel'
+    - '/help'
+    - '/worldstats'
+    - '/stats'
+    - '/discord'
+    - '/joindate'
+    - '/lastseen'
+    - '/echest'
+    - '/voicechat'
+    - '/vote'
+    - '/tpsinfo'
+    - '/rename'
+    - '/hotspot'
+    - '/sign'
+    - '/togglejoinmessages'
+    - '/shadowmute'
+    - '/vanish'
+    - '/clearentities'
+    - '/suicide'
+    - '/table'
+    - '/tpatoggle'
+    - '/tpaignore'
+    - '/toggleprefix'
+    - '/announcements'
+    - '/achievements'
+    - '/deathmessage'
+    - '/dps'
+    - '/toggleleaderboard'
+    - '/cosmetics'
+TPA:
+  RequestTimeoutInMinutes: 5
+TPS:
+  Permissions:
+    - '8b8tcore.tpsinfo'
+TPAHOMERADIUS:
+  default: 20000
+Home:
+  MaxHomes: 5
+#Voting requires VotifierPlus
+#https://www.spigotmc.org/resources/votifierplus.74040/
+Vote:
+  Rewards:
+    - 'lp user %s group add voter'
+  # In days (0 days = no expiry)
+  OfflineVoteExpirationDays: 7
+  VoterRoleExpirationDays: 30
+  LegacyPlayerDefaultDaysRemaining: 20
+  EnableLegacyPlayerMigration: true
+  ExpirationCommand: 'lp user %s group remove voter'
+Patch:
+  DefaultElytraMaxSpeedBlocksPerSecond: 128
+  TileEntitiesElytraMaxSpeedBlocksPerSecond: 64
+  ChestLimitPerChunk: 280
+  BoundaryProtection:
+    Enabled: true
+    NetherRoofProtection:
+      Enabled: true
+      # Keep this false. If set to true, it will kill players. This is not needed. Teleporting is much cooler and better.
+      DamagePlayers: false
+      BlockPlayers: true
+      EnsureSafeTeleport: true
+      NetherYLevel: 128
+  EntityPerChunk:
+    CheckInterval: 1 # minutes 
+    DefaultMax: 32 # -1 for unlimited default max
+    EntitiesPerChunk:
+      - 'wither::20'
+      - 'boat::10'
+      - 'falling_block::200'
+      - 'dropped_item::100'
+      - 'item_frame::256'
+      - 'glow_item_frame::256'
+    PhantomFixes:
+      Enabled: true
+      BlockAll: false
+      OnlyInEnd: true
+      SpawnAboveBlocks:
+        - END_STONE
+        - CHORUS_FLOWER
+        - CHORUS_PLANT
+      DisableScreechUntilAttacked: true
+      OnlyHostileIfAttacked: true
+Redstone:
+    StrictTPS: 14
+    StrictMaxVLS: 70 #How many redstone operations per second can happen in strict mode
+    RegularMaxVLS: 20000 #How many redstone operations per second can happen in regular mode
+Commands:
+  Discord: '&3Join us on discord at&r&a https://discord.8b8t.me'
+  Matrix: '&3Join us on matrix at&r&a https://matrix.8b8t.me'
+OpUsersWhiteList:
+  - 'Leee'
+  - 'YoThisIsAnAltLOL'
+  - 'cubebuilder_'
+  - 'SrGokuto'
+  - 'MindComplexity'
+prefix: '&8[&98b&78t&8]'
+viewdistance:
+  default: 6
+simulationdistance:
+  default: 4
+FrameDupe:
+  enabled: true
+  votersOnly: true
+  dupeCooldown: 200L
+  limitItemsPerChunk: 18
+  probabilityPercentage: 5
+ZombieDupe:
+  enabled: true
+  votersOnly: true
+  dupeCooldown: 200L
+  limitItemsPerChunk: 18
+  probabilityPercentage: 100
+  rottenFleshDropPercentage: 50
+DonkeyDupe:
+  enabled: true
+  votersOnly: true
+DupeCommand:
+  enabled: false
+  votersOnly: false
+AnonymousKickMessages:
+  Enabled: true
+  Message: "You have been disconnected from the server"
+RestrictedMapIDs:
+  - 1366
+  - 1261
+  - 1537
+  - 1288
+  - 13902
+  - 13903
+  - 13904
+  - 13905
+  - 13901
