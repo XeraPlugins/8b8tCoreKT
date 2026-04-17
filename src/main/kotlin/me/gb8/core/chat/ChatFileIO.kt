@@ -17,7 +17,6 @@ import org.bukkit.entity.Player
 import java.io.File
 import java.io.FileReader
 import java.io.FileWriter
-import java.util.HashSet
 import java.util.UUID
 import java.util.logging.Level
 
@@ -34,8 +33,8 @@ class ChatFileIO(private val dataDir: File, private val cm: ChatSection) : IStor
 
         try {
             val obj = com.google.gson.JsonObject()
-            obj.addProperty("togglechat", data.isToggledChat())
-            obj.addProperty("togglejoinmessages", data.isJoinMessages())
+            obj.addProperty("togglechat", data.isToggledChat)
+            obj.addProperty("togglejoinmessages", data.isJoinMessages)
             val arr = com.google.gson.JsonArray()
             data.ignoring.forEach { u -> arr.add(u.toString()) }
             obj.add("ignores", arr)
@@ -59,7 +58,7 @@ class ChatFileIO(private val dataDir: File, private val cm: ChatSection) : IStor
 
                     val toggleChat = obj.has("togglechat") && obj["togglechat"].asBoolean
                     val toggleJoinMessages = obj.has("togglejoinmessages") && obj["togglejoinmessages"].asBoolean
-                    val ignores: HashSet<UUID> = if (obj.has("ignores")) parse(obj["ignores"].asJsonArray) else HashSet()
+                    val ignores: Set<UUID> = if (obj.has("ignores")) parse(obj["ignores"].asJsonArray) else emptySet()
 
                     return ChatInfo(id, cm, ignores, toggleChat, toggleJoinMessages)
                 }
@@ -72,10 +71,8 @@ class ChatFileIO(private val dataDir: File, private val cm: ChatSection) : IStor
     }
 
     
-    private fun parse(arr: com.google.gson.JsonArray): HashSet<UUID> {
-        val buf = HashSet<UUID>()
-        arr.forEach { u -> buf.add(UUID.fromString(u.asString)) }
-        return buf
+    private fun parse(arr: com.google.gson.JsonArray): Set<UUID> {
+        return arr.mapTo(mutableSetOf()) { UUID.fromString(it.asString) }
     }
 
     @Suppress("NAMED_PARAMETER_SHADOWING")

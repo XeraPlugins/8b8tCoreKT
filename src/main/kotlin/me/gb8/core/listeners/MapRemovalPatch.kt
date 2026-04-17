@@ -30,17 +30,16 @@ import org.bukkit.inventory.meta.MapMeta
 import org.bukkit.plugin.java.JavaPlugin
 
 import javax.annotation.Nullable
-import java.util.HashSet
 
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
 
 class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
 
-    private val restrictedMapIds = HashSet<Int>()
+    private val restrictedMapIds = mutableSetOf<Int>()
 
     init {
         val config = plugin.config
-        var restrictedIds = config.getIntegerList("RestrictedMapIDs")
+        val restrictedIds = config.getIntegerList("RestrictedMapIDs")
         restrictedMapIds.addAll(restrictedIds)
     }
 
@@ -137,7 +136,7 @@ class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
             if (!meta.hasMapId()) {
                 return false
             }
-            return restrictedMapIds.contains(meta.mapId)
+            return meta.mapId in restrictedMapIds
         }
         return false
     }

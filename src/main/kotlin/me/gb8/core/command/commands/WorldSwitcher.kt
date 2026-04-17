@@ -24,8 +24,7 @@ class WorldSwitcher(private val main: me.gb8.core.Main) : BaseCommand(
 ) {
     
     override fun execute(sender: CommandSender, args: Array<String>) {
-        val player = getSenderAsPlayer(sender)
-        if (player != null) {
+        getSenderAsPlayer(sender)?.let { player ->
             if (args.isNotEmpty()) {
                 val worldName = Bukkit.getWorlds()[0].name
                 val x = player.location.x
@@ -48,15 +47,11 @@ class WorldSwitcher(private val main: me.gb8.core.Main) : BaseCommand(
                         player.teleportAsync(Location(endWorld, x, y, z))
                         sendMessage(player, "&3Teleporting to &r&a${args[0]}")
                     }
-                    else -> {
-                        sendMessage(sender, "&4Error:&r&c Unknown world")
-                    }
+                    else -> sendMessage(sender, "&4Error:&r&c Unknown world")
                 }
             } else {
                 sendErrorMessage(sender, "Please include one argument /world <end | overworld | nether>")
             }
-        } else {
-            sendErrorMessage(sender, PLAYER_ONLY)
-        }
+        } ?: sendErrorMessage(sender, PLAYER_ONLY)
     }
 }

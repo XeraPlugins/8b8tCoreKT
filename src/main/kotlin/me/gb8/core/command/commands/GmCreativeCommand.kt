@@ -21,11 +21,10 @@ class GmCreativeCommand : BaseCommand(
 ) {
 
     override fun execute(sender: CommandSender, args: Array<String>) {
-        val player = getSenderAsPlayer(sender)
-        if (player != null) {
+        getSenderAsPlayer(sender)?.let { player ->
             if (player.hasPermission("8b8tcore.command.gmc") || player.isOp || player.hasPermission("*")) {
                 player.gameMode = GameMode.CREATIVE
             }
-        } else sendErrorMessage(sender, PLAYER_ONLY)
+        } ?: sendErrorMessage(sender, PLAYER_ONLY)
     }
 }

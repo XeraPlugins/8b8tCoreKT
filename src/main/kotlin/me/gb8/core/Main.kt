@@ -37,17 +37,13 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.java.JavaPlugin
-import org.bukkit.scheduler.BukkitTask
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Consumer
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.logging.Level
-import java.util.logging.Handler
 import java.util.UUID
-import kotlin.jvm.JvmName
 
 class Main : JavaPlugin(), Listener {
 
@@ -59,12 +55,6 @@ class Main : JavaPlugin(), Listener {
             private set
         lateinit var executorService: ScheduledExecutorService
             private set
-        
-        @JvmStatic
-        fun main(): Main = instance
-        
-        @JvmStatic
-        fun getInstance(): Main = instance
     }
 
     internal val sections = mutableListOf<Section>()
@@ -157,26 +147,24 @@ class Main : JavaPlugin(), Listener {
         sections.clear()
         reloadables.clear()
 
-        try {
+        runCatching {
             GeneralDatabase.getInstance().close()
             GlobalUtils.log(Level.INFO, "GeneralDatabase closed successfully")
-        } catch (e: IllegalStateException) {
-            // Database was never initialized
+        }.onFailure { e ->
+            if (e !is IllegalStateException) throw e
         }
 
-        if (!executorService.isShutdown) {
-            executorService.shutdown()
+        executorService.takeIf { !it.isShutdown }?.let { service ->
+            service.shutdown()
             try {
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    executorService.shutdownNow()
+                if (!service.awaitTermination(5, TimeUnit.SECONDS)) {
+                    service.shutdownNow()
                 }
             } catch (e: InterruptedException) {
-                executorService.shutdownNow()
+                service.shutdownNow()
                 Thread.currentThread().interrupt()
             }
         }
-
-
     }
 
     override fun reloadConfig() {

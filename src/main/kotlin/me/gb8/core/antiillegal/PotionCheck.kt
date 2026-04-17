@@ -19,20 +19,15 @@ class PotionCheck : Check {
         if (!shouldCheck(item)) return false
 
         val meta = item?.itemMeta as? PotionMeta ?: return false
-
-        for (effect in meta.customEffects) {
-            if (isIllegalEffect(effect)) return true
-        }
-        return false
+        return meta.customEffects.any { isIllegalEffect(it) }
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
-        return item != null && item.hasItemMeta() && item.itemMeta is PotionMeta
+        return item?.takeIf { it.hasItemMeta() }?.let { it.itemMeta is PotionMeta } ?: false
     }
 
     override fun fix(item: ItemStack?) {
-        if (!shouldCheck(item)) return
-        item?.amount = 0
+        item?.takeIf { shouldCheck(it) }?.apply { amount = 0 }
     }
 
     private fun isIllegalEffect(effect: PotionEffect): Boolean {

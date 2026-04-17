@@ -11,10 +11,8 @@ package me.gb8.core.home.commands
 import me.gb8.core.Main
 import me.gb8.core.home.HomeManager
 import me.gb8.core.util.GlobalUtils
-import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.minimessage.MiniMessage
-import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Sound
@@ -41,6 +39,19 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
     companion object {
         private const val PERMISSION = "8b8tcore.command.hotspotcreate"
         private const val DURATION_IN_SECONDS = 300
+        private const val CREATION_COOLDOWN = 30 * 1000L
+        private const val DURATION_MILLISECONDS = DURATION_IN_SECONDS * 1000L
+        private const val VIEW_SWITCH_TIME = 5
+    }
+
+    private fun hasCreatePermission(player: Player): Boolean =
+        player.hasPermission(PERMISSION) || player.isOp
+
+    private fun getHotspotText(player: Player): String {
+        val playerDisplayNameStr = MiniMessage.miniMessage().serialize(player.displayName())
+        return GlobalUtils.convertToMiniMessageFormat(
+            "<bold><gradient:#5555FF:#0000AA>${playerDisplayNameStr}<reset><bold><gradient:#5555FF:#0000AA>'s hotspot - Do <gradient:#FFE259:#FFA751>/hotspot</gradient> to teleport.</gradient>"
+        ) ?: ""
     }
 
     init {
@@ -77,34 +88,31 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
     }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
-        if (sender !is Player) {
+        val player = sender as? Player ?: run {
             sender.sendMessage("You must be a player to use this command.")
             return true
         }
-        val player = sender
-        if (args.isNotEmpty() && args[0].equals("create", ignoreCase = true)) {
-            if (player.hasPermission(PERMISSION) || player.isOp) createHotspot(player)
-            else GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_perms_create")
-        } else if (args.isNotEmpty() && args[0].equals("delete", ignoreCase = true)) {
-            if (player.hasPermission(PERMISSION) || player.isOp) deleteHotspot(player)
-            else GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_perms_create")
-        } else if (args.isNotEmpty() && args[0].equals("teleport", ignoreCase = true)) {
-            if (args.size == 2) {
-                val targetPlayerName = args[1]
-                teleportToPlayerHotspot(player, targetPlayerName)
-            } else {
-                GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_playername")
+
+        when {
+            args.isEmpty() -> teleportToNearestHotspot(player)
+            args[0].equals("create", ignoreCase = true) -> {
+                if (hasCreatePermission(player)) createHotspot(player)
+                else GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_perms_create")
             }
-        } else {
-            teleportToNearestHotspot(player)
+            args[0].equals("delete", ignoreCase = true) -> {
+                if (hasCreatePermission(player)) deleteHotspot(player)
+                else GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_perms_create")
+            }
+            args[0].equals("teleport", ignoreCase = true) -> {
+                if (args.size == 2) teleportToPlayerHotspot(player, args[1])
+                else GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_no_playername")
+            }
+            else -> teleportToNearestHotspot(player)
         }
         return true
     }
 
     private fun createHotspot(player: Player) {
-        val DURATION_MILLISECONDS = DURATION_IN_SECONDS * 1000L
-        val CREATION_COOLDOWN = 30 * 1000L
-
         val lastCreate = lastCreateTimes.getOrDefault(player.uniqueId, 0L)
         if (System.currentTimeMillis() - lastCreate < DURATION_MILLISECONDS) {
             GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_already_created")
@@ -119,7 +127,6 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
         val lastCreationTime = creationCooldowns[player.uniqueId]
         if (lastCreationTime != null) {
             val timeSinceLastCreation = System.currentTimeMillis() - lastCreationTime
-
             if (timeSinceLastCreation < CREATION_COOLDOWN) {
                 val secondsLeft = (CREATION_COOLDOWN - timeSinceLastCreation) / 1000L
                 GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_creation_cooldown", secondsLeft)
@@ -136,7 +143,6 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
 
         for (p in Bukkit.getOnlinePlayers()) {
             GlobalUtils.sendPrefixedLocalizedMessage(p, "hotspot_created_to_everyone", player.name, player.name)
-
             p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BELL, 2.0f, 0.7f)
 
             val pluginMain = main.main
@@ -147,9 +153,7 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
             }, 6L)
         }
 
-        val playerDisplayName: Component = player.displayName()
-        val playerDisplayNameStr = MiniMessage.miniMessage().serialize(playerDisplayName)
-        val hotspotText = GlobalUtils.convertToMiniMessageFormat("<bold><gradient:#5555FF:#0000AA>${playerDisplayNameStr}<reset><bold><gradient:#5555FF:#0000AA>'s hotspot - Do <gradient:#FFE259:#FFA751>/hotspot</gradient> to teleport.</gradient>") ?: ""
+        val hotspotText = getHotspotText(player)
         val hotspotTextComponent = MiniMessage.miniMessage().deserialize(hotspotText)
         val bossBar = BossBar.bossBar(hotspotTextComponent, 1.0f, BossBar.Color.BLUE, BossBar.Overlay.PROGRESS)
 
@@ -161,7 +165,6 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
         }
 
         playerBossBars[player.uniqueId] = bossBar
-
         handleCooldown(bossBar, DURATION_IN_SECONDS, player)
     }
 
@@ -174,32 +177,21 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
         hotspotLocations.remove(player.uniqueId)
         lastCreateTimes.remove(player.uniqueId)
 
-        val task = cooldownTasks.remove(player.uniqueId)
-        task?.cancel()
+        cooldownTasks.remove(player.uniqueId)?.cancel()
 
-        val bossBar = playerBossBars.remove(player.uniqueId)
-        
-        if (bossBar != null) {
-            val toRemove = mutableListOf<Player>()
-            for (vwer in bossBar.viewers()) {
-                if (vwer is Player) {
-                    toRemove.add(vwer)
-                }
-            }
-            for (viewer in toRemove) {
-                bossBar.removeViewer(viewer)
-            }
+        playerBossBars.remove(player.uniqueId)?.let { bossBar ->
+            bossBar.viewers()
+                .filterIsInstance<Player>()
+                .forEach { bossBar.removeViewer(it) }
         }
 
         if (player.isOnline) GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_deleted")
     }
 
     private fun handleCooldown(bossBar: BossBar, duration: Int, player: Player) {
-        val existingTask = cooldownTasks.remove(player.uniqueId)
-        existingTask?.cancel()
+        cooldownTasks.remove(player.uniqueId)?.cancel()
 
         var timeLeft = duration
-        val viewSwitchTime = 5
         var showingHotspotMessage = true
         val colorRed = "<gradient:#CB2D3E:#EF473A>"
         val colorGreen = "<gradient:#2DCB62:#53AE2C>"
@@ -219,17 +211,14 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
             val seconds = timeLeft % 60
             val timeRemaining = String.format("%02d:%02d", minutes, seconds)
 
-            if (timeLeft % viewSwitchTime == 0) {
+            if (timeLeft % VIEW_SWITCH_TIME == 0) {
                 showingHotspotMessage = !showingHotspotMessage
             }
 
-            val playerDisplayName: Component = player.displayName()
-            val playerDisplayNameStr = MiniMessage.miniMessage().serialize(playerDisplayName)
-            if (showingHotspotMessage) {
-                val hotspotText = GlobalUtils.convertToMiniMessageFormat("<bold><gradient:#5555FF:#0000AA>${playerDisplayNameStr}<reset><bold><gradient:#5555FF:#0000AA>'s hotspot - Do <gradient:#FFE259:#FFA751>/hotspot</gradient> to teleport.</gradient>") ?: ""
-                val hotspotTextComponent = MiniMessage.miniMessage().deserialize(hotspotText)
-                bossBar.name(hotspotTextComponent)
+            val hotspotText = if (showingHotspotMessage) {
+                getHotspotText(player)
             } else {
+                val playerDisplayNameStr = MiniMessage.miniMessage().serialize(player.displayName())
                 var color = colorGreen
                 if (timeLeft <= 30) {
                     color = colorRed
@@ -237,12 +226,12 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
                 } else if (timeLeft <= 60) {
                     color = colorYellow
                 }
-
-                val hotspotText = GlobalUtils.convertToMiniMessageFormat("<bold><gradient:#5555FF:#0000AA>${playerDisplayNameStr}<reset><bold><gradient:#5555FF:#0000AA>'s hotspot ends in $color$timeRemaining</gradient> minutes.</gradient></bold>") ?: ""
-                val hotspotTextComponent = MiniMessage.miniMessage().deserialize(hotspotText)
-                bossBar.name(hotspotTextComponent)
+                GlobalUtils.convertToMiniMessageFormat(
+                    "<bold><gradient:#5555FF:#0000AA>${playerDisplayNameStr}<reset><bold><gradient:#5555FF:#0000AA>'s hotspot ends in $color$timeRemaining</gradient> minutes.</gradient></bold>"
+                ) ?: ""
             }
 
+            bossBar.name(MiniMessage.miniMessage().deserialize(hotspotText))
             timeLeft--
         }, 1L, 20L)
 
@@ -276,36 +265,11 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
 
     private fun teleportToNearestHotspot(player: Player) {
         val playerLocation = player.location
-        var closestDistance = Double.MAX_VALUE
-        var closestHotspot: Location? = null
 
-        for (hotspotLocation in hotspotLocations.values) {
-            if (hotspotLocation.world?.name == playerLocation.world?.name) {
-                val distance = playerLocation.distance(hotspotLocation)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestHotspot = hotspotLocation
-                }
-            }
-        }
-
-        if (closestHotspot == null && hotspotLocations.isNotEmpty()) {
-            var mostRecentPlayerUUID: UUID? = null
-            var mostRecentTime = 0L
-            
-            for (entry in hotspotLocations.entries) {
-                val hotspotOwnerUUID = entry.key
-                val creationTime = lastCreateTimes[hotspotOwnerUUID]
-                if (creationTime != null && creationTime > mostRecentTime) {
-                    mostRecentTime = creationTime
-                    mostRecentPlayerUUID = hotspotOwnerUUID
-                }
-            }
-            
-            if (mostRecentPlayerUUID != null) {
-                closestHotspot = hotspotLocations[mostRecentPlayerUUID]
-            }
-        }
+        val closestHotspot = hotspotLocations.values
+            .filter { it.world?.name == playerLocation.world?.name }
+            .minByOrNull { playerLocation.distance(it) }
+            ?: hotspotLocations.maxByOrNull { lastCreateTimes[it.key] ?: 0L }?.value
 
         if (closestHotspot == null) {
             GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_not_found")
@@ -315,11 +279,10 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
                 GlobalUtils.sendPrefixedLocalizedMessage(player, "tpa_too_close", range)
                 return
             }
-            val finalClosestHotspot = closestHotspot
             val pluginMain = main.main
             Bukkit.getGlobalRegionScheduler().runDelayed(pluginMain, {
                 if (player.isOnline) {
-                    player.teleportAsync(finalClosestHotspot)
+                    player.teleportAsync(closestHotspot)
                     GlobalUtils.sendPrefixedLocalizedMessage(player, "hotspot_teleported_to")
                 }
             }, 1L)

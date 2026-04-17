@@ -9,8 +9,6 @@
 package me.gb8.core.antiillegal
 
 import io.papermc.paper.datacomponent.DataComponentTypes
-import io.papermc.paper.datacomponent.item.PotionContents
-import io.papermc.paper.datacomponent.item.Tool
 import me.gb8.core.antiillegal.AntiIllegalMain
 import me.gb8.core.antiillegal.Check
 import me.gb8.core.util.GlobalUtils
@@ -26,207 +24,154 @@ import java.util.logging.Level
 class IllegalDataCheck : Check {
 
     override fun check(item: ItemStack?): Boolean {
-        if (item == null || item.type.isAir) return false
+        item ?: return false
+        if (item.type.isAir || item.type.isContainer()) return false
 
+        val metaIssues = item.itemMeta?.let { meta ->
+            hasIllegalName(meta) || (meta.isGlider && item.type != Material.ELYTRA)
+        } ?: false
+
+        val dataIssues = runCatching {
+            hasIllegalWaterloggedState(item) ||
+            (item.type != Material.TOTEM_OF_UNDYING && item.hasData(DataComponentTypes.DEATH_PROTECTION)) ||
+            (item.type.isPotion() && hasIllegalPotionEffects(item)) ||
+            hasIllegalFoodEffects(item) ||
+            (item.type.maxDurability > 0 && !item.hasData(DataComponentTypes.MAX_DAMAGE)) ||
+            hasIllegalMaxStack(item) ||
+            hasIllegalToolComponent(item)
+        }.getOrDefault(false)
+
+        return !metaIssues && dataIssues
+    }
+
+    private fun Material.isContainer(): Boolean =
+        name.contains("SHULKER_BOX") || name.endsWith("BUNDLE")
+
+    private fun Material.isPotion(): Boolean =
+        this in setOf(Material.POTION, Material.SPLASH_POTION, Material.LINGERING_POTION, Material.TIPPED_ARROW)
+
+    private fun hasIllegalMaxStack(item: ItemStack): Boolean {
         val type = item.type
-
-        if (isContainer(type)) return false
-
-        try {
-            if (item.hasItemMeta()) {
-                val meta = item.itemMeta
-                if (meta != null) {
-                    if (hasIllegalName(meta)) return true
-                    if (meta.isGlider && type != Material.ELYTRA) return true
-                }
-            }
-
-            if (hasIllegalWaterloggedState(item)) return true
-
-            if (type != Material.TOTEM_OF_UNDYING && item.hasData(DataComponentTypes.DEATH_PROTECTION)) return true
-
-            if (isPotion(type) && hasIllegalPotionEffects(item)) return true
-
-            if (hasIllegalFoodEffects(item)) return true
-
-            if (type.maxDurability > 0 && !item.hasData(DataComponentTypes.MAX_DAMAGE)) return true
-
-            if (item.hasData(DataComponentTypes.MAX_STACK_SIZE)) {
-                val maxStack = item.getData(DataComponentTypes.MAX_STACK_SIZE)
-                if (maxStack == null || maxStack < 1 || maxStack > 99) return true
-            } else {
-                val vanillaMaxStack = type.maxStackSize
-                val actualMaxStack = item.maxStackSize
-                if (vanillaMaxStack > 1 && actualMaxStack == 1) return true
-            }
-
-            if (hasIllegalToolComponent(item)) return true
-
-        } catch (e: Exception) {
-            return false
+        return if (item.hasData(DataComponentTypes.MAX_STACK_SIZE)) {
+            val maxStack = item.getData(DataComponentTypes.MAX_STACK_SIZE)
+            maxStack?.let { it < 1 || it > 99 } ?: false
+        } else {
+            type.maxStackSize > 1 && item.maxStackSize == 1
         }
-
-        return false
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
-        if (item == null || item.type.isAir) return false
-        return !isContainer(item.type)
+        item ?: return false
+        return !item.type.isAir && !item.type.isContainer()
     }
 
     override fun fix(item: ItemStack?) {
-        if (item == null || item.type.isAir) return
+        item ?: return
+        if (item.type.isAir || item.type.isContainer()) return
 
+        item.itemMeta?.apply {
+            if (hasIllegalName(this)) customName(null)
+            if (isGlider && item.type != Material.ELYTRA) isGlider = false
+        }
+
+        fixWaterloggedState(item)
+
+        if (item.type != Material.TOTEM_OF_UNDYING) {
+            item.unsetData(DataComponentTypes.DEATH_PROTECTION)
+        }
+
+        if (item.type.isPotion() && hasIllegalPotionEffects(item)) {
+            item.unsetData(DataComponentTypes.POTION_CONTENTS)
+        }
+
+        if (hasIllegalFoodEffects(item)) {
+            item.unsetData(DataComponentTypes.FOOD)
+            item.unsetData(DataComponentTypes.CONSUMABLE)
+        }
+
+        if (item.type.maxDurability > 0 && !item.hasData(DataComponentTypes.MAX_DAMAGE)) {
+            item.setData(DataComponentTypes.MAX_DAMAGE, item.type.maxDurability.toInt())
+        }
+
+        fixItemMaxStack(item)
+
+        if (hasIllegalToolComponent(item)) {
+            item.unsetData(DataComponentTypes.TOOL)
+        }
+    }
+
+    private fun fixItemMaxStack(item: ItemStack) {
         val type = item.type
-
-        if (isContainer(type)) return
-
-        try {
-            if (item.hasItemMeta()) {
-                val meta = item.itemMeta
-                if (meta != null) {
-                    var metaChanged = false
-
-                    if (hasIllegalName(meta)) {
-                        meta.customName(null)
-                        metaChanged = true
-                    }
-
-                    if (meta.isGlider && type != Material.ELYTRA) {
-                        meta.isGlider = false
-                        metaChanged = true
-                    }
-
-                    if (metaChanged) item.itemMeta = meta
-                }
-            }
-
-            fixWaterloggedState(item)
-
-            if (type != Material.TOTEM_OF_UNDYING) {
-                item.unsetData(DataComponentTypes.DEATH_PROTECTION)
-            }
-
-            if (isPotion(type) && hasIllegalPotionEffects(item)) {
-                item.unsetData(DataComponentTypes.POTION_CONTENTS)
-            }
-
-            if (hasIllegalFoodEffects(item)) {
-                item.unsetData(DataComponentTypes.FOOD)
-                item.unsetData(DataComponentTypes.CONSUMABLE)
-            }
-
-            if (type.maxDurability > 0 && !item.hasData(DataComponentTypes.MAX_DAMAGE)) {
-                item.setData(DataComponentTypes.MAX_DAMAGE, type.maxDurability.toInt())
-            }
-
-            if (item.hasData(DataComponentTypes.MAX_STACK_SIZE)) {
-                val maxStack = item.getData(DataComponentTypes.MAX_STACK_SIZE)
-                if (maxStack == null) {
-                    val vanillaMaxStack = type.maxStackSize
-                    if (vanillaMaxStack > 1) {
-                        item.setData(DataComponentTypes.MAX_STACK_SIZE, vanillaMaxStack)
+        if (item.hasData(DataComponentTypes.MAX_STACK_SIZE)) {
+            val maxStack = item.getData(DataComponentTypes.MAX_STACK_SIZE)
+            when {
+                maxStack == null -> {
+                    if (type.maxStackSize > 1) {
+                        item.setData(DataComponentTypes.MAX_STACK_SIZE, type.maxStackSize)
                     } else {
                         item.unsetData(DataComponentTypes.MAX_STACK_SIZE)
                     }
-                } else if (maxStack < 1 || maxStack > 99) {
-                    item.unsetData(DataComponentTypes.MAX_STACK_SIZE)
                 }
-            } else {
-                val vanillaMaxStack = type.maxStackSize
-                val actualMaxStack = item.maxStackSize
-
-                if (vanillaMaxStack > 1 && actualMaxStack == 1) {
-                    item.setData(DataComponentTypes.MAX_STACK_SIZE, vanillaMaxStack)
-                }
+                maxStack < 1 || maxStack > 99 -> item.unsetData(DataComponentTypes.MAX_STACK_SIZE)
             }
-
-            if (hasIllegalToolComponent(item)) {
-                item.unsetData(DataComponentTypes.TOOL)
+        } else {
+            if (type.maxStackSize > 1 && item.maxStackSize == 1) {
+                item.setData(DataComponentTypes.MAX_STACK_SIZE, type.maxStackSize)
             }
-
-        } catch (ignored: Exception) {}
+        }
     }
 
     private fun hasIllegalToolComponent(item: ItemStack): Boolean {
         if (!item.hasData(DataComponentTypes.TOOL)) return false
 
         val shouldHaveTool = item.type.getDefaultData(DataComponentTypes.TOOL) != null
-
         if (!shouldHaveTool) return true
 
         val tool = item.getData(DataComponentTypes.TOOL) ?: return false
 
-        for (rule in tool.rules()) {
-            val speed = rule.speed()
-            if (speed != null && speed > MAX_LEGAL_TOOL_SPEED) return true
-        }
-        if (tool.defaultMiningSpeed() > MAX_LEGAL_TOOL_SPEED) return true
-
-        return false
-    }
-
-    private fun isContainer(type: Material): Boolean {
-        return type.name.contains("SHULKER_BOX") || type.name.endsWith("BUNDLE")
-    }
-
-    private fun isPotion(type: Material): Boolean {
-        return type == Material.POTION || type == Material.SPLASH_POTION ||
-               type == Material.LINGERING_POTION || type == Material.TIPPED_ARROW
+        return tool.rules().any { rule ->
+            rule.speed()?.let { speed -> speed > MAX_LEGAL_TOOL_SPEED } == true
+        } || tool.defaultMiningSpeed() > MAX_LEGAL_TOOL_SPEED
     }
 
     private fun hasIllegalWaterloggedState(item: ItemStack): Boolean {
         if (!item.type.isBlock) return false
         if (!item.hasData(DataComponentTypes.BLOCK_DATA)) return false
 
-        try {
-            val properties = item.getData(DataComponentTypes.BLOCK_DATA) ?: return false
+        return runCatching {
+            val properties = item.getData(DataComponentTypes.BLOCK_DATA) ?: return@runCatching false
             val dataString = properties.toString()
-            return dataString.contains("waterlogged=true") || dataString.contains("waterlogged=\"true\"")
-        } catch (e: Exception) {
-            return false
-        }
+            "waterlogged=true" in dataString || "waterlogged=\"true\"" in dataString
+        }.getOrDefault(false)
     }
 
     private fun fixWaterloggedState(item: ItemStack) {
         if (!item.type.isBlock) return
-        try {
-            if (hasIllegalWaterloggedState(item)) {
-                item.unsetData(DataComponentTypes.BLOCK_DATA)
-            }
-        } catch (ignored: Exception) {}
+        if (hasIllegalWaterloggedState(item)) {
+            item.unsetData(DataComponentTypes.BLOCK_DATA)
+        }
     }
 
     private fun hasIllegalPotionEffects(item: ItemStack): Boolean {
         if (!item.hasData(DataComponentTypes.POTION_CONTENTS)) return false
 
-        try {
-            val contents = item.getData(DataComponentTypes.POTION_CONTENTS) ?: return false
-
-            for (effect in contents.customEffects()) {
-                if (effect.type == PotionEffectType.LUCK) return true
-                if (effect.amplifier > MAX_LEGAL_AMPLIFIER) return true
-                if (effect.duration > MAX_LEGAL_DURATION) return true
-                if (effect.isInfinite) return true
+        return runCatching {
+            val contents = item.getData(DataComponentTypes.POTION_CONTENTS) ?: return@runCatching false
+            contents.customEffects().any { effect ->
+                effect.type == PotionEffectType.LUCK ||
+                effect.amplifier > MAX_LEGAL_AMPLIFIER ||
+                effect.duration > MAX_LEGAL_DURATION ||
+                effect.isInfinite
             }
-        } catch (e: Exception) {
-            return false
-        }
-
-        return false
+        }.getOrDefault(false)
     }
 
     private fun hasIllegalFoodEffects(item: ItemStack): Boolean {
         if (!item.hasData(DataComponentTypes.FOOD)) return false
 
-        try {
-            val type = item.type
-            if (!type.isEdible && item.hasData(DataComponentTypes.FOOD)) return true
-        } catch (e: Exception) {
-            return false
-        }
-
-        return false
+        return runCatching {
+            !item.type.isEdible && item.hasData(DataComponentTypes.FOOD)
+        }.getOrDefault(false)
     }
 
     private fun hasIllegalName(meta: ItemMeta): Boolean {

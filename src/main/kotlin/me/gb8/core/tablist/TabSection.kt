@@ -15,6 +15,7 @@ import me.gb8.core.player.PrefixManager
 import me.gb8.core.listeners.TablistPlayerJoinListener
 import me.gb8.core.tablist.Utils
 import me.gb8.core.util.GlobalUtils
+import me.gb8.core.util.GradientAnimator
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.Component
 import me.gb8.core.util.FoliaCompat
@@ -34,8 +35,7 @@ class TabSection(override val plugin: Main) : Section {
     private val localeCache = ConcurrentHashMap<String, Localization>()
 
     override fun enable() {
-        val cfg = plugin.getSectionConfig(this)
-        config = cfg
+        val cfg = plugin.getSectionConfig(this).also { config = it }
         cfg?.getInt("UpdateInterval", 1)
 
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
@@ -43,16 +43,19 @@ class TabSection(override val plugin: Main) : Section {
                 tickCount++
                 if (tickCount % 4 == 0L) return@runAtFixedRate
 
-                if (cachedChatSection == null) {
-                    cachedChatSection = plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
-                    if (cachedChatSection == null) return@runAtFixedRate
-                }
+val chatSection = cachedChatSection ?: run {
+                    val section = plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+                    cachedChatSection = section
+                    section
+                } ?: return@runAtFixedRate
 
-                val updatePlaceholders = (tickCount % 10 == 0L)
-                val animTick = me.gb8.core.util.GradientAnimator.getAnimationTick()
+                chatSection
 
-                for (p in Bukkit.getOnlinePlayers()) {
-                    setTab(p, updatePlaceholders, animTick)
+                val updatePlaceholders = tickCount % 10 == 0L
+                val animTick = GradientAnimator.getAnimationTick()
+
+                Bukkit.getOnlinePlayers().forEach { player ->
+                    setTab(player, updatePlaceholders, animTick)
                 }
             } catch (t: Throwable) {
                 t.printStackTrace()
@@ -72,24 +75,29 @@ class TabSection(override val plugin: Main) : Section {
 
     override val name: String = "TabList"
 
-
     fun setTab(player: Player, updatePlaceholders: Boolean, animTick: Long) {
-        val chatSection = cachedChatSection ?: plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection ?: return
+        val chatSection = cachedChatSection ?: run {
+            val section = plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+            cachedChatSection = section
+            section
+        } ?: return
+
         val info = chatSection.getInfo(player) ?: return
         if (!info.dataLoaded) return
 
         if (info.useVanillaLeaderboard) {
-            player.sendPlayerListHeader(Component.empty())
-            player.sendPlayerListFooter(Component.empty())
-            player.playerListName(null)
+            player.apply {
+                sendPlayerListHeader(Component.empty())
+                sendPlayerListFooter(Component.empty())
+                playerListName(null)
+            }
             return
         }
 
         var displayNameComponent = info.getDisplayNameComponent(animTick)
 
-        val tag = prefixManager.getPrefix(info, animTick)
-        if (tag.isNotEmpty()) {
-            val tagComponent = tagCache.getOrPut(tag) {
+        prefixManager.getPrefix(info, animTick).takeIf { it.isNotEmpty() }?.let { tag ->
+            val tagComponent = tagCache.computeIfAbsent(tag) {
                 val converted = GlobalUtils.convertToMiniMessageFormat(tag) ?: tag
                 MiniMessage.miniMessage().deserialize(converted)
             }
@@ -101,10 +109,20 @@ class TabSection(override val plugin: Main) : Section {
         if (updatePlaceholders) {
             @Suppress("DEPRECATION")
             val locale = player.locale()
-            val lang: String = locale.language
-            val loc = localeCache.getOrPut(lang) { Localization.getLocalization(lang) }
-            val header = Utils.parsePlaceHolders(loc.getStringList("TabList.Header").joinToString("\n"), player, plugin.startTime)
-            val footer = Utils.parsePlaceHolders(loc.getStringList("TabList.Footer").joinToString("\n"), player, plugin.startTime)
+            val lang = locale.language
+            val loc = localeCache.computeIfAbsent(lang) { Localization.getLocalization(lang) }
+
+            val header = Utils.parsePlaceHolders(
+                loc.getStringList("TabList.Header").joinToString("\n"),
+                player,
+                plugin.startTime
+            )
+            val footer = Utils.parsePlaceHolders(
+                loc.getStringList("TabList.Footer").joinToString("\n"),
+                player,
+                plugin.startTime
+            )
+
             FoliaCompat.schedule(player, plugin) {
                 if (player.isOnline) {
                     player.sendPlayerListHeader(header)
@@ -115,10 +133,10 @@ class TabSection(override val plugin: Main) : Section {
     }
 
     fun setTab(player: Player, updatePlaceholders: Boolean) {
-        setTab(player, updatePlaceholders, me.gb8.core.util.GradientAnimator.getAnimationTick())
+        setTab(player, updatePlaceholders, GradientAnimator.getAnimationTick())
     }
 
     fun setTab(player: Player) {
-        setTab(player, true, me.gb8.core.util.GradientAnimator.getAnimationTick())
+        setTab(player, true, GradientAnimator.getAnimationTick())
     }
 }

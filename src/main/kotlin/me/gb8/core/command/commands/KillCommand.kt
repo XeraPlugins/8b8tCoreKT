@@ -51,7 +51,7 @@ class KillCommand(private val plugin: Main) : BaseCommand(
     }
 
     private fun killPlayer(sender: CommandSender, target: Player) {
-        FoliaCompat.schedule(target, Main.getInstance()) {
+        FoliaCompat.schedule(target, Main.instance) {
             target.health = 0.0
 
             if (sender == target) {

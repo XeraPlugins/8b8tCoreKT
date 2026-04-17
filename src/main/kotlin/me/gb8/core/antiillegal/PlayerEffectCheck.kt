@@ -24,119 +24,95 @@ class PlayerEffectCheck : Check {
     override fun fix(item: ItemStack?) {}
 
     fun checkPlayerEffects(player: Player?): Boolean {
-        if (player == null) return false
-
-        for (effect in player.activePotionEffects) {
-            if (isIllegalEffect(effect)) return true
-        }
-
-        return false
+        return player?.activePotionEffects?.any { isIllegalEffect(it) } ?: false
     }
 
     fun fixPlayerEffects(player: Player?) {
-        if (player == null) return
-
-        for (effect in player.activePotionEffects) {
-            if (isIllegalEffect(effect)) {
-                player.removePotionEffect(effect.type)
-            }
-        }
+        player ?: return
+        player.activePotionEffects
+            .filter { isIllegalEffect(it) }
+            .forEach { player.removePotionEffect(it.type) }
     }
 
     fun isIllegalEffect(effect: PotionEffect?): Boolean {
-        if (effect == null) return false
+        effect ?: return false
 
         val type = effect.type
         val level = effect.amplifier + 1
+        val maxLevel = VANILLA_LEVEL_LIMITS[type] ?: return true
 
-        if (!VANILLA_LEVEL_LIMITS.containsKey(type)) return true
-
-        val maxAllowedLevel = VANILLA_LEVEL_LIMITS[type] ?: return true
-
-        if (maxAllowedLevel == 0) return true
-
-        if (level > maxAllowedLevel) return true
-
-        if (effect.isInfinite) return true
-
-        val duration = effect.duration
-        if (isExcessiveDuration(duration, type)) return true
-
-        return false
+        return when {
+            maxLevel == 0 -> true
+            level > maxLevel -> true
+            effect.isInfinite -> true
+            isExcessiveDuration(effect.duration, type) -> true
+            else -> false
+        }
     }
 
     private fun isExcessiveDuration(duration: Int, type: PotionEffectType): Boolean {
-        if (type == PotionEffectType.BAD_OMEN || type == PotionEffectType.RAID_OMEN) {
-            return duration > MAX_LEGAL_DURATION_SPECIAL
+        return if (type == PotionEffectType.BAD_OMEN || type == PotionEffectType.RAID_OMEN) {
+            duration > MAX_LEGAL_DURATION_SPECIAL
+        } else {
+            duration > MAX_LEGAL_DURATION
         }
-        return duration > MAX_LEGAL_DURATION
     }
 
     fun checkEntityEffects(entity: LivingEntity?): Boolean {
-        if (entity == null) return false
-
-        for (effect in entity.activePotionEffects) {
-            if (isIllegalEffect(effect)) return true
-        }
-
-        return false
+        return entity?.activePotionEffects?.any { isIllegalEffect(it) } ?: false
     }
 
     fun fixEntityEffects(entity: LivingEntity?) {
-        if (entity == null) return
-
-        for (effect in entity.activePotionEffects) {
-            if (isIllegalEffect(effect)) {
-                entity.removePotionEffect(effect.type)
-            }
-        }
+        entity ?: return
+        entity.activePotionEffects
+            .filter { isIllegalEffect(it) }
+            .forEach { entity.removePotionEffect(it.type) }
     }
 
     companion object {
-        private val VANILLA_LEVEL_LIMITS = HashMap<PotionEffectType, Int>()
+        private val VANILLA_LEVEL_LIMITS = mapOf(
+            PotionEffectType.NIGHT_VISION to 1,
+            PotionEffectType.INVISIBILITY to 1,
+            PotionEffectType.SLOW_FALLING to 1,
+            PotionEffectType.WATER_BREATHING to 1,
+            PotionEffectType.FIRE_RESISTANCE to 1,
+            PotionEffectType.WEAKNESS to 1,
+            PotionEffectType.DOLPHINS_GRACE to 1,
+            PotionEffectType.CONDUIT_POWER to 1,
+            PotionEffectType.DARKNESS to 1,
+            PotionEffectType.OOZING to 1,
+            PotionEffectType.GLOWING to 1,
+            PotionEffectType.NAUSEA to 1,
+            PotionEffectType.BLINDNESS to 1,
+            PotionEffectType.WIND_CHARGED to 1,
+            PotionEffectType.INFESTED to 1,
+            PotionEffectType.SATURATION to 1,
+            PotionEffectType.TRIAL_OMEN to 1,
+            PotionEffectType.WEAVING to 1,
+
+            PotionEffectType.SPEED to 2,
+            PotionEffectType.STRENGTH to 2,
+            PotionEffectType.REGENERATION to 2,
+            PotionEffectType.POISON to 2,
+            PotionEffectType.JUMP_BOOST to 2,
+            PotionEffectType.HASTE to 2,
+            PotionEffectType.INSTANT_DAMAGE to 2,
+            PotionEffectType.INSTANT_HEALTH to 2,
+            PotionEffectType.WITHER to 2,
+            PotionEffectType.LEVITATION to 2,
+
+            PotionEffectType.SLOWNESS to 4,
+            PotionEffectType.RESISTANCE to 4,
+            PotionEffectType.ABSORPTION to 4,
+
+            PotionEffectType.MINING_FATIGUE to 3,
+            PotionEffectType.HUNGER to 3,
+            PotionEffectType.HERO_OF_THE_VILLAGE to 5,
+            PotionEffectType.BAD_OMEN to 5,
+            PotionEffectType.RAID_OMEN to 5
+        )
+
         private const val MAX_LEGAL_DURATION = 9600
         private const val MAX_LEGAL_DURATION_SPECIAL = 144000
-
-        init {
-            VANILLA_LEVEL_LIMITS[PotionEffectType.NIGHT_VISION] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.INVISIBILITY] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.SLOW_FALLING] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.WATER_BREATHING] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.FIRE_RESISTANCE] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.WEAKNESS] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.DOLPHINS_GRACE] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.CONDUIT_POWER] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.DARKNESS] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.OOZING] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.GLOWING] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.NAUSEA] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.BLINDNESS] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.WIND_CHARGED] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.INFESTED] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.SATURATION] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.TRIAL_OMEN] = 1
-            VANILLA_LEVEL_LIMITS[PotionEffectType.WEAVING] = 1
-
-            VANILLA_LEVEL_LIMITS[PotionEffectType.SPEED] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.STRENGTH] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.REGENERATION] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.POISON] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.JUMP_BOOST] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.HASTE] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.INSTANT_DAMAGE] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.INSTANT_HEALTH] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.WITHER] = 2
-            VANILLA_LEVEL_LIMITS[PotionEffectType.LEVITATION] = 2
-
-            VANILLA_LEVEL_LIMITS[PotionEffectType.SLOWNESS] = 4
-            VANILLA_LEVEL_LIMITS[PotionEffectType.RESISTANCE] = 4
-            VANILLA_LEVEL_LIMITS[PotionEffectType.ABSORPTION] = 4
-
-            VANILLA_LEVEL_LIMITS[PotionEffectType.MINING_FATIGUE] = 3
-            VANILLA_LEVEL_LIMITS[PotionEffectType.HUNGER] = 3
-            VANILLA_LEVEL_LIMITS[PotionEffectType.HERO_OF_THE_VILLAGE] = 5
-            VANILLA_LEVEL_LIMITS[PotionEffectType.BAD_OMEN] = 5
-            VANILLA_LEVEL_LIMITS[PotionEffectType.RAID_OMEN] = 5
-        }
     }
 }

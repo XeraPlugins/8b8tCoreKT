@@ -11,23 +11,24 @@ package me.gb8.core.antiillegal
 import me.gb8.core.antiillegal.Check
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
 
 class LoreCheck : Check {
 
     override fun check(item: ItemStack?): Boolean {
-        item ?: return false
-        return item.hasItemMeta() && item.itemMeta.hasLore()
+        return item?.hasItemMeta() == true && item.itemMeta?.hasLore() == true
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
-        item ?: return false
-        return item.type != Material.MAP && item.type != Material.FILLED_MAP
+        return when (item?.type) {
+            Material.MAP, Material.FILLED_MAP -> false
+            else -> true
+        }
     }
 
     override fun fix(item: ItemStack?) {
-        val meta = item?.itemMeta ?: return
-        meta.lore(emptyList())
-        item.itemMeta = meta
+        item?.itemMeta?.let { meta ->
+            meta.lore(emptyList())
+            item.itemMeta = meta
+        }
     }
 }

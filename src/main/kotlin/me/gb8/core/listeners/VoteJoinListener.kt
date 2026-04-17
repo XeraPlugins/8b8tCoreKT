@@ -8,6 +8,7 @@
 
 package me.gb8.core.listeners
 
+import me.gb8.core.vote.PlayerName
 import me.gb8.core.vote.VoteSection
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -23,7 +24,7 @@ class VoteJoinListener(private val main: VoteSection) : Listener {
 
         main.checkAndMigrateLegacyPlayer(player.name)
 
-        if (main.toReward.containsKey(username)) {
+        if (main.toReward.containsKey(PlayerName(username))) {
             if (!main.hasVoterRoleExpired(username)) {
                 main.getToRewardEntry(player).ifPresent { voteCount ->
                     if (voteCount > 0) {

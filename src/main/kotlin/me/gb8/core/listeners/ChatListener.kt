@@ -29,7 +29,6 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import java.time.Instant
-import java.util.HashSet
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledExecutorService
@@ -37,7 +36,7 @@ import java.util.concurrent.TimeUnit
 import java.util.logging.Level
 import kotlin.math.abs
 
-class ChatListener(private val manager: ChatSection, private val tlds: HashSet<String>) : Listener {
+class ChatListener(private val manager: ChatSection, private val tlds: Set<String>) : Listener {
     private var service: ScheduledExecutorService? = null
     private val prefixManager = PrefixManager()
     private val miniMessage = MiniMessage.miniMessage()
@@ -69,7 +68,7 @@ class ChatListener(private val manager: ChatSection, private val tlds: HashSet<S
         val ogMessage = GlobalUtils.getStringContent(event.message())
         val filteredMessage = filterLongWords(ogMessage)
 
-        val messages = playerMessages.computeIfAbsent(senderUUID) { ArrayList() }
+        val messages = playerMessages.computeIfAbsent(senderUUID) { mutableListOf() }
         synchronized(messages) {
             if (!sender.isOp && !sender.hasPermission("*")) {
                 for (oldMessage in messages) {
@@ -100,12 +99,11 @@ class ChatListener(private val manager: ChatSection, private val tlds: HashSet<S
             Bukkit.getLogger().info("$senderName: $ogMessage")
 
             Bukkit.getGlobalRegionScheduler().run(manager.plugin) {
-                val onlineNames = HashSet<String>()
-                for (p in Bukkit.getOnlinePlayers()) onlineNames.add(p.name.lowercase())
+                val onlineNames = Bukkit.getOnlinePlayers().mapTo(mutableSetOf()) { it.name.lowercase() }
 
                 for (recipient in Bukkit.getOnlinePlayers()) {
                     val recipientInfo = manager.getInfo(recipient)
-                    if (recipientInfo == null || recipientInfo.isIgnoring(senderUUID) || recipientInfo.isToggledChat()) continue
+                    if (recipientInfo == null || recipientInfo.isIgnoring(senderUUID) || recipientInfo.isToggledChat) continue
 
                     val body = formatBody(ogMessage, recipient.name, onlineNames)
                     recipient.sendMessage(senderComponent.append(body))
@@ -134,9 +132,9 @@ class ChatListener(private val manager: ChatSection, private val tlds: HashSet<S
             val wordLower = word.lowercase()
             var color = baseColor
 
-            if (wordLower.equals(recipientName.lowercase()) || KEYWORDS.contains(wordLower)) {
+            if (wordLower.equals(recipientName.lowercase()) || wordLower in KEYWORDS) {
                 color = NamedTextColor.YELLOW
-            } else if (onlineNames.contains(wordLower)) {
+            } else if (wordLower in onlineNames) {
                 color = baseColor
             }
 
@@ -154,13 +152,13 @@ class ChatListener(private val manager: ChatSection, private val tlds: HashSet<S
         if (split.size == 2) {
             var possibleTLD = split[1]
             if (possibleTLD.contains("/")) possibleTLD = possibleTLD.substring(0, possibleTLD.indexOf("/"))
-            return tlds.contains(possibleTLD)
+            return possibleTLD in tlds
         } else {
             for (word in split) {
                 if (word.contains("/")) {
-                    if (tlds.contains(word.substring(0, word.indexOf("/")))) return true
+                    if (word.substring(0, word.indexOf("/")) in tlds) return true
                 }
-                if (tlds.contains(word)) return true
+                if (word in tlds) return true
             }
         }
         return false

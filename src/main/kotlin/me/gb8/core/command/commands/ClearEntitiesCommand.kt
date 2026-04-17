@@ -15,8 +15,6 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.*
-import java.util.ArrayList
-import java.util.stream.Collectors
 
 class ClearEntitiesCommand : BaseTabCommand(
     "clearentities",
@@ -50,16 +48,13 @@ class ClearEntitiesCommand : BaseTabCommand(
         val world = player.world
 
         Bukkit.getRegionScheduler().execute(Main.instance, playerLocation) {
-            val nearestEntity = world.getNearbyEntities(playerLocation, 10.0, 10.0, 10.0).stream()
-                .filter { entity -> !isProtectedEntity(entity) && entity !is Player }
-                .min(Comparator.comparingDouble { entity -> entity.location.distanceSquared(playerLocation) })
-                .orElse(null)
+            val nearestEntity = world.getNearbyEntities(playerLocation, 10.0, 10.0, 10.0)
+                .filter { !isProtectedEntity(it) && it !is Player }
+                .minByOrNull { it.location.distanceSquared(playerLocation) }
 
-            if (nearestEntity != null) {
-                if (nearestEntity.isValid) {
-                    nearestEntity.remove()
-                    sendMessage(sender, "&aCleared the nearest entity.")
-                }
+            if (nearestEntity != null && nearestEntity.isValid) {
+                nearestEntity.remove()
+                sendMessage(sender, "&aCleared the nearest entity.")
             } else {
                 sendMessage(sender, "&cNo entities found to remove.")
             }
@@ -74,11 +69,9 @@ class ClearEntitiesCommand : BaseTabCommand(
                 Bukkit.getRegionScheduler().execute(Main.instance, chunk.getBlock(0, 0, 0).location) {
                     var count = 0
                     for (entity in chunk.entities) {
-                        if (!isProtectedEntity(entity) && entity !is Player) {
-                            if (entity.isValid) {
-                                entity.remove()
-                                count++
-                            }
+                        if (!isProtectedEntity(entity) && entity !is Player && entity.isValid) {
+                            entity.remove()
+                            count++
                         }
                     }
                     totalCount += count
@@ -99,11 +92,9 @@ class ClearEntitiesCommand : BaseTabCommand(
                 Bukkit.getRegionScheduler().execute(Main.instance, chunk.getBlock(0, 0, 0).location) {
                     var count = 0
                     for (entity in chunk.entities) {
-                        if (entity is Enemy || entity is Boss || entity is Monster) {
-                            if (entity.isValid) {
-                                entity.remove()
-                                count++
-                            }
+                        if ((entity is Enemy || entity is Boss || entity is Monster) && entity.isValid) {
+                            entity.remove()
+                            count++
                         }
                     }
                     totalCount += count
@@ -117,22 +108,16 @@ class ClearEntitiesCommand : BaseTabCommand(
     }
 
     private fun isProtectedEntity(entity: Entity): Boolean {
-        return entity is ItemFrame ||
-               entity is Painting ||
-               entity is Minecart ||
-               entity is Boat ||
-               entity is Tameable ||
-               entity is ArmorStand ||
-               entity is LeashHitch ||
-               entity is IronGolem
+        return entity is ItemFrame || entity is Painting || entity is Minecart ||
+               entity is Boat || entity is Tameable || entity is ArmorStand ||
+               entity is LeashHitch || entity is IronGolem
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        if (args.size == 1) {
-            return clearEntitiesOptions.stream()
-                .filter { option -> option.startsWith(args[0].lowercase()) }
-                .collect(Collectors.toList())
+        return if (args.size == 1) {
+            clearEntitiesOptions.filter { it.startsWith(args[0].lowercase()) }
+        } else {
+            emptyList()
         }
-        return ArrayList()
     }
 }

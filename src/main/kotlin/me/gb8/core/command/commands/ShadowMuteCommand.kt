@@ -98,24 +98,21 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
 
     
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        if (args.size == 1) {
-            return shadowmuteOptions.stream()
-                    .filter { it.lowercase().startsWith(args[0].lowercase()) }
-                    .collect(Collectors.toList())
-        } else if (args.size == 2) {
-            val firstArg = args[0].lowercase()
-            if (firstArg == "add" || firstArg == "remove") {
-                return getOnlinePlayers().stream()
-                        .filter { it.lowercase().startsWith(args[1].lowercase()) }
-                        .collect(Collectors.toList())
+        return when (args.size) {
+            1 -> shadowmuteOptions.filter { it.lowercase().startsWith(args[0].lowercase()) }
+            2 -> {
+                val firstArg = args[0].lowercase()
+                if (firstArg == "add" || firstArg == "remove") {
+                    getOnlinePlayers().filter { it.lowercase().startsWith(args[1].lowercase()) }
+                } else {
+                    emptyList()
+                }
             }
+            else -> emptyList()
         }
-        return mutableListOf()
     }
 
     private fun getOnlinePlayers(): List<String> {
-        return Bukkit.getOnlinePlayers().stream()
-                .map(Player::getName)
-                .collect(Collectors.toList())
+        return Bukkit.getOnlinePlayers().map { it.name }
     }
 }

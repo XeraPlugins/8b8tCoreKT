@@ -9,10 +9,8 @@
 package me.gb8.core.antiillegal
 
 import io.papermc.paper.datacomponent.DataComponentTypes
-import io.papermc.paper.datacomponent.item.ItemContainerContents
 import me.gb8.core.antiillegal.Check
 import org.bukkit.Material
-import org.bukkit.block.BlockState
 import org.bukkit.block.Container
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.BlockStateMeta
@@ -20,34 +18,19 @@ import org.bukkit.inventory.meta.BlockStateMeta
 class AntiPrefilledContainers : Check {
 
     override fun check(item: ItemStack?): Boolean {
-        if (item == null || item.type.isAir) return false
-        if (!shouldCheck(item)) return false
+        if (item == null || item.type.isAir || !shouldCheck(item)) return false
 
-        if (item.hasData(DataComponentTypes.CONTAINER)) {
-            val contents = item.getData(DataComponentTypes.CONTAINER)
-            if (contents != null) {
-                val items = contents.contents()
-                for (content in items) {
-                    if (content != null && !content.type.isAir) {
-                        if (ALL_STORAGE.contains(content.type)) {
-                            return true
-                        }
-                        return true
-                    }
-                }
+        item.getData(DataComponentTypes.CONTAINER)?.let { contents ->
+            return contents.contents().any { content ->
+                content?.let { !it.type.isAir && ALL_STORAGE.contains(it.type) } ?: false
             }
         }
 
-        if (item.hasItemMeta() && item.itemMeta is BlockStateMeta) {
-            val meta = item.itemMeta as BlockStateMeta
-            if (meta.hasBlockState()) {
-                val state = meta.blockState
-                if (state is Container) {
-                    for (content in state.inventory.contents) {
-                        if (content != null && !content.type.isAir) {
-                            return true
-                        }
-                    }
+        (item.itemMeta as? BlockStateMeta)?.takeIf { it.hasBlockState() }?.let { meta ->
+            val state = meta.blockState
+            if (state is Container) {
+                return state.inventory.contents.any { content ->
+                    content != null && !content.type.isAir
                 }
             }
         }
@@ -56,25 +39,22 @@ class AntiPrefilledContainers : Check {
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
-        return item != null && CONTAINERS.contains(item.type)
+        return item?.type in CONTAINERS
     }
 
     override fun fix(item: ItemStack?) {
-        if (item == null || item.type.isAir) return
+        item?.takeIf { !it.type.isAir }?.let { stack ->
+            if (stack.hasData(DataComponentTypes.CONTAINER)) {
+                stack.unsetData(DataComponentTypes.CONTAINER)
+            }
 
-        if (item.hasData(DataComponentTypes.CONTAINER)) {
-            item.unsetData(DataComponentTypes.CONTAINER)
-        }
-
-        if (item.hasItemMeta() && item.itemMeta is BlockStateMeta) {
-            val meta = item.itemMeta as BlockStateMeta
-            if (meta.hasBlockState()) {
+            (stack.itemMeta as? BlockStateMeta)?.takeIf { it.hasBlockState() }?.let { meta ->
                 val state = meta.blockState
                 if (state is Container) {
                     state.inventory.clear()
                     state.update()
                     meta.blockState = state
-                    item.itemMeta = meta
+                    stack.itemMeta = meta
                 }
             }
         }
@@ -91,10 +71,7 @@ class AntiPrefilledContainers : Check {
             Material.CHISELED_BOOKSHELF
         )
 
-        private val ALL_STORAGE = setOf(
-            Material.CHEST, Material.TRAPPED_CHEST, Material.BARREL,
-            Material.DISPENSER, Material.DROPPER, Material.HOPPER,
-            Material.CHISELED_BOOKSHELF,
+        private val ALL_STORAGE = CONTAINERS + setOf(
             Material.SHULKER_BOX, Material.WHITE_SHULKER_BOX, Material.ORANGE_SHULKER_BOX,
             Material.MAGENTA_SHULKER_BOX, Material.LIGHT_BLUE_SHULKER_BOX, Material.YELLOW_SHULKER_BOX,
             Material.LIME_SHULKER_BOX, Material.PINK_SHULKER_BOX, Material.GRAY_SHULKER_BOX,

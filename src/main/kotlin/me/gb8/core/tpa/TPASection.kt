@@ -60,71 +60,53 @@ class TPASection(override val plugin: Main) : Section {
     override val name: String = "TPA"
 
     fun registerRequest(requester: Player, requested: Player) {
-        val requesterUUID = requester.uniqueId
-        val requestedUUID = requested.uniqueId
-        
-        lastRequest[requestedUUID] = requesterUUID
-        val requestList = requests.getOrPut(requestedUUID) { CopyOnWriteArrayList() }
-        if (!requestList.contains(requesterUUID)) requestList.add(requesterUUID)
-
-        Bukkit.getAsyncScheduler().runDelayed(plugin, {
-            @Suppress("NAME_SHADOWING")
-            val requestList = requests[requestedUUID]
-            if (requestList == null || !requestList.contains(requesterUUID)) return@runDelayed
-            
-            sendTimeoutMessage(requesterUUID, requestedUUID)
-            
-            requestList.remove(requesterUUID)
-            if (requestList.isEmpty()) {
-                requests.remove(requestedUUID)
-                lastRequest.remove(requestedUUID)
-            } else {
-                lastRequest[requestedUUID] = requestList[0]
-            }
-        }, requestTimeoutMinutes.toLong(), TimeUnit.MINUTES)
+        registerRequestInternal(requester, requested, requests)
     }
 
     fun registerHereRequest(requester: Player, requested: Player) {
+        registerRequestInternal(requester, requested, hereRequests)
+    }
+
+    private fun registerRequestInternal(
+        requester: Player,
+        requested: Player,
+        requestMap: ConcurrentHashMap<UUID, CopyOnWriteArrayList<UUID>>
+    ) {
         val requesterUUID = requester.uniqueId
         val requestedUUID = requested.uniqueId
-        
+
         lastRequest[requestedUUID] = requesterUUID
-        val hereList = hereRequests.getOrPut(requestedUUID) { CopyOnWriteArrayList() }
-        if (!hereList.contains(requesterUUID)) hereList.add(requesterUUID)
+        val requestList = requestMap.getOrPut(requestedUUID) { CopyOnWriteArrayList() }
+        if (!requestList.contains(requesterUUID)) requestList.add(requesterUUID)
 
         Bukkit.getAsyncScheduler().runDelayed(plugin, {
-            val requestList = hereRequests[requestedUUID]
-            if (requestList == null || !requestList.contains(requesterUUID)) return@runDelayed
-            
+            val currentList = requestMap[requestedUUID]
+            if (currentList == null || !currentList.contains(requesterUUID)) return@runDelayed
+
             sendTimeoutMessage(requesterUUID, requestedUUID)
-            
-            requestList.remove(requesterUUID)
-            if (requestList.isEmpty()) {
-                hereRequests.remove(requestedUUID)
+
+            currentList.remove(requesterUUID)
+            if (currentList.isEmpty()) {
+                requestMap.remove(requestedUUID)
                 lastRequest.remove(requestedUUID)
             } else {
-                lastRequest[requestedUUID] = requestList[0]
+                lastRequest[requestedUUID] = currentList[0]
             }
         }, requestTimeoutMinutes.toLong(), TimeUnit.MINUTES)
     }
 
     private fun sendTimeoutMessage(requesterUUID: UUID, requestedUUID: UUID) {
-        val requester = Bukkit.getPlayer(requesterUUID)
-        val requested = Bukkit.getPlayer(requestedUUID)
-        
-        if (requested != null && requested.isOnline) {
+        Bukkit.getPlayer(requestedUUID)?.takeIf { it.isOnline }?.let { requested ->
             FoliaCompat.schedule(requested, plugin) {
-                val req = Bukkit.getPlayer(requesterUUID)
-                if (req != null) {
+                Bukkit.getPlayer(requesterUUID)?.let { req ->
                     sendPrefixedLocalizedMessage(requested, "tpa_request_timeout_to", req.name)
                 }
             }
         }
-        
-        if (requester != null && requester.isOnline) {
+
+        Bukkit.getPlayer(requesterUUID)?.takeIf { it.isOnline }?.let { requester ->
             FoliaCompat.schedule(requester, plugin) {
-                val reqd = Bukkit.getPlayer(requestedUUID)
-                if (reqd != null) {
+                Bukkit.getPlayer(requestedUUID)?.let { reqd ->
                     sendPrefixedLocalizedMessage(requester, "tpa_request_timeout_from", reqd.name)
                 }
             }
@@ -137,13 +119,11 @@ class TPASection(override val plugin: Main) : Section {
     }
 
     fun hasRequested(requester: Player, requested: Player): Boolean {
-        val list = requests[requested.uniqueId]
-        return list != null && list.contains(requester.uniqueId)
+        return requests[requested.uniqueId]?.contains(requester.uniqueId) == true
     }
 
     fun hasHereRequested(requester: Player, requested: Player): Boolean {
-        val list = hereRequests[requested.uniqueId]
-        return list != null && list.contains(requester.uniqueId)
+        return hereRequests[requested.uniqueId]?.contains(requester.uniqueId) == true
     }
 
     fun removeRequest(requester: Player, requested: Player) {
@@ -198,24 +178,17 @@ class TPASection(override val plugin: Main) : Section {
     }
 
     private fun uuidsToPlayers(uuids: List<UUID>): List<Player> {
-        val players = ArrayList<Player>(uuids.size)
-        for (uuid in uuids) {
-            val p = Bukkit.getPlayer(uuid)
-            if (p != null) players.add(p)
-        }
-        return players
+        return uuids.mapNotNull { Bukkit.getPlayer(it) }
     }
 
     fun togglePlayer(player: Player) {
         val uuid = player.uniqueId
-        if (toggledPlayers.remove(uuid) == null) {
-            toggledPlayers[uuid] = true
-        }
+        toggledPlayers[uuid] = toggledPlayers[uuid] != true
         removeAllInRequests(player)
     }
 
     fun checkToggle(player: Player): Boolean {
-        return toggledPlayers.containsKey(player.uniqueId)
+        return toggledPlayers[player.uniqueId] == true
     }
 
     fun addBlockedPlayer(requested: Player, requester: Player) {
@@ -231,8 +204,7 @@ class TPASection(override val plugin: Main) : Section {
     }
 
     fun checkBlocked(requested: Player, requester: Player): Boolean {
-        val list = blockedPlayers[requested.uniqueId]
-        return list != null && list.contains(requester.uniqueId)
+        return blockedPlayers[requested.uniqueId]?.contains(requester.uniqueId) == true
     }
 
     fun cleanupPlayer(uuid: UUID) {
@@ -240,7 +212,7 @@ class TPASection(override val plugin: Main) : Section {
         requests.remove(uuid)
         hereRequests.remove(uuid)
         toggledPlayers.remove(uuid)
-        blockedPlayers.remove(uuid)        
+        blockedPlayers.remove(uuid)
         requests.values.forEach { it.remove(uuid) }
         hereRequests.values.forEach { it.remove(uuid) }
         blockedPlayers.values.forEach { it.remove(uuid) }

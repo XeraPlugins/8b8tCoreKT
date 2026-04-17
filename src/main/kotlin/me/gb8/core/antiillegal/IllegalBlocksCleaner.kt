@@ -9,7 +9,6 @@
 package me.gb8.core.antiillegal
 
 import me.gb8.core.Main
-import me.gb8.core.antiillegal.IllegalConstants
 import org.bukkit.Bukkit
 import org.bukkit.Chunk
 import org.bukkit.Location
@@ -22,16 +21,29 @@ import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.world.ChunkLoadEvent
-import org.bukkit.persistence.PersistentDataContainer
 import org.bukkit.persistence.PersistentDataType
-import org.bukkit.plugin.java.JavaPlugin
+import kotlin.math.absoluteValue
 import java.util.EnumSet
-import kotlin.math.abs
-import java.util.regex.Pattern
 import java.util.function.Consumer
-import java.util.concurrent.CompletableFuture
 
 class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSection) : Listener {
+    companion object {
+        const val EXIT_PORTAL_X = 0
+        const val EXIT_PORTAL_Z = 0
+        const val EXIT_PORTAL_Y_MIN = 58
+        const val EXIT_PORTAL_Y_MAX = 64
+        const val EXIT_PORTAL_RADIUS = 5
+        const val GATEWAY_RING_Y_MIN = 74
+        const val GATEWAY_RING_Y_MAX = 76
+        const val GATEWAY_RING_INNER_RADIUS_SQ = 7500
+        const val GATEWAY_RING_OUTER_RADIUS_SQ = 11000
+        const val OUTER_ISLAND_VOID_GAP_SQ = 562500
+        const val OUTER_ISLAND_Y_MAX = 80
+        const val STRONGHOLD_SAFE_ZONE_SQ = 1638400
+
+        private val Int.blockCoord get() = this shl 4
+    }
+
     private val illegalMaterials: EnumSet<Material>
     private val batchSize: Int
     private val delayTicks: Long
@@ -40,27 +52,27 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
 
     init {
         illegalMaterials = buildMaterialSet(config.getStringList("IllegalBlocks"))
-        batchSize = maxOf(1, config.getInt("IllegalBlocksCleaner.Batch", 128))
-        delayTicks = maxOf(1L, config.getLong("IllegalBlocksCleaner.DelayTicks", 5L))
+        batchSize = config.getInt("IllegalBlocksCleaner.Batch", 128).coerceAtLeast(1)
+        delayTicks = config.getLong("IllegalBlocksCleaner.DelayTicks", 5L).coerceAtLeast(1L)
 
         val version = config.getInt("IllegalBlocksCleaner.Version", 1)
         configHash = illegalMaterials.hashCode() xor (version * 31)
 
         plugin.logger.info("[AntiIllegal] System initialized. Version: $version")
-        Bukkit.getAsyncScheduler().runNow(plugin, Consumer {
+        Bukkit.getAsyncScheduler().runNow(plugin) {
             for (world in Bukkit.getWorlds()) {
                 for (chunk in world.loadedChunks) {
                     val cx = chunk.x
                     val cz = chunk.z
-                    val loc = Location(world, (cx shl 4) + 8.0, 64.0, (cz shl 4) + 8.0)
-                    Bukkit.getRegionScheduler().run(plugin, loc, Consumer {
+                    val loc = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
+                    Bukkit.getRegionScheduler().run(plugin, loc) {
                         if (world.isChunkLoaded(cx, cz)) {
                             checkAndScan(world.getChunkAt(cx, cz))
                         }
-                    })
+                    }
                 }
             }
-        })
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -75,9 +87,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onExplode(event: EntityExplodeEvent) {
-        val affectedChunks = HashSet<Chunk>()
-        for (b in event.blockList()) affectedChunks.add(b.chunk)
-        for (c in affectedChunks) invalidateChunk(c)
+        event.blockList().mapTo(HashSet()) { it.chunk }.forEach(::invalidateChunk)
     }
 
     private fun invalidateChunk(chunk: Chunk) {
@@ -85,12 +95,8 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
     }
 
     private fun checkAndScan(chunk: Chunk) {
-        val pdc = chunk.persistentDataContainer
-        val storedHash = pdc.get(scanKey, PersistentDataType.INTEGER)
-
-        if (storedHash != null && storedHash == configHash) return
-
-        performDeepScan(chunk)
+        chunk.persistentDataContainer.get(scanKey, PersistentDataType.INTEGER)?.takeIf { it != configHash }
+            ?.let { performDeepScan(chunk) }
     }
 
     private fun performDeepScan(chunk: Chunk) {
@@ -98,7 +104,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
         val cx = chunk.x
         val cz = chunk.z
 
-        if (abs(cx) >= 1875000 || abs(cz) >= 1875000) return
+        if (cx.absoluteValue >= 1875000 || cz.absoluteValue >= 1875000) return
 
         val minY = world.minHeight
         val maxY = world.maxHeight
@@ -123,10 +129,10 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                     for (lx in 0..15) {
                         for (lz in 0..15) {
                             val type = snap.getBlockType(lx, y, lz)
-                            if (!illegalMaterials.contains(type)) continue
+                            if (type !in illegalMaterials) continue
 
-                            val gx = (cx shl 4) + lx
-                            val gz = (cz shl 4) + lz
+                            val gx = cx.blockCoord + lx
+                            val gz = cz.blockCoord + lz
 
                             if (isLegitimateBlock(env, gx, y, gz, type, minY)) continue
 
@@ -139,18 +145,18 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
             }
 
             if (foundCount == 0) {
-                val anchor = Location(world, (cx shl 4) + 8.0, 64.0, (cz shl 4) + 8.0)
-                Bukkit.getRegionScheduler().run(plugin, anchor, Consumer { markChunkClean(world, cx, cz) })
+                val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
+                Bukkit.getRegionScheduler().run(plugin, anchor) { markChunkClean(world, cx, cz) }
             } else {
                 plugin.logger.info("[AntiIllegal] Detected $foundCount illegal blocks in chunk [$cx, $cz]. Liquidating...")
 
                 val queue = toRemove
                 val total = foundCount
-                val anchor = Location(world, (cx shl 4) + 8.0, 64.0, (cz shl 4) + 8.0)
+                val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
 
-                Bukkit.getRegionScheduler().run(plugin, anchor, Consumer {
+                Bukkit.getRegionScheduler().run(plugin, anchor) {
                     processRemovalBatch(world, cx, cz, queue, total, 0, anchor)
-                })
+                }
             }
         }
     }
@@ -169,16 +175,14 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
             val z = baseZ + unpackLZ(packed)
             val y = unpackY(packed)
 
-            val b = world.getBlockAt(x, y, z)
-            if (illegalMaterials.contains(b.type)) {
-                b.setType(Material.AIR, false)
-            }
+            world.getBlockAt(x, y, z).takeIf { it.type in illegalMaterials }
+                ?.setType(Material.AIR, false)
             idx++
             processedInThisTick++
         }
 
         if (idx < total) {
-            Bukkit.getRegionScheduler().runDelayed(plugin, anchor, Consumer {
+            Bukkit.getRegionScheduler().runDelayed(plugin, anchor, Consumer { _ ->
                 processRemovalBatch(world, cx, cz, queue, total, idx, anchor)
             }, delayTicks)
         } else {
@@ -197,63 +201,56 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
     private fun unpackY(p: Int): Int = p shr 8
 
     private fun isLegitimateBlock(env: World.Environment, x: Int, y: Int, z: Int, type: Material, minY: Int): Boolean {
-        if (type == Material.BEDROCK || type == Material.END_GATEWAY) {
-            if (type == Material.BEDROCK) {
-                if (y < minY + 5) return true
-                if (env == World.Environment.NETHER && y >= 123 && y <= 127) return true
+        return when (type) {
+            Material.BEDROCK, Material.END_GATEWAY -> {
+                if (type == Material.BEDROCK) {
+                    if (y < minY + 5) return true
+                    if (env == World.Environment.NETHER && y in 123..127) return true
+                }
+
+                if (env == World.Environment.THE_END) {
+                    if (type == Material.BEDROCK && y in 0..4) {
+                        val distSq = x.toLong() * x + z.toLong() * z
+                        if (distSq <= 2500) return true
+                    }
+
+                    if (x.absoluteValue <= EXIT_PORTAL_RADIUS &&
+                        z.absoluteValue <= EXIT_PORTAL_RADIUS &&
+                        y in EXIT_PORTAL_Y_MIN..EXIT_PORTAL_Y_MAX) return true
+
+                    if (y in GATEWAY_RING_Y_MIN..GATEWAY_RING_Y_MAX) {
+                        val distSq = x.toLong() * x + z.toLong() * z
+                        return distSq >= GATEWAY_RING_INNER_RADIUS_SQ &&
+                               distSq <= GATEWAY_RING_OUTER_RADIUS_SQ
+                    }
+
+                    if (y in 0..OUTER_ISLAND_Y_MAX) {
+                        val distSq = x.toLong() * x + z.toLong() * z
+                        if (x.absoluteValue < 700 && z.absoluteValue < 700) return false
+                        if (distSq >= OUTER_ISLAND_VOID_GAP_SQ) return true
+                    }
+                }
+                false
             }
-
-            if (env == World.Environment.THE_END) {
-                if (type == Material.BEDROCK && y >= 0 && y <= 4) {
-                    val distSq = x.toLong() * x + z.toLong() * z
-                    if (distSq <= 2500) return true
-                }
-
-                if (abs(x) <= IllegalConstants.EXIT_PORTAL_RADIUS &&
-                    abs(z) <= IllegalConstants.EXIT_PORTAL_RADIUS &&
-                    y >= IllegalConstants.EXIT_PORTAL_Y_MIN &&
-                    y <= IllegalConstants.EXIT_PORTAL_Y_MAX) return true
-
-                if (y >= IllegalConstants.GATEWAY_RING_Y_MIN && y <= IllegalConstants.GATEWAY_RING_Y_MAX) {
-                    val distSq = x.toLong() * x + z.toLong() * z
-                    return distSq >= IllegalConstants.GATEWAY_RING_INNER_RADIUS_SQ &&
-                           distSq <= IllegalConstants.GATEWAY_RING_OUTER_RADIUS_SQ
-                }
-
-                if (y >= 0 && y <= IllegalConstants.OUTER_ISLAND_Y_MAX) {
-                    val distSq = x.toLong() * x + z.toLong() * z
-                    if (abs(x) < 700 && abs(z) < 700) return false
-                    if (distSq >= IllegalConstants.OUTER_ISLAND_VOID_GAP_SQ) return true
+            Material.END_PORTAL, Material.END_PORTAL_FRAME -> {
+                when (env) {
+                    World.Environment.NORMAL -> {
+                        (x.absoluteValue <= 2 && z.absoluteValue <= 2 && y == minY + 5) ||
+                        (y in minY..40 && x.absoluteValue >= 1280 && z.absoluteValue >= 1280 && (x.toLong() * x + z.toLong() * z) >= STRONGHOLD_SAFE_ZONE_SQ)
+                    }
+                    World.Environment.THE_END -> x.absoluteValue <= 3 && z.absoluteValue <= 3 && y in 58..64
+                    else -> false
                 }
             }
-            return false
+            else -> false
         }
-
-        if (type == Material.END_PORTAL || type == Material.END_PORTAL_FRAME) {
-            if (env == World.Environment.NORMAL) {
-                if (abs(x) <= 2 && abs(z) <= 2 && y == minY + 5) return true
-                if (y < minY || y > 40) return false
-                if (abs(x) < 1280 && abs(z) < 1280) return false
-                val distanceSq = x.toLong() * x + z.toLong() * z
-                return distanceSq >= IllegalConstants.STRONGHOLD_SAFE_ZONE_SQ
-            }
-            if (env == World.Environment.THE_END) {
-                return abs(x) <= 3 && abs(z) <= 3 && y >= 58 && y <= 64
-            }
-        }
-        return false
     }
 
-    private fun buildMaterialSet(patterns: List<String>): EnumSet<Material> {
-        val set = EnumSet.noneOf(Material::class.java)
-        for (pat in patterns) {
-            try {
-                val p = Pattern.compile("^" + pat.replace("*", ".*") + "$", Pattern.CASE_INSENSITIVE)
-                for (m in Material.entries) {
-                    if (p.matcher(m.name).matches()) set.add(m)
-                }
-            } catch (e: Exception) {}
-        }
-        return set
-    }
+    private fun buildMaterialSet(patterns: List<String>): EnumSet<Material> =
+        patterns.flatMap { pat ->
+            runCatching {
+                val regex = "^${pat.replace("*", ".*")}$".toRegex(RegexOption.IGNORE_CASE)
+                Material.entries.filter { regex.matches(it.name) }
+            }.getOrElse { emptyList() }
+        }.toCollection(EnumSet.noneOf(Material::class.java))
 }

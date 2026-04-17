@@ -10,7 +10,6 @@ package me.gb8.core.vote
 
 import me.gb8.core.Main
 import me.gb8.core.Section
-import me.gb8.core.chat.ChatInfo
 import me.gb8.core.chat.ChatSection
 import me.gb8.core.listeners.VotifierListener
 import me.gb8.core.listeners.VoteJoinListener
@@ -23,14 +22,16 @@ import java.io.File
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import java.util.logging.Level
+
+@JvmInline
+value class PlayerName(val value: String)
 
 class VoteSection(override val plugin: Main) : Section {
 
     var sqliteStorage: VoteSQLiteStorage? = null
         private set
-    var toReward: MutableMap<String, VoteEntry> = ConcurrentHashMap()
+    var toReward: MutableMap<PlayerName, VoteEntry> = ConcurrentHashMap()
         private set
     var config: ConfigurationSection? = null
         private set
@@ -41,20 +42,20 @@ class VoteSection(override val plugin: Main) : Section {
         config = plugin.getSectionConfig(this)
         plugin.logger.info("VoteSection: Config loaded: ${if (config != null) "SUCCESS" else "NULL"}")
 
-        plugin.getCommand("vote")?.setExecutor(VoteCommand(this))
+        plugin.getCommand("vote")?.setExecutor(VoteCommandExecutor(this))
         plugin.logger.info("VoteSection: Vote command registered")
 
-        try {
+        runCatching {
             val votesFile = File(plugin.getSectionDataFolder(this), "votes.db")
-            sqliteStorage = VoteSQLiteStorage(votesFile)
-        } catch (t: Throwable) {
+            VoteSQLiteStorage(votesFile)
+        }.onSuccess { storage ->
+            sqliteStorage = storage
+        }.onFailure { t ->
             plugin.logger.log(Level.SEVERE, "Failed to initialize SQLite storage. See stacktrace:", t)
             sqliteStorage = null
         }
 
-        sqliteStorage?.load()?.let { loaded ->
-            toReward.putAll(loaded)
-        }
+        sqliteStorage?.load()?.let { toReward.putAll(it) }
 
         cleanupExpiredVotes()
 
@@ -62,12 +63,10 @@ class VoteSection(override val plugin: Main) : Section {
         plugin.register(VoteJoinListener(this))
         plugin.logger.info("VoteSection: Listeners registered")
 
-        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, { task ->
-            sqliteStorage?.let { storage ->
-                if (toReward.isNotEmpty()) {
-                    plugin.logger.info("VoteSection: Auto-saving ${toReward.size} votes")
-                    storage.save(toReward)
-                }
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
+            sqliteStorage?.takeIf { toReward.isNotEmpty() }?.let { storage ->
+                plugin.logger.info("VoteSection: Auto-saving ${toReward.size} votes")
+                storage.save(toReward)
             }
         }, 5 * 60 * 20L, 5 * 60 * 20L)
 
@@ -88,32 +87,30 @@ class VoteSection(override val plugin: Main) : Section {
         val votingDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
         val chatSection = plugin.getSectionByName("ChatControl") as? ChatSection
 
-        Bukkit.getGlobalRegionScheduler().runDelayed(plugin, { task ->
-            for (p in Bukkit.getOnlinePlayers()) {
+        Bukkit.getGlobalRegionScheduler().runDelayed(plugin, {
+            Bukkit.getOnlinePlayers().forEach { p ->
                 val info = chatSection?.getInfo(p)
-                if (info != null && info.hideAnnouncements) continue
+                if (info?.hideAnnouncements == true) return@forEach
 
                 val loc = Localization.getLocalization(p.locale().language)
-                val message = loc.getWithPlaceholders("vote_announcement", "%days%", votingDays.toString())
-                val finalMessage = java.lang.String.format(message, voterName)
-                val prefixedMessage = loc.getPrefix() + " &r&7>>&r " + finalMessage
+                val message = String.format(loc.getWithPlaceholders("vote_announcement", "%days%", votingDays.toString()), voterName)
+                val prefixedMessage = loc.getPrefix() + " &r&7>>&r " + message
                 p.sendMessage(GlobalUtils.translateChars(prefixedMessage))
             }
         }, 1L)
     }
 
     private fun executeRewards(player: Player) {
-        if (player == null || !player.isOnline) return
+        player.takeIf { it.isOnline } ?: return
 
         val rewards = config?.getStringList("Rewards") ?: return
 
-        for (cmd in rewards) {
+        rewards.forEach { cmd ->
             val toRun = String.format(cmd, player.name)
-
-            Bukkit.getGlobalRegionScheduler().runDelayed(plugin, { task ->
-                try {
+            Bukkit.getGlobalRegionScheduler().runDelayed(plugin, {
+                runCatching {
                     plugin.server.dispatchCommand(plugin.server.consoleSender, toRun)
-                } catch (ex: Exception) {
+                }.onFailure { ex ->
                     plugin.logger.warning("Failed to execute vote reward command: $toRun - ${ex.message}")
                 }
             }, 100L)
@@ -132,17 +129,14 @@ class VoteSection(override val plugin: Main) : Section {
 
         executeRewards(player)
 
-        val entry = toReward[player.name.lowercase()]
-        if (entry != null && entry.count > 0) {
+        toReward[PlayerName(player.name.lowercase())]?.takeIf { it.count > 0 }?.let { entry ->
             entry.decrementVote()
             sqliteStorage?.save(toReward)
         }
     }
 
     fun grantVoterRole(player: Player) {
-        if (player != null && player.isOnline) {
-            executeRewards(player)
-        }
+        player.takeIf { it.isOnline }?.let { executeRewards(it) }
     }
 
     fun rewardOfflineVotes(player: Player, voteCount: Int) {
@@ -153,20 +147,15 @@ class VoteSection(override val plugin: Main) : Section {
         val prefixedMessage = loc.getPrefix() + " &r&7>>&r " + message
         player.sendMessage(GlobalUtils.translateChars(prefixedMessage))
 
-        for (i in 0 until voteCount) {
-            executeRewards(player)
-        }
+        repeat(voteCount) { executeRewards(player) }
 
-        val entry = toReward[player.name.lowercase()]
-        if (entry != null) {
-            entry.count = 0
-        }
+        toReward[PlayerName(player.name.lowercase())]?.let { it.count = 0 }
 
         sqliteStorage?.save(toReward)
     }
 
     fun hasVoterRoleExpired(username: String): Boolean {
-        val entry = toReward[username.lowercase()] ?: return true
+        val entry = toReward[PlayerName(username.lowercase())] ?: return true
 
         val expirationDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
         if (expirationDays <= 0) return false
@@ -176,7 +165,7 @@ class VoteSection(override val plugin: Main) : Section {
     }
 
     fun getRemainingVoterDays(username: String): Long {
-        val entry = toReward[username.lowercase()] ?: return 0
+        val entry = toReward[PlayerName(username.lowercase())] ?: return 0
 
         val expirationDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
         if (expirationDays <= 0) return -1
@@ -187,28 +176,29 @@ class VoteSection(override val plugin: Main) : Section {
     }
 
     fun removeVoterRole(username: String) {
-        try {
-            val expirationCommand = config?.getString("ExpirationCommand", "lp user %s group remove voter") ?: "lp user %s group remove voter"
-            val commandToRun = String.format(expirationCommand, username)
+        val expirationCommand = config?.getString("ExpirationCommand", "lp user %s group remove voter") ?: "lp user %s group remove voter"
+        val commandToRun = String.format(expirationCommand, username)
+
+        runCatching {
             plugin.server.dispatchCommand(plugin.server.consoleSender, commandToRun)
-        } catch (e: Exception) {
+        }.onFailure { e ->
             plugin.logger.warning("Failed to execute expiration command for $username: ${e.message}")
         }
     }
 
     fun hasVoterRoleAsync(username: String): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
-        try {
+        runCatching {
             val player = Bukkit.getPlayerExact(username)
             if (player != null && player.isOnline) {
-                Bukkit.getRegionScheduler().run(plugin, player.location, { task ->
+                Bukkit.getRegionScheduler().run(plugin, player.location) {
                     val hasRole = player.hasPermission("group.voter") || player.hasPermission("voter")
                     future.complete(hasRole)
-                })
+                }
             } else {
                 future.complete(false)
             }
-        } catch (e: Exception) {
+        }.onFailure { e ->
             future.completeExceptionally(e)
         }
         return future
@@ -216,7 +206,7 @@ class VoteSection(override val plugin: Main) : Section {
 
     fun checkAndMigrateLegacyPlayer(username: String) {
         if (config?.getBoolean("EnableLegacyPlayerMigration", true) != true) return
-        if (toReward.containsKey(username.lowercase())) return
+        if (toReward.containsKey(PlayerName(username.lowercase()))) return
 
         hasVoterRoleAsync(username).thenAccept { hasRole ->
             if (hasRole) {
@@ -233,11 +223,12 @@ class VoteSection(override val plugin: Main) : Section {
         plugin.logger.info("VoteSection: Attempting to register vote for $username")
 
         val applyVote = {
-            val existingEntry = toReward[username.lowercase()]
+            val key = PlayerName(username.lowercase())
+            val existingEntry = toReward[key]
             if (existingEntry != null) {
                 extendVoterRole(username, existingEntry)
             } else {
-                toReward[username.lowercase()] = VoteEntry(1)
+                toReward[key] = VoteEntry(1)
             }
 
             plugin.logger.info("VoteSection: Vote registered for $username. Total tracked votes: ${toReward.size}")
@@ -248,11 +239,11 @@ class VoteSection(override val plugin: Main) : Section {
         val player = Bukkit.getPlayerExact(username)
         if (player != null && player.isOnline &&
             config?.getBoolean("EnableLegacyPlayerMigration", true) == true &&
-            !toReward.containsKey(username.lowercase())) {
+            !toReward.containsKey(PlayerName(username.lowercase()))) {
 
             hasVoterRoleAsync(username).thenAccept { hasRole ->
                 if (hasRole) {
-                    if (!toReward.containsKey(username.lowercase())) {
+                    if (!toReward.containsKey(PlayerName(username.lowercase()))) {
                         val defaultDays = config?.getInt("LegacyPlayerDefaultDaysRemaining", 20) ?: 20
                         migrateLegacyPlayer(username, defaultDays.toLong())
                     }
@@ -275,10 +266,9 @@ class VoteSection(override val plugin: Main) : Section {
 
         val currentExpirationTime = existingEntry.timestamp + (expirationDays * 24L * 60L * 60L * 1000L)
         val baseTime = maxOf(currentExpirationTime, System.currentTimeMillis())
-        val newTimestamp = baseTime
 
-        val newEntry = VoteEntry(existingEntry.count + 1, newTimestamp)
-        toReward[username.lowercase()] = newEntry
+        val newEntry = VoteEntry(existingEntry.count + 1, baseTime)
+        toReward[PlayerName(username.lowercase())] = newEntry
 
         val totalDaysRemaining = (baseTime + (expirationDays * 24L * 60L * 60L * 1000L) - System.currentTimeMillis()) / (24L * 60L * 60L * 1000L)
         plugin.logger.info("Extended voter role for $username by $expirationDays days. Total remaining: $totalDaysRemaining days")
@@ -293,7 +283,7 @@ class VoteSection(override val plugin: Main) : Section {
         val timestamp = currentTime + daysRemainingMillis - totalExpirationMillis
 
         val entry = VoteEntry(0, timestamp)
-        toReward[username.lowercase()] = entry
+        toReward[PlayerName(username.lowercase())] = entry
 
         sqliteStorage?.save(toReward)
 
@@ -301,25 +291,24 @@ class VoteSection(override val plugin: Main) : Section {
     }
 
     fun getToRewardEntry(player: Player): Optional<Int> {
-        val entry = toReward[player.name.lowercase()]
+        val entry = toReward[PlayerName(player.name.lowercase())]
         return if (entry != null) Optional.of(entry.count) else Optional.empty()
     }
 
     fun markAsRewarded(username: String) {
-        toReward.remove(username.lowercase())
+        toReward.remove(PlayerName(username.lowercase()))
     }
 
     fun cleanupExpiredVotes() {
         val offlineExpirationDays = config?.getInt("OfflineVoteExpirationDays", 7) ?: 7
-        val voterRoleExpirationDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
 
+        val iterator = toReward.entries.iterator()
         var removedCount = 0
         var rolesRemovedCount = 0
 
-        val iterator = toReward.entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            val username = entry.key
+            val username = entry.key.value
             val voteEntry = entry.value
 
             if (hasVoterRoleExpired(username)) {
@@ -337,11 +326,8 @@ class VoteSection(override val plugin: Main) : Section {
         if (removedCount > 0) {
             plugin.logger.info("Cleaned up $removedCount expired vote entries")
         }
-        if (rolesRemovedCount > 0) {
-            plugin.logger.info("Removed $rolesRemovedCount expired voter roles")
-        }
 
-        if ((removedCount > 0 || rolesRemovedCount > 0) && sqliteStorage != null) {
+        if (removedCount > 0 && sqliteStorage != null) {
             sqliteStorage?.save(toReward)
         }
     }

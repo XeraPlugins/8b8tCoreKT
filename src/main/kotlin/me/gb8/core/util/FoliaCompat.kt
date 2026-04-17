@@ -34,7 +34,6 @@ class FoliaCompat {
         private val TASK_SCHEDULER_FIELD: Field?
 
         init {
-            var luminol = false
             var logger: Logger? = null
             var scheduleMethod: Method? = null
             var scheduleFixedMethod: Method? = null
@@ -46,38 +45,35 @@ class FoliaCompat {
             var getBukkitEntity: Method? = null
             var taskSchedulerField: Field? = null
 
-            try {
-                logger = Logger.getLogger(FoliaCompat::class.java.name)
-                logger.level = Level.WARNING
-            } catch (ignored: Exception) {
+            runCatching {
+                val newLogger = Logger.getLogger(FoliaCompat::class.java.name)
+                newLogger.level = Level.WARNING
+                logger = newLogger
             }
 
-            try {
+            LUMINOL = runCatching {
                 val minecraftEntityClass = Class.forName("net.minecraft.world.entity.Entity")
                 minecraftEntityClass.getMethod("getBukkitEntity")
 
                 val taskSchedulerClass = Class.forName("io.papermc.paper.threadedregions.EntityScheduler")
-                scheduleMethod = taskSchedulerClass.getMethod("schedule", Runnable::class.java, Runnable::class.java, Long::class.javaObjectType)
-                scheduleFixedMethod = taskSchedulerClass.getMethod("scheduleAtFixedRate", Runnable::class.java, Runnable::class.java, Long::class.javaObjectType, Long::class.javaObjectType)
+                scheduleMethod = taskSchedulerClass.getMethod("schedule", Runnable::class.java, Runnable::class.java, Long::class.javaPrimitiveType)
+                scheduleFixedMethod = taskSchedulerClass.getMethod("scheduleAtFixedRate", Runnable::class.java, Runnable::class.java, Long::class.javaPrimitiveType, Long::class.javaPrimitiveType)
 
                 getHandle = Class.forName("org.bukkit.craftbukkit.entity.CraftEntity").getMethod("getHandle")
                 getBukkitEntity = minecraftEntityClass.getMethod("getBukkitEntity")
                 taskSchedulerField = Class.forName("org.bukkit.craftbukkit.entity.CraftEntity").getField("taskScheduler")
+                true
+            }.getOrDefault(false)
 
-                luminol = true
-            } catch (ignored: Exception) {
-            }
-
-            try {
+            runCatching {
                 val taskSchedulerClass = Class.forName("io.papermc.paper.threadedregions.EntityScheduler")
-                runDelayedMethod = taskSchedulerClass.getMethod("runDelayed", Plugin::class.java, Consumer::class.java, Runnable::class.java, Long::class.javaObjectType)
+                runDelayedMethod = taskSchedulerClass.getMethod("runDelayed", Plugin::class.java, Consumer::class.java, Runnable::class.java, Long::class.javaPrimitiveType)
                 runMethod = taskSchedulerClass.getMethod("run", Plugin::class.java, Consumer::class.java, Runnable::class.java)
-                runFixedMethod = taskSchedulerClass.getMethod("runAtFixedRate", Plugin::class.java, Consumer::class.java, Runnable::class.java, Long::class.javaObjectType, Long::class.javaObjectType)
+                runFixedMethod = taskSchedulerClass.getMethod("runAtFixedRate", Plugin::class.java, Consumer::class.java, Runnable::class.java, Long::class.javaPrimitiveType, Long::class.javaPrimitiveType)
                 getScheduler = Entity::class.java.getMethod("getScheduler")
-            } catch (ignored: Exception) {
             }
 
-            LUMINOL = luminol
+
             LOGGER = logger
             LUMINOL_SCHEDULE = scheduleMethod
             LUMINOL_SCHEDULE_FIXED = scheduleFixedMethod
@@ -92,37 +88,30 @@ class FoliaCompat {
 
         private fun getLuminolScheduler(entity: Entity): Any? {
             if (GET_HANDLE == null || GET_BUKKIT_ENTITY == null || TASK_SCHEDULER_FIELD == null) return null
-            try {
-                val minecraftEntity = GET_HANDLE.invoke(entity)
-                val bukkitEntity = GET_BUKKIT_ENTITY.invoke(minecraftEntity)
-                return TASK_SCHEDULER_FIELD.get(bukkitEntity)
-            } catch (e: Exception) {
-                LOGGER?.log(Level.WARNING, "Failed to get Luminol scheduler: " + e.message)
-                return null
-            }
+            return runCatching {
+                val minecraftEntity = GET_HANDLE?.invoke(entity)
+                val bukkitEntity = GET_BUKKIT_ENTITY?.invoke(minecraftEntity)
+                TASK_SCHEDULER_FIELD?.get(bukkitEntity)
+            }.onFailure { e -> LOGGER?.log(Level.WARNING, "Failed to get Luminol scheduler: ${e.message}") }
+                .getOrNull()
         }
 
         @JvmStatic
         fun schedule(entity: Entity, plugin: Plugin, task: Runnable) {
             if (LUMINOL && LUMINOL_SCHEDULE != null) {
-                val scheduler = getLuminolScheduler(entity)
-                if (scheduler != null) {
-                    try {
-                        LUMINOL_SCHEDULE.invoke(scheduler, task, null, 1L)
-                        return
-                    } catch (e: Exception) {
-                        LOGGER?.log(Level.WARNING, "Luminol schedule failed, falling back: " + e.message)
-                    }
+                getLuminolScheduler(entity)?.let { scheduler ->
+                    runCatching {
+                        LUMINOL_SCHEDULE?.invoke(scheduler, task, null, 1L)
+                    }.onFailure { e -> LOGGER?.log(Level.WARNING, "Luminol schedule failed, falling back: ${e.message}") }
+                        .onSuccess { return }
                 }
             }
             if (FOLIA_RUN != null && GET_SCHEDULER != null) {
-                try {
-                    val scheduler = GET_SCHEDULER.invoke(entity)
-                    FOLIA_RUN.invoke(scheduler, plugin, Consumer<Any> { task.run() }, null)
-                    return
-                } catch (e: Exception) {
-                    LOGGER?.log(Level.WARNING, "Folia schedule failed, falling back: " + e.message)
-                }
+                runCatching {
+                    val scheduler = GET_SCHEDULER?.invoke(entity)
+                    FOLIA_RUN?.invoke(scheduler, plugin, Runnable { task.run() }, null)
+                }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia schedule failed, falling back: ${e.message}") }
+                    .onSuccess { return }
             }
             val loc = entity.location
             Bukkit.getRegionScheduler().run(plugin, loc) {
@@ -135,24 +124,20 @@ class FoliaCompat {
         @JvmStatic
         fun scheduleDelayed(entity: Entity, plugin: Plugin, task: Runnable, delay: Long) {
             if (LUMINOL && LUMINOL_SCHEDULE != null) {
-                val scheduler = getLuminolScheduler(entity)
-                if (scheduler != null) {
-                    try {
-                        LUMINOL_SCHEDULE.invoke(scheduler, Runnable {}, task, delay)
-                        return
-                    } catch (e: Exception) {
-                        LOGGER?.log(Level.WARNING, "Luminol scheduleDelayed failed, falling back: " + e.message)
-                    }
+                getLuminolScheduler(entity)?.let { scheduler ->
+                    runCatching {
+                        LUMINOL_SCHEDULE?.invoke(scheduler, Runnable {}, task, delay)
+                    }.onFailure { e -> LOGGER?.log(Level.WARNING, "Luminol scheduleDelayed failed, falling back: ${e.message}") }
+                        .onSuccess { return }
                 }
             }
             if (FOLIA_RUN_DELAYED != null && GET_SCHEDULER != null) {
-                try {
-                    val scheduler = GET_SCHEDULER.invoke(entity)
-                    FOLIA_RUN_DELAYED.invoke(scheduler, plugin, Consumer<Any> { task.run() }, Runnable {}, delay)
-                    return
-                } catch (e: Exception) {
-                    LOGGER?.log(Level.WARNING, "Folia scheduleDelayed failed, falling back: " + e.message)
-                }
+                runCatching {
+                    GET_SCHEDULER?.invoke(entity)?.let { scheduler ->
+                        FOLIA_RUN_DELAYED?.invoke(scheduler, plugin, Runnable { task.run() }, Runnable {}, delay)
+                    }
+                }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia scheduleDelayed failed, falling back: ${e.message}") }
+                    .onSuccess { return }
             }
             val loc = entity.location
             Bukkit.getRegionScheduler().runDelayed(plugin, loc, {
@@ -165,24 +150,20 @@ class FoliaCompat {
         @JvmStatic
         fun scheduleAtFixedRate(entity: Entity, plugin: Plugin, task: Runnable, initialDelay: Long, period: Long) {
             if (LUMINOL && LUMINOL_SCHEDULE_FIXED != null) {
-                val scheduler = getLuminolScheduler(entity)
-                if (scheduler != null) {
-                    try {
-                        LUMINOL_SCHEDULE_FIXED.invoke(scheduler, task, null, initialDelay, period)
-                        return
-                    } catch (e: Exception) {
-                        LOGGER?.log(Level.WARNING, "Luminol scheduleAtFixedRate failed, falling back: " + e.message)
-                    }
+                getLuminolScheduler(entity)?.let { scheduler ->
+                    runCatching {
+                        LUMINOL_SCHEDULE_FIXED?.invoke(scheduler, task, null, initialDelay, period)
+                    }.onFailure { e -> LOGGER?.log(Level.WARNING, "Luminol scheduleAtFixedRate failed, falling back: ${e.message}") }
+                        .onSuccess { return }
                 }
             }
             if (FOLIA_RUN_FIXED != null && GET_SCHEDULER != null) {
-                try {
-                    val scheduler = GET_SCHEDULER.invoke(entity)
-                    FOLIA_RUN_FIXED.invoke(scheduler, plugin, Consumer<Any> { task.run() }, null, initialDelay, period)
-                    return
-                } catch (e: Exception) {
-                    LOGGER?.log(Level.WARNING, "Folia scheduleAtFixedRate failed, falling back: " + e.message)
-                }
+                runCatching {
+                    GET_SCHEDULER?.invoke(entity)?.let { scheduler ->
+                        FOLIA_RUN_FIXED?.invoke(scheduler, plugin, Runnable { task.run() }, null, initialDelay, period)
+                    }
+                }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia scheduleAtFixedRate failed, falling back: ${e.message}") }
+                    .onSuccess { return }
             }
             val loc = entity.location
             fun scheduleNext() {

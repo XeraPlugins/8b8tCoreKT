@@ -13,74 +13,65 @@ import me.gb8.core.util.GlobalUtils
 import net.kyori.adventure.text.Component
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
-import java.util.regex.Pattern
 
 class LegacyTextCheck : Check {
 
     override fun check(item: ItemStack?): Boolean {
-        item ?: return false
-        if (!item.hasItemMeta()) return false
-        val meta = item.itemMeta
+        item?.itemMeta?.let { meta ->
+            if (isLegitimatelySigned(meta)) return false
 
-        if (isLegitimatelySigned(meta)) return false
-
-        if (meta.hasDisplayName()) {
-            val name = GlobalUtils.getStringContent(meta.displayName())
-            if (LEGACY_COLOR_PATTERN.matcher(name).find()) return true
-        }
-
-        if (meta.hasLore()) {
-            for (lineComp in meta.lore() ?: emptyList()) {
-                val line = GlobalUtils.getStringContent(lineComp)
-                if (LEGACY_COLOR_PATTERN.matcher(line).find()) return true
+            meta.displayName()?.let { displayName ->
+                if (LEGACY_COLOR_REGEX.containsMatchIn(GlobalUtils.getStringContent(displayName))) {
+                    return true
+                }
             }
-        }
 
+            return meta.lore()?.any { lineComp ->
+                LEGACY_COLOR_REGEX.containsMatchIn(GlobalUtils.getStringContent(lineComp))
+            } ?: false
+        }
         return false
     }
 
     override fun fix(item: ItemStack?) {
-        val meta = item?.itemMeta ?: return
+        item?.itemMeta?.let { meta ->
+            if (isLegitimatelySigned(meta)) return@let
 
-        if (isLegitimatelySigned(meta)) return
-
-        if (meta.hasDisplayName()) {
-            val legacy = GlobalUtils.getStringContent(meta.displayName())
-            val stripped = LEGACY_COLOR_PATTERN.matcher(legacy).replaceAll("")
-            meta.displayName(Component.text(stripped))
-        }
-
-        if (meta.hasLore()) {
-            val oldLore = meta.lore() ?: emptyList()
-            val newLore = oldLore.map { lineComp ->
-                val line = GlobalUtils.getStringContent(lineComp)
-                Component.text(LEGACY_COLOR_PATTERN.matcher(line).replaceAll(""))
+            meta.displayName()?.let { displayName ->
+                val stripped = LEGACY_COLOR_REGEX.replace(
+                    GlobalUtils.getStringContent(displayName),
+                    ""
+                )
+                meta.displayName(Component.text(stripped))
             }
-            meta.lore(newLore)
-        }
 
-        item.itemMeta = meta
+            meta.lore()?.let { oldLore ->
+                val newLore = oldLore.map { lineComp ->
+                    val line = GlobalUtils.getStringContent(lineComp)
+                    Component.text(LEGACY_COLOR_REGEX.replace(line, ""))
+                }
+                meta.lore(newLore)
+            }
+
+            item.itemMeta = meta
+        }
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean = true
 
     private fun isLegitimatelySigned(meta: ItemMeta): Boolean {
-        if (!meta.hasLore()) return false
-        for (lineComp in meta.lore() ?: emptyList()) {
+        return meta.lore()?.any { lineComp ->
             val line = GlobalUtils.getStringContent(lineComp)
-            if (SIGNED_ITEM_PATTERN.matcher(line).find() ||
-                BOOK_AUTHOR_PATTERN.matcher(line).find() ||
-                MAP_AUTHOR_PATTERN.matcher(line).find()) {
-                return true
-            }
-        }
-        return false
+            SIGNED_ITEM_REGEX.containsMatchIn(line) ||
+            BOOK_AUTHOR_REGEX.containsMatchIn(line) ||
+            MAP_AUTHOR_REGEX.containsMatchIn(line)
+        } ?: false
     }
 
     companion object {
-        private val LEGACY_COLOR_PATTERN = Pattern.compile("§[0-9a-fk-or]", Pattern.CASE_INSENSITIVE)
-        private val SIGNED_ITEM_PATTERN = Pattern.compile("§[0-9a-f]by §[0-9a-f]@[^§\n\r]*", Pattern.CASE_INSENSITIVE)
-        private val BOOK_AUTHOR_PATTERN = Pattern.compile("§[0-9a-f]Author: §[0-9a-f][^§\n\r]*", Pattern.CASE_INSENSITIVE)
-        private val MAP_AUTHOR_PATTERN = Pattern.compile("§7by @[^§\n\r]*", Pattern.CASE_INSENSITIVE)
+        private val LEGACY_COLOR_REGEX = Regex("§[0-9a-fk-or]", RegexOption.IGNORE_CASE)
+        private val SIGNED_ITEM_REGEX = Regex("§[0-9a-f]by §[0-9a-f]@[^§\n\r]*", RegexOption.IGNORE_CASE)
+        private val BOOK_AUTHOR_REGEX = Regex("§[0-9a-f]Author: §[0-9a-f][^§\n\r]*", RegexOption.IGNORE_CASE)
+        private val MAP_AUTHOR_REGEX = Regex("§7by @[^§\n\r]*", RegexOption.IGNORE_CASE)
     }
 }

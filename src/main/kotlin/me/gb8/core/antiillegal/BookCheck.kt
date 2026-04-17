@@ -20,14 +20,9 @@ class BookCheck : Check {
     private val encoder: CharsetEncoder = StandardCharsets.UTF_8.newEncoder()
 
     override fun check(item: ItemStack?): Boolean {
-        val meta: BookMeta
-        try {
-            meta = item?.itemMeta as? BookMeta ?: return false
-        } catch (e: Exception) {
-            return false
-        }
-        val pages = getPages(meta)
-        return !(pages != null && encoder.canEncode(pages.joinToString(" ")))
+        val meta = runCatching { item?.itemMeta as? BookMeta }.getOrNull() ?: return false
+        val pages = getPages(meta) ?: return false
+        return !encoder.canEncode(pages.joinToString(""))
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
@@ -37,19 +32,11 @@ class BookCheck : Check {
 
     override fun fix(item: ItemStack?) {
         val meta = item?.itemMeta as? BookMeta ?: return
-        val cleanPages = mutableListOf<Component>()
-
         val currPages = getPages(meta) ?: return
 
-        for (page in currPages) {
-            val builder = StringBuilder()
-            for (c in page.toCharArray()) {
-                if (encoder.canEncode(c)) {
-                    builder.append(c)
-                }
-            }
-            val cleanComponent = Component.text(builder.toString())
-            cleanPages.add(cleanComponent)
+        val cleanPages = currPages.map { page ->
+            val cleanText = page.filter { encoder.canEncode(it) }
+            Component.text(cleanText)
         }
 
         meta.pages(cleanPages)
@@ -57,10 +44,6 @@ class BookCheck : Check {
     }
 
     private fun getPages(meta: BookMeta): Array<String>? {
-        if (!meta.hasPages()) {
-            return null
-        }
-
-        return meta.pages().map { GlobalUtils.getStringContent(it) }.toTypedArray()
+        return if (!meta.hasPages()) null else meta.pages().map { GlobalUtils.getStringContent(it) }.toTypedArray()
     }
 }

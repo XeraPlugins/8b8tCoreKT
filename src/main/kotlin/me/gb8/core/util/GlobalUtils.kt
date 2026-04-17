@@ -101,9 +101,7 @@ object GlobalUtils {
                 getCurrentRegionMethod = trs.getMethod("getCurrentRegion")
             }
             val region = getCurrentRegionMethod?.invoke(null)
-            if (region != null) {
-                return getTpsFromRegionObject(region)
-            }
+            region?.let { return getTpsFromRegionObject(it) }
         } catch (t: Throwable) {
             if (!loggedMsptError) {
                 Main.instance.logger.log(Level.WARNING, "Failed to get current region TPS", t)
@@ -132,9 +130,7 @@ object GlobalUtils {
                 getCurrentRegionMethod = trs.getMethod("getCurrentRegion")
             }
             val region = getCurrentRegionMethod?.invoke(null)
-            if (region != null) {
-                return getMsptFromRegionObject(region)
-            }
+            region?.let { return getMsptFromRegionObject(it) }
         } catch (_: Throwable) {
         }
         return -1.0
@@ -169,8 +165,7 @@ object GlobalUtils {
 
     fun translateChars(input: String?): TextComponent {
         if (input == null) return Component.empty()
-        val cached = componentCache[input]
-        if (cached != null) return cached
+        componentCache[input]?.let { return it }
 
         val formatted = convertToMiniMessageFormat(input) ?: return Component.empty()
         val component = miniMessage.deserialize(formatted) as TextComponent
@@ -242,7 +237,7 @@ object GlobalUtils {
         if (input.indexOf('&') == -1) return input
         
         val cached = miniMessageFormatCache[input]
-        if (cached != null) return cached
+        cached?.let { return it }
 
         val sb = StringBuilder(input.length + 32)
         val chars = input.toCharArray()
@@ -568,21 +563,19 @@ object GlobalUtils {
             val tickData = getCachedGetData(region).invoke(region)
             val handle = getCachedGetHandle(tickData).invoke(tickData)
 
-            var report: Any? = null
             val reportMethods = arrayOf("getTickReport1s", "getTickReport5s", "getTickReport15s")
-            for (mName in reportMethods) {
+            val report = reportMethods.firstNotNullOfOrNull { mName ->
                 try {
                     val m = handle.javaClass.getMethod(mName, Long::class.javaPrimitiveType)
-                    report = m.invoke(handle, System.nanoTime())
-                    if (report != null)
-                        break
+                    m.invoke(handle, System.nanoTime())
                 } catch (_: Exception) {
+                    null
                 }
             }
 
-            if (report != null) {
-                val mTpsData = report.javaClass.getMethod("tpsData")
-                val segmentedAvg = mTpsData.invoke(report)
+            report?.let {
+                val mTpsData = it.javaClass.getMethod("tpsData")
+                val segmentedAvg = mTpsData.invoke(it)
                 return getAverageFromSegmented(segmentedAvg)
             }
         } catch (_: Exception) {
@@ -595,34 +588,26 @@ object GlobalUtils {
             val tickData = getCachedGetData(region).invoke(region)
             val handle = getCachedGetHandle(tickData).invoke(tickData)
 
-            var report: Any? = null
             val reportMethods = arrayOf("getTickReport1s", "getTickReport5s", "getTickReport15s")
-            for (mName in reportMethods) {
+            val report = reportMethods.firstNotNullOfOrNull { mName ->
                 try {
-                    val m = handle.javaClass.getMethod(mName, Long::class.javaPrimitiveType)
-                    report = m.invoke(handle, System.nanoTime())
-                    if (report != null)
-                        break
+                    handle.javaClass.getMethod(mName, Long::class.javaPrimitiveType).invoke(handle, System.nanoTime())
                 } catch (_: Exception) {
+                    null
                 }
             }
 
-            if (report != null) {
-                var segmentedAvg: Any? = null
+            report?.let { r ->
                 val msptMethodNames = arrayOf("msptData", "tickTimeData", "mspt", "tickTimes")
-                for (mName in msptMethodNames) {
+                val segmentedAvg = msptMethodNames.firstNotNullOfOrNull { mName ->
                     try {
-                        val m = report.javaClass.getMethod(mName)
-                        segmentedAvg = m.invoke(report)
-                        if (segmentedAvg != null)
-                            break
+                        r.javaClass.getMethod(mName).invoke(r)
                     } catch (_: Exception) {
+                        null
                     }
                 }
 
-                if (segmentedAvg != null) {
-                    return getAverageFromSegmented(segmentedAvg)
-                }
+                segmentedAvg?.let { return getAverageFromSegmented(it) }
             }
         } catch (_: Exception) {
         }
@@ -757,12 +742,12 @@ object GlobalUtils {
                     var segment = Component.text(sub)
                     if (colorHex.isNotEmpty() && colorHex.startsWith("#")) {
                         val textColor = TextColor.fromHexString(colorHex)
-                        if (textColor != null) segment = segment.color(textColor)
+                        textColor?.let { segment = segment.color(it) }
                     }
                     if (decorations.isNotEmpty() && decorations.lowercase() != "none") {
                         for (dec in decorations.split("/")) {
                             val textDecoration = TextDecoration.NAMES.value(dec.lowercase().trim())
-                            if (textDecoration != null) segment = segment.decoration(textDecoration, true)
+                            textDecoration?.let { segment = segment.decoration(it, true) }
                         }
                     }
                     finalComp = finalComp.append(segment)

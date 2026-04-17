@@ -17,35 +17,38 @@ import me.gb8.core.util.GlobalUtils
 
 class DelHomeCommand(private val main: HomeManager) : TabExecutor {
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
-        if (sender !is Player) {
+        val player = sender as? Player ?: run {
             GlobalUtils.sendMessage(sender, "&3You must be a player to use this command")
             return true
         }
-        val player = sender
+
         val homesData = main.getHomes(player.uniqueId)
         if (!homesData.hasHomes()) {
             GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_no_homes")
             return true
         }
+
         val homesList = homesData.getHomes()
         if (args.isEmpty()) {
-            val names = homesList.map { home -> home.name }.joinToString(", ")
+            val names = homesList.joinToString(", ") { it.name }
             GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_specify_home", names)
             return true
         }
-        val home = homesList.find { home -> home.name == args[0] }
-        if (home == null) {
-            GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_home_not_found", args[0])
-            return true
-        }
-        homesData.deleteHome(home)
-        GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_success", home.name)
+
+        val homeName = args[0]
+        homesList.find { it.name == homeName }?.let { home ->
+            homesData.deleteHome(home)
+            GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_success", home.name)
+        } ?: GlobalUtils.sendPrefixedLocalizedMessage(player, "delhome_home_not_found", homeName)
+
         return true
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, label: String, args: Array<String>): List<String> {
         return if (sender is Player && args.size == 1) {
-            main.getHomes(sender.uniqueId).getHomes().map { it.name }
+            main.getHomes(sender.uniqueId).getHomes()
+                .map { it.name }
+                .filter { it.startsWith(args[0], ignoreCase = true) }
         } else emptyList()
     }
 }

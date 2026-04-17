@@ -43,9 +43,8 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
     }
 
     private fun checkAllEntities() {
-        for (world in Bukkit.getWorlds()) {
-            for (entity in world.entities) {
-                if (!shouldFullCheck(entity)) continue
+        Bukkit.getWorlds().forEach { world ->
+            world.entities.filter { shouldFullCheck(it) }.forEach { entity ->
                 FoliaCompat.schedule(entity, plugin) {
                     if (entity.isValid) performChecks(entity)
                 }
@@ -53,12 +52,11 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
         }
     }
 
-    private fun shouldFullCheck(entity: Entity): Boolean {
-        return entity is LivingEntity ||
-               entity is Explosive ||
-               entity is org.bukkit.entity.Hanging ||
-               entity.type == org.bukkit.entity.EntityType.ENDER_DRAGON
-    }
+    private fun shouldFullCheck(entity: Entity): Boolean =
+        entity is LivingEntity ||
+        entity is Explosive ||
+        entity is org.bukkit.entity.Hanging ||
+        entity.type == org.bukkit.entity.EntityType.ENDER_DRAGON
 
     private fun performChecks(entity: Entity) {
         if (!entity.isValid) return
@@ -99,41 +97,39 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
     }
 
     private fun checkAndFixEntityName(entity: Entity) {
-        if (entity.customName() == null) return
-
-        val name = entity.customName() ?: net.kyori.adventure.text.Component.empty()
-
-        var illegal = false
-
-        if (GlobalUtils.getComponentDepth(name) > MAX_ENTITY_NAME_DEPTH) {
-            illegal = true
-        } else {
-            val json = GsonComponentSerializer.gson().serialize(name)
-            if (json.length > MAX_ENTITY_NAME_JSON_LENGTH) {
-                illegal = true
-            } else {
-                val plainText = GlobalUtils.getStringContent(name)
-                if (plainText.length > MAX_ENTITY_NAME_PLAIN_LENGTH) {
-                    illegal = true
-                } else if (countNestingDepth(json) > MAX_ENTITY_NAME_NESTING) {
-                    illegal = true
+        entity.customName()?.let { name ->
+            val isIllegal = run {
+                GlobalUtils.getComponentDepth(name) > MAX_ENTITY_NAME_DEPTH ||
+                run {
+                    val json = GsonComponentSerializer.gson().serialize(name)
+                    json.length > MAX_ENTITY_NAME_JSON_LENGTH ||
+                    run {
+                        val plainText = GlobalUtils.getStringContent(name)
+                        plainText.length > MAX_ENTITY_NAME_PLAIN_LENGTH ||
+                        countNestingDepth(json) > MAX_ENTITY_NAME_NESTING
+                    }
                 }
             }
-        }
 
-        if (illegal) {
-            entity.customName(null)
-            entity.isCustomNameVisible = false
+            if (isIllegal) {
+                entity.customName(null)
+                entity.isCustomNameVisible = false
+            }
         }
     }
 
     private fun countNestingDepth(json: String): Int {
         var maxDepth = 0
         var currentDepth = 0
-        for (i in 0 until json.length - 6) {
-            if (json.regionMatches(i, "\"extra\"", 0, 7, ignoreCase = false)) {
+        var index = 0
+
+        while (index < json.length - 6) {
+            if (json.startsWith("\"extra\"", index, ignoreCase = false)) {
                 currentDepth++
                 maxDepth = maxOf(maxDepth, currentDepth)
+                index += 7
+            } else {
+                index++
             }
         }
         return maxDepth
@@ -156,7 +152,7 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
 
     @EventHandler
     fun onChunkLoad(event: ChunkLoadEvent) {
-        for (entity in event.chunk.entities) {
+        event.chunk.entities.forEach { entity ->
             FoliaCompat.schedule(entity, plugin) {
                 performChecks(entity)
             }

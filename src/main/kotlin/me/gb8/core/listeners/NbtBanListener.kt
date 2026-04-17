@@ -8,11 +8,10 @@
 
 package me.gb8.core.listeners
 
+import me.gb8.core.Main
 import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
-import io.papermc.paper.datacomponent.DataComponentTypes
-import org.bukkit.Chunk
 import org.bukkit.Material
 import org.bukkit.block.Beehive
 import org.bukkit.block.CreatureSpawner
@@ -52,31 +51,30 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
     @EventHandler(priority = EventPriority.LOW)
     fun onEntityAdd(event: EntityAddToWorldEvent) {
         val entity = event.entity
-        
-        if (entity is Item) {
-            val stack = entity.itemStack
-            if (isIllegalItem(stack)) {
-                entity.remove()
+
+        when (entity) {
+            is Item -> {
+                if (isIllegalItem(entity.itemStack)) {
+                    entity.remove()
+                    return
+                }
+            }
+            is ItemFrame -> {
+                if (isIllegalItem(entity.item)) {
+                    entity.setItem(ItemStack(Material.AIR))
+                    FoliaCompat.schedule(entity, Main.instance) { entity.remove() }
+                }
                 return
             }
-        } 
-        
-        if (entity is ItemFrame) {
-            val stack = entity.item
-            if (isIllegalItem(stack)) {
-                entity.setItem(ItemStack(Material.AIR))
-                FoliaCompat.schedule(entity, me.gb8.core.Main.instance) { entity.remove() }
-            }
-            return
-        }
-
-        val name = entity.customName()
-        if (name != null) {
-            val depth = GlobalUtils.getComponentDepth(name)
-            val content = GlobalUtils.getStringContent(name)
-            if (depth > 20 || content.length > 500) {
-                entity.customName(null)
-                FoliaCompat.schedule(entity, me.gb8.core.Main.getInstance()) { entity.remove() }
+            else -> {
+                entity.customName()?.let { name ->
+                    val depth = GlobalUtils.getComponentDepth(name)
+                    val content = GlobalUtils.getStringContent(name)
+                    if (depth > 20 || content.length > 500) {
+                        entity.customName(null)
+                        FoliaCompat.schedule(entity, Main.instance) { entity.remove() }
+                    }
+                }
             }
         }
     }
@@ -93,15 +91,17 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onChunkLoad(event: ChunkLoadEvent) {
-        val chunk = event.chunk
-        for (state in chunk.tileEntities) {
-            if (state is CreatureSpawner) {
-                if (state.spawnCount > 100 || state.requiredPlayerRange > 100) {
-                    state.block.type = Material.AIR
+        event.chunk.tileEntities.forEach { state ->
+            when (state) {
+                is CreatureSpawner -> {
+                    if (state.spawnCount > 100 || state.requiredPlayerRange > 100) {
+                        state.block.type = Material.AIR
+                    }
                 }
-            } else if (state is Beehive) {
-                if (state.entityCount > 5) {
-                    state.block.type = Material.AIR
+                is Beehive -> {
+                    if (state.entityCount > 5) {
+                        state.block.type = Material.AIR
+                    }
                 }
             }
         }
@@ -110,74 +110,56 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onSpawnerSpawn(event: SpawnerSpawnEvent) {
         val entity = event.entity
-        if (entity is FallingBlock || entity.type == EntityType.FALLING_BLOCK) {
-            event.isCancelled = true
-            event.spawner?.block?.type = Material.AIR
-        } else if (entity is Item || entity is ItemFrame) {
-            event.isCancelled = true
-            event.spawner?.block?.type = Material.AIR
+        when {
+            entity is FallingBlock || entity.type == EntityType.FALLING_BLOCK -> {
+                event.isCancelled = true
+                event.spawner?.block?.type = Material.AIR
+            }
+            entity is Item || entity is ItemFrame -> {
+                event.isCancelled = true
+                event.spawner?.block?.type = Material.AIR
+            }
         }
     }
 
     private fun isIllegalItem(item: ItemStack?): Boolean {
-        if (item == null || item.type == Material.AIR) return false
-        
-        try {
-            if (isBundle(item.type)) {
-                if (checkBundleRecursion(item, 0)) {
-                    return true
+        return item?.takeIf { it.type != Material.AIR }?.let { stack ->
+            runCatching {
+                when {
+                    isBundle(stack.type) && checkBundleRecursion(stack, 0) -> true
+                    stack.hasItemMeta() && calculateItemSize(stack) > maxItemSizeBytes -> true
+                    else -> false
                 }
-            }
-            
-            if (item.hasItemMeta()) {
-                val size = calculateItemSize(item)
-                if (size > maxItemSizeBytes) {
-                    return true
-                }
-            }
-        } catch (e: Exception) {
-            return false
-        }
-        
-        return false
+            }.getOrDefault(false)
+        } ?: false
     }
 
     private fun sanitizeInventory(player: Player) {
         val contents = player.inventory.contents
         var modified = false
 
-        for (i in contents.indices) {
-            val item = contents[i] ?: continue
-            
-            if (item.type == Material.AIR) continue
-
-            if (!item.hasItemMeta()) continue
-
-            val itemSize = calculateItemSize(item)
-
-            if (itemSize > maxItemSizeBytes) {
-                val itemName = getItemName(item)
-                logger.warn("NBT Patch: Prevented overloaded NBT item from {} | Size: {} bytes | Type: {}", 
-                    player.name, itemSize, itemName)
-
-                player.inventory.setItem(i, null)
-                
-                sendPrefixedLocalizedMessage(player, "nbtPatch_deleted_item", itemName)
-                modified = true
-                continue
-            }
-
-            if (isBundle(item.type)) {
-                if (checkBundleRecursion(item, 0)) {
-                    val itemName = getItemName(item)
-                    logger.warn("NBT Patch: Prevented bundle crash from {} | Type: {}", player.name, itemName)
-                    player.inventory.setItem(i, null)
-                    sendPrefixedLocalizedMessage(player, "nbtPatch_deleted_item", itemName)
-                    modified = true
+        contents.forEachIndexed { index, item ->
+            item?.takeIf { it.type != Material.AIR && it.hasItemMeta() }?.let { stack ->
+                when {
+                    calculateItemSize(stack) > maxItemSizeBytes -> {
+                        val itemName = getItemName(stack)
+                        logger.warn("NBT Patch: Prevented overloaded NBT item from {} | Size: {} bytes | Type: {}",
+                            player.name, calculateItemSize(stack), itemName)
+                        player.inventory.setItem(index, null)
+                        sendPrefixedLocalizedMessage(player, "nbtPatch_deleted_item", itemName)
+                        modified = true
+                    }
+                    isBundle(stack.type) && checkBundleRecursion(stack, 0) -> {
+                        val itemName = getItemName(stack)
+                        logger.warn("NBT Patch: Prevented bundle crash from {} | Type: {}", player.name, itemName)
+                        player.inventory.setItem(index, null)
+                        sendPrefixedLocalizedMessage(player, "nbtPatch_deleted_item", itemName)
+                        modified = true
+                    }
                 }
             }
         }
-        
+
         if (modified) player.updateInventory()
     }
 
@@ -185,39 +167,25 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
         return GlobalUtils.calculateItemSize(item)
     }
 
-    
     fun getItemName(itemStack: ItemStack?): String {
-        if (itemStack == null) return "Unknown"
-        try {
-            val meta = itemStack.itemMeta
-            if (meta != null && meta.hasDisplayName()) {
-                val displayName = meta.displayName
-                return displayName.ifEmpty { itemStack.type.name }
-            }
-        } catch (_: Exception) { }
-        return itemStack.type.name
+        return itemStack?.let { stack ->
+            stack.itemMeta?.displayName?.takeIf { it.isNotEmpty() } ?: stack.type.name
+        } ?: "Unknown"
     }
-    
+
     private fun checkBundleRecursion(item: ItemStack?, depth: Int): Boolean {
         if (item == null || !isBundle(item.type)) return false
         if (depth >= 1) return true
-        try {
-            if (item.hasItemMeta() && item.itemMeta is BundleMeta) {
-                val bundleMeta = item.itemMeta as BundleMeta
-                for (inner in bundleMeta.items) {
-                    if (inner.type == Material.AIR) continue
-                    if (isBundle(inner.type)) {
-                        return true
-                    }
-                }
-            }
+
+        return try {
+            (item.itemMeta as? BundleMeta)?.items?.any { inner ->
+                inner.type != Material.AIR && isBundle(inner.type)
+            } ?: false
         } catch (_: Exception) {
-            return true
+            true
         }
-        return false
     }
 
-    private fun isBundle(type: Material): Boolean {
-        return type.name.endsWith("BUNDLE") || type.name.contains("SHULKER")
-    }
+    private fun isBundle(type: Material): Boolean =
+        type.name.endsWith("BUNDLE") || type.name.contains("SHULKER")
 }

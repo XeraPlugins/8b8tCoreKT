@@ -20,11 +20,12 @@ class Localization(private val config: Configuration) {
     private val stringCache = ConcurrentHashMap<String, String>()
     private val listCache = ConcurrentHashMap<String, List<String>>()
     private val rawCache = ConcurrentHashMap<String, String>()
-    private var prefix: String? = null
 
     companion object {
         private val localizationMap = ConcurrentHashMap<String, Localization>()
         private val localeCache = ConcurrentHashMap<String, Localization>()
+
+        private val DEFAULT_PREFIX = "&8[&98b&78t&8]"
 
         fun loadLocalizations(dataFolder: File) {
             localizationMap.clear()
@@ -36,21 +37,17 @@ class Localization(private val config: Configuration) {
                 return
             }
 
-            val locales = arrayOf("ar", "en", "es", "fr", "he", "hi", "it", "ja", "nl", "pt", "ru", "tr", "zh")
-            for (locale in locales) {
+            listOf("ar", "en", "es", "fr", "he", "hi", "it", "ja", "nl", "pt", "ru", "tr", "zh").forEach { locale ->
                 val file = File(localeDir, "$locale.yml")
                 GlobalUtils.unpackResource("Localization/$locale.yml", file)
             }
 
-            val ymlFiles = localeDir.listFiles { f -> f.isFile && f.name.endsWith(".yml") }
-            if (ymlFiles == null) return
-
-            for (ymlFile in ymlFiles) {
-                try {
+            localeDir.listFiles { f -> f.isFile && f.name.endsWith(".yml") }?.forEach { ymlFile ->
+                runCatching {
                     val cfg = YamlConfiguration.loadConfiguration(ymlFile)
                     val key = ymlFile.nameWithoutExtension
                     localizationMap[key] = Localization(cfg)
-                } catch (e: Exception) {
+                }.onFailure { e ->
                     GlobalUtils.log(Level.SEVERE, "Failed to load localization file %s: %s", ymlFile.name, e.message)
                     e.printStackTrace()
                 }
@@ -58,40 +55,37 @@ class Localization(private val config: Configuration) {
         }
 
         fun getLocalization(locale: String): Localization {
-            localeCache[locale]?.let { return it }
-
-            val loc: Localization = if (localizationMap.isEmpty()) {
-                Localization(YamlConfiguration.loadConfiguration(File("")))
-            } else {
-                localizationMap[locale] ?: run {
-                    val base = locale.split("[_-]".toRegex())[0]
-                    localizationMap[base] ?: localizationMap["en"] ?: Localization(YamlConfiguration.loadConfiguration(File("")))
+            return localeCache.getOrPut(locale) {
+                if (localizationMap.isEmpty()) {
+                    Localization(YamlConfiguration.loadConfiguration(File("")))
+                } else {
+                    localizationMap[locale] ?: run {
+                        val base = locale.split("[_-]".toRegex()).first()
+                        localizationMap[base] ?: localizationMap["en"] ?: Localization(YamlConfiguration.loadConfiguration(File("")))
+                    }
                 }
             }
-
-            localeCache[locale] = loc
-            return loc
         }
     }
 
-    fun getPrefix(): String {
-        if (prefix == null) prefix = config.getString("prefix", "&8[&98b&78t&8]")
-        return prefix ?: "&8[&98b&78t&8]"
+    private val cachedPrefix: String by lazy {
+        config.getString("prefix", DEFAULT_PREFIX) ?: DEFAULT_PREFIX
     }
+
+    fun getPrefix(): String = cachedPrefix
 
     fun get(key: String): String {
         return stringCache.getOrPut(key) {
-            val `val` = config.getString(key) ?: "Unknown key $key"
-            val withPrefix = `val`.replace("%prefix%", getPrefix())
+            val raw = config.getString(key) ?: "Unknown key $key"
+            val withPrefix = raw.replace("%prefix%", cachedPrefix)
             GlobalUtils.convertToMiniMessageFormat(withPrefix) ?: withPrefix
         }
     }
 
     fun getStringList(key: String): List<String> {
         return listCache.getOrPut(key) {
-            val list = config.getStringList(key)
-            list.mapNotNull { line ->
-                val withPrefix = line.replace("%prefix%", getPrefix())
+            config.getStringList(key).mapNotNull { line ->
+                val withPrefix = line.replace("%prefix%", cachedPrefix)
                 GlobalUtils.convertToMiniMessageFormat(withPrefix)
             }
         }
@@ -102,18 +96,18 @@ class Localization(private val config: Configuration) {
     }
 
     fun getWithPlaceholders(key: String, vararg replacements: String): String {
-        val `val` = rawCache.getOrPut(key) {
+        val raw = rawCache.getOrPut(key) {
             config.getString(key) ?: "Unknown key $key"
         }
 
-        var result = `val`
-        for (i in replacements.indices step 2) {
-            if (i + 1 < replacements.size) {
-                result = result.replace(replacements[i], replacements[i + 1])
+        var result = raw
+        replacements.forEachIndexed { index, replacement ->
+            if (index % 2 == 0 && index + 1 < replacements.size) {
+                result = result.replace(replacement, replacements[index + 1])
             }
         }
 
-        val withPrefix = result.replace("%prefix%", getPrefix())
+        val withPrefix = result.replace("%prefix%", cachedPrefix)
         return GlobalUtils.convertToMiniMessageFormat(withPrefix) ?: withPrefix
     }
 }

@@ -31,8 +31,9 @@ import org.bukkit.event.vehicle.VehicleMoveEvent
 import org.bukkit.util.Vector
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.HashSet
 import org.bukkit.Bukkit
+import kotlin.jvm.Volatile
+import kotlin.math.*
 
 class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
     private val lastNetherRoofDamage = ConcurrentHashMap<UUID, Long>()
@@ -43,26 +44,26 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
     private val BORDER_MESSAGE_COOLDOWN = 3000L
     private val PRECISION_LIMIT = 29999984.0
     private val EARLY_EXIT_DISTANCE = 29000000.0
-    private val LEAVES = HashSet<Material>()
+
+    companion object {
+        private val LEAVES = Material.entries.filter { it.name.contains("LEAVES", ignoreCase = true) }.toSet()
+    }
 
     init {
-        for (m in Material.entries) {
-            if (m.name.contains("LEAVES")) LEAVES.add(m)
-        }
         reloadConfig()
         startNetherRoofMonitor()
         startWorldBorderMonitor()
     }
 
-    private var enabled = false
-    private var netherRoofEnabled = false
-    private var netherYLevel = 0
-    private var damagePlayers = false
-    private var blockPlayers = false
-    private var ensureSafeTeleport = false
-    private var createNetherPlatform = false
-    private var worldBorderEnabled = false
-    private var worldBorderBuffer = 0.0
+    @Volatile private var enabled = false
+    @Volatile private var netherRoofEnabled = false
+    @Volatile private var netherYLevel = 0
+    @Volatile private var damagePlayers = false
+    @Volatile private var blockPlayers = false
+    @Volatile private var ensureSafeTeleport = false
+    @Volatile private var createNetherPlatform = false
+    @Volatile private var worldBorderEnabled = false
+    @Volatile private var worldBorderBuffer = 0.0
 
     override fun reloadConfig() {
         enabled = plugin.config.getBoolean("Patch.BoundaryProtection.Enabled", true)
@@ -214,15 +215,15 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
 
                 var bounced = false
 
-                if (kotlin.math.abs(xDistFromCenter) >= effectiveRadius) {
-                    val reflectX = -maxOf(kotlin.math.abs(vx), 0.5) * kotlin.math.sign(xDistFromCenter)
+                if (abs(xDistFromCenter) >= effectiveRadius) {
+                    val reflectX = -maxOf(abs(vx), 0.5) * kotlin.math.sign(xDistFromCenter)
                     velocity.x = reflectX
                     pearlLoc.x = center.x + (kotlin.math.sign(xDistFromCenter) * (effectiveRadius - 1.0))
                     bounced = true
                 }
 
-                if (kotlin.math.abs(zDistFromCenter) >= effectiveRadius) {
-                    val reflectZ = -maxOf(kotlin.math.abs(vz), 0.5) * kotlin.math.sign(zDistFromCenter)
+                if (abs(zDistFromCenter) >= effectiveRadius) {
+                    val reflectZ = -maxOf(abs(vz), 0.5) * kotlin.math.sign(zDistFromCenter)
                     velocity.z = reflectZ
                     pearlLoc.z = center.z + (kotlin.math.sign(zDistFromCenter) * (effectiveRadius - 1.0))
                     bounced = true
@@ -320,9 +321,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
             FoliaCompat.scheduleDelayed(player, plugin, {
                 if (player.isOnline && player.location.y >= netherYLevel.toDouble()) {
                     val safe = findSafeLocationBelowBedrock(player.location)
-                    if (safe != null) {
-                        player.teleportAsync(safe)
-                    }
+                    safe?.let { player.teleportAsync(it) }
                 }
             }, 2L)
         }
@@ -389,9 +388,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
             safeLocation = findSafeLocationBelowBedrock(event.from)
         }
 
-        if (safeLocation != null) {
-            teleportPlayer(player, safeLocation)
-        } else {
+        safeLocation?.let { teleportPlayer(player, it) } ?: run {
             var fallbackLocation = event.from.clone().subtract(0.0, 10.0, 0.0)
             if (fallbackLocation.y < 1.0) {
                 fallbackLocation.y = 5.0
@@ -457,9 +454,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
             safeLocation = findSafeLocationBelowBedrock(from)
         }
 
-        if (safeLocation != null) {
-            teleportPlayer(player, safeLocation)
-        } else {
+        safeLocation?.let { teleportPlayer(player, it) } ?: run {
             val fallbackLocation = from.clone().subtract(0.0, 3.0, 0.0)
             teleportPlayer(player, fallbackLocation)
         }
@@ -473,8 +468,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
 
     private fun dismountPlayer(player: Player) {
         if (isPlayerMounted(player)) {
-            val vehicle = player.vehicle
-            if (vehicle != null) {
+            player.vehicle?.let { vehicle ->
                 vehicle.eject()
                 FoliaCompat.scheduleDelayed(player, plugin, {
                     if (player.isOnline && isPlayerMounted(player)) {
@@ -666,7 +660,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
 
     private fun isSolidBlock(block: Block): Boolean {
         val type = block.type
-        return type.isSolid && type != Material.LAVA && type != Material.WATER && type != Material.FIRE && type != Material.MAGMA_BLOCK && !LEAVES.contains(type)
+        return type.isSolid && type != Material.LAVA && type != Material.WATER && type != Material.FIRE && type != Material.MAGMA_BLOCK && type !in LEAVES
     }
 
     private fun isAirSpace(block: Block): Boolean {
@@ -679,9 +673,8 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
         player.velocity = Vector(0.0, 0.0, 0.0)
 
         if (isPlayerMounted(player)) {
-            val vehicle = player.vehicle
-            dismountPlayer(player)
-            if (vehicle != null) {
+            player.vehicle?.let { vehicle ->
+                dismountPlayer(player)
                 FoliaCompat.schedule(vehicle, plugin) { vehicle.remove() }
             }
         }
@@ -719,11 +712,11 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
             y = minOf(y, netherYLevel.toDouble() - 2)
             val checkLoc = Location(world, x, y, z)
             val safe = findSafeLocationBelowBedrock(checkLoc)
-            if (safe != null) {
-                safe.yaw = from.yaw
-                safe.pitch = from.pitch
-                return safe
-            }
+            safe?.let {
+            it.yaw = from.yaw
+            it.pitch = from.pitch
+            return it
+        }
             y = 100.0
         } else {
             val safeY = world.getHighestBlockYAt(x.toInt(), z.toInt()) + 1
@@ -745,8 +738,8 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
     private fun isOutsideWorldBorder(x: Double, z: Double, world: World?): Boolean {
         if (world == null) return false
 
-        val absX = kotlin.math.abs(x)
-        val absZ = kotlin.math.abs(z)
+        val absX = abs(x)
+        val absZ = abs(z)
 
         if (absX < EARLY_EXIT_DISTANCE && absZ < EARLY_EXIT_DISTANCE) return false
         if (absX >= PRECISION_LIMIT || absZ >= PRECISION_LIMIT) return true
@@ -755,7 +748,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
         val radius = border.size / 2.0
         val center = border.center
 
-        return kotlin.math.abs(x - center.x) >= radius || kotlin.math.abs(z - center.z) >= radius
+        return abs(x - center.x) >= radius || abs(z - center.z) >= radius
     }
 
     private fun getDistanceOutsideBorder(location: Location?): Double {
@@ -765,8 +758,8 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
         val center = border.center
         val radius = border.size / 2.0
 
-        val dx = kotlin.math.abs(location.x - center.x) - radius
-        val dz = kotlin.math.abs(location.z - center.z) - radius
+        val dx = abs(location.x - center.x) - radius
+        val dz = abs(location.z - center.z) - radius
 
         return maxOf(dx, dz)
     }
@@ -784,9 +777,7 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
                         if (isPlayerMounted(player)) {
                             val vehicle = player.vehicle
                             player.leaveVehicle()
-                            if (vehicle != null) {
-                                FoliaCompat.schedule(vehicle, plugin) { vehicle.remove() }
-                            }
+                            vehicle?.let { FoliaCompat.schedule(it, plugin) { it.remove() } }
                         }
 
                         val safe = findSafeLocationInsideBorder(player.location)
@@ -812,8 +803,8 @@ class BoundaryListener(private val plugin: Main) : Listener, Reloadable {
                         if (!player.isOnline) return@schedule
 
                         val safe = findSafeLocationBelowBedrock(player.location)
-                        if (safe != null) {
-                            player.teleportAsync(safe)
+                        safe?.let {
+                            player.teleportAsync(it)
                             player.sendMessage("§cYou cannot be above the nether roof!")
                         }
                     }

@@ -31,7 +31,6 @@ import org.bukkit.entity.Player
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
-import java.util.HashSet
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
@@ -63,18 +62,17 @@ class ChatSection(override val plugin: Main) : Section {
         if (!Bukkit.getOnlinePlayers().isEmpty()) Bukkit.getOnlinePlayers().forEach { registerPlayer(it) }
     }
 
-    private fun parseTLDS(tldFile: File): HashSet<String> {
-        return try {
-            val buf = HashSet<String>()
-            BufferedReader(FileReader(tldFile)).use { reader ->
-                reader.lines().filter { !it.startsWith("#") }.forEach { buf.add(it.lowercase()) }
+    private fun parseTLDS(tldFile: File): Set<String> {
+        return runCatching {
+            buildSet {
+                BufferedReader(FileReader(tldFile)).use { reader ->
+                    reader.lines().filter { !it.startsWith("#") }.forEach { add(it.lowercase()) }
+                }
             }
-            buf
-        } catch (t: Throwable) {
+        }.onFailure { t ->
             GlobalUtils.log(Level.WARNING, "&cFailed to parse the TLD file please see the stacktrace below for more info!")
             t.printStackTrace()
-            HashSet()
-        }
+        }.getOrDefault(emptySet())
     }
 
     override fun disable() {

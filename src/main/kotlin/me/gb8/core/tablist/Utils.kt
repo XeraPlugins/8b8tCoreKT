@@ -18,34 +18,46 @@ object Utils {
     fun parsePlaceHolders(input: String, player: Player, startTime: Long): Component {
         if (input.isEmpty()) return Component.empty()
 
-        var tps: Double
-        try {
+        val tps = runCatching {
             val regionTpsArr = GlobalUtils.getTpsNearEntitySync(player)
-            tps = if (regionTpsArr.isNotEmpty()) regionTpsArr[0] else 20.0
-        } catch (t: Throwable) {
-            tps = 20.0
+            regionTpsArr.firstOrNull() ?: 20.0
+        }.getOrDefault(20.0)
+
+        val mspt = runCatching { GlobalUtils.getCurrentRegionMspt() }.getOrDefault(0.0)
+        val msptAdjusted = if (mspt <= 0.0 && tps > 0) 1000.0 / minOf(tps, 20.0) else mspt
+
+        val placeholders = mapOf(
+            "%tps%" to "${getTpsColor(tps)}${getTpsString(tps)}",
+            "%mspt%" to "${getMsptColor(msptAdjusted)}${getMsptString(msptAdjusted)}",
+            "%players%" to Bukkit.getOnlinePlayers().size.toString(),
+            "%ping%" to player.ping.toString(),
+            "%uptime%" to getFormattedInterval(System.currentTimeMillis() - startTime)
+        )
+
+        var result = input
+        for ((placeholder, value) in placeholders) {
+            result = result.replace(placeholder, value)
         }
-
-        val tpsColor = if (tps >= 18.0) "<green>" else if (tps >= 13.0) "<yellow>" else "<red>"
-        val tpsStr = if (tps >= 20.0) "20.00" else String.format("%.2f", tps)
-
-        val mspt = GlobalUtils.getCurrentRegionMspt()
-        var msptAdjusted = mspt
-        if (msptAdjusted <= 0.0 && tps > 0) msptAdjusted = 1000.0 / minOf(tps, 20.0)
-        val msptColor = if (msptAdjusted < 60) "<green>" else if (msptAdjusted <= 100) "<yellow>" else "<red>"
-        val msptStr = String.format("%.1f", msptAdjusted)
-
-        val uptime = getFormattedInterval(System.currentTimeMillis() - startTime)
-
-        val result = input
-            .replace("%tps%", "$tpsColor$tpsStr")
-            .replace("%mspt%", "$msptColor$msptStr")
-            .replace("%players%", Bukkit.getOnlinePlayers().size.toString())
-            .replace("%ping%", player.ping.toString())
-            .replace("%uptime%", uptime)
 
         return GlobalUtils.translateChars(result)
     }
+
+    private fun getTpsColor(tps: Double): String = when {
+        tps >= 18.0 -> "<green>"
+        tps >= 13.0 -> "<yellow>"
+        else -> "<red>"
+    }
+
+    private fun getTpsString(tps: Double): String =
+        if (tps >= 20.0) "20.00" else "%.2f".format(tps)
+
+    private fun getMsptColor(mspt: Double): String = when {
+        mspt < 60 -> "<green>"
+        mspt <= 100 -> "<yellow>"
+        else -> "<red>"
+    }
+
+    private fun getMsptString(mspt: Double): String = "%.1f".format(mspt)
 
     fun getFormattedInterval(ms: Long): String {
         val seconds = ms / 1000L % 60L

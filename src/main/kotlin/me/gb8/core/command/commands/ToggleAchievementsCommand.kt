@@ -33,7 +33,7 @@ class ToggleAchievementsCommand : BaseCommand(
             val newValue = !current
             database.updateHideBadges(player.name, newValue)
 
-            FoliaCompat.schedule(player, Main.getInstance()) {
+            FoliaCompat.schedule(player, Main.instance) {
                 sendMessage(player, if (newValue) "&aYou will no longer see other players achievements." else "&aYou will now see other players achievements.")
             }
         }

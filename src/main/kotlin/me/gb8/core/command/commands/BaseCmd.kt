@@ -47,7 +47,7 @@ class BaseCmd(private val main: CommandSection) : BaseCommand(
     private fun handleHelp(sender: CommandSender) {
         sendMessage(sender, "&1---&r %s &6Help &r&1---", PREFIX)
 
-        main.commandHandler?.commands?.forEach { command ->
+        main.commandHandler?.commandMap?.values?.forEach { command ->
             val perm = command.permissions.firstOrNull()
             if (perm != null && !sender.hasPermission(perm)) return@forEach
 

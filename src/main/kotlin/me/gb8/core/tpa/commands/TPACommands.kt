@@ -28,33 +28,44 @@ import me.gb8.core.util.GlobalUtils.sendPrefixedComponent
 
 class TPACommands {
 
+    companion object {
+        fun formatRequestMessage(target: Player, fromName: String, messageKey: String): TextComponent {
+            val acceptButton = Component.text("ACCEPT").clickEvent(ClickEvent.runCommand("/tpayes $fromName"))
+            val denyButton = Component.text("DENY").clickEvent(ClickEvent.runCommand("/tpano $fromName"))
+            val acceptReplace = TextReplacementConfig.builder().match("accept").replacement(acceptButton).build()
+            val denyReplace = TextReplacementConfig.builder().match("deny").replacement(denyButton).build()
+
+            @Suppress("DEPRECATION")
+            val loc = Localization.getLocalization(target.locale().language)
+            val template = String.format(loc.get(messageKey), fromName, "accept", "deny")
+            return GlobalUtils.translateChars(template).replaceText(acceptReplace).replaceText(denyReplace) as TextComponent
+        }
+    }
+
     class TPACommand(private val main: TPASection) : CommandExecutor {
         override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
-            if (sender !is Player) {
+            val from = sender as? Player ?: run {
                 sendMessage(sender, "&cYou must be a player")
                 return true
             }
-            val from = sender
 
             if (args.isEmpty()) {
                 sendPrefixedLocalizedMessage(from, "tpa_syntax")
                 return true
             }
 
-            val to = Bukkit.getPlayer(args[0])
-            if (to == null) {
+            val target = Bukkit.getPlayer(args[0]) ?: run {
                 sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
-                return true
-            }
-            val target = to
-
-            if (main.checkToggle(target) || main.checkBlocked(target, from)) {
-                sendPrefixedLocalizedMessage(from, "tpa_request_blocked")
                 return true
             }
 
             if (target == from) {
                 sendPrefixedLocalizedMessage(from, "tpa_self_tpa")
+                return true
+            }
+
+            if (main.checkToggle(target) || main.checkBlocked(target, from)) {
+                sendPrefixedLocalizedMessage(from, "tpa_request_blocked")
                 return true
             }
 
@@ -64,16 +75,7 @@ class TPACommands {
                 return true
             }
 
-            val acceptButton = Component.text("ACCEPT").clickEvent(ClickEvent.runCommand("/tpayes ${from.name}"))
-            val denyButton = Component.text("DENY").clickEvent(ClickEvent.runCommand("/tpano ${from.name}"))
-                    val acceptReplace = TextReplacementConfig.builder().match("accept").replacement(acceptButton).build()
-            val denyReplace = TextReplacementConfig.builder().match("deny").replacement(denyButton).build()
-
-                    @Suppress("DEPRECATION")
-                    val toLocale = target.locale()
-                    val loc = Localization.getLocalization(toLocale.language)
-            val template = String.format(loc.get("tpa_request_received"), from.name, "accept", "deny")
-            val message = GlobalUtils.translateChars(template).replaceText(acceptReplace).replaceText(denyReplace) as TextComponent
+            val message = TPACommands.formatRequestMessage(target, from.name, "tpa_request_received")
 
             if (main.hasRequested(from, target) || main.hasHereRequested(from, target)) {
                 sendPrefixedLocalizedMessage(from, "tpa_already_sent", target.name)
@@ -246,44 +248,40 @@ class TPACommands {
 
     class TPAHereCommand(private val main: TPASection) : CommandExecutor {
         override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
-            if (sender is Player) {
-                val from = sender
-                if (args.size == 1) {
-                    val to = Bukkit.getPlayer(args[0])
-                    if (to == null) {
-                        sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
-                        return true
-                    }
-                    val target = to
+            val from = sender as? Player ?: run {
+                sendMessage(sender, "You must be a player.")
+                return true
+            }
 
-                    if (target == from) {
-                        sendPrefixedLocalizedMessage(from, "tpa_self_tpa")
-                        return true
-                    }
-                    if (main.checkToggle(target) || main.checkBlocked(target, from)) {
-                        sendPrefixedLocalizedMessage(from, "tpa_request_blocked")
-                        return true
-                    }
-                    val acceptButton = Component.text("ACCEPT").clickEvent(ClickEvent.runCommand("/tpayes ${from.name}"))
-                    val denyButton = Component.text("DENY").clickEvent(ClickEvent.runCommand("/tpano ${from.name}"))
-                    val acceptReplace = TextReplacementConfig.builder().match("accept").replacement(acceptButton).build()
-                    val denyReplace = TextReplacementConfig.builder().match("deny").replacement(denyButton).build()
+            if (args.size != 1) {
+                sendPrefixedLocalizedMessage(from, "tpahere_syntax")
+                return true
+            }
 
-            @Suppress("DEPRECATION")
-            val toLocale = target.locale()
-                    val loc = Localization.getLocalization(toLocale.language)
-                    val str = String.format(loc.get("tpahere_request_received"), from.name, "accept", "deny")
-                    val component = GlobalUtils.translateChars(str).replaceText(acceptReplace).replaceText(denyReplace) as TextComponent
+            val target = Bukkit.getPlayer(args[0]) ?: run {
+                sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
+                return true
+            }
 
-                    if (main.hasRequested(from, target) || main.hasHereRequested(from, target)) {
-                        sendPrefixedLocalizedMessage(from, "tpa_already_sent", target.name)
-                    } else {
-                        sendPrefixedComponent(target, component)
-                        sendPrefixedLocalizedMessage(from, "tpa_request_sent", target.name)
-                        main.registerHereRequest(from, target)
-                    }
-                } else sendPrefixedLocalizedMessage(from, "tpahere_syntax")
-            } else sendMessage(sender, "&cYou must be a player")
+            if (target == from) {
+                sendPrefixedLocalizedMessage(from, "tpa_self_tpa")
+                return true
+            }
+
+            if (main.checkToggle(target) || main.checkBlocked(target, from)) {
+                sendPrefixedLocalizedMessage(from, "tpa_request_blocked")
+                return true
+            }
+
+            val message = TPACommands.formatRequestMessage(target, from.name, "tpahere_request_received")
+
+            if (main.hasRequested(from, target) || main.hasHereRequested(from, target)) {
+                sendPrefixedLocalizedMessage(from, "tpa_already_sent", target.name)
+            } else {
+                sendPrefixedComponent(target, message)
+                sendPrefixedLocalizedMessage(from, "tpa_request_sent", target.name)
+                main.registerHereRequest(from, target)
+            }
             return true
         }
     }

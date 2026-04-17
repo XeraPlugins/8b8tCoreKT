@@ -1,4 +1,4 @@
-#8b8tCore Version 1.9.2
+#8b8tCoreKT Version 1.0.1
 AntiIllegal:
   Enabled: true
   EnableIllegalBlocksCleaner: true
@@ -177,7 +177,7 @@ Patch:
       EnsureSafeTeleport: true
       NetherYLevel: 128
   EntityPerChunk:
-    CheckInterval: 1 # minutes 
+    CheckInterval: 1 # minutes
     DefaultMax: 32 # -1 for unlimited default max
     EntitiesPerChunk:
       - 'wither::20'

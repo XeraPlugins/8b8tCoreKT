@@ -40,22 +40,22 @@ class ChatInfo @JvmOverloads constructor(
     var hideAnnouncements: Boolean = false
     @Volatile var dataLoaded: Boolean = false
 
-    fun isIgnoring(`player`: UUID): Boolean = ignoring.contains(`player`)
+    fun isIgnoring(player: UUID): Boolean = ignoring.contains(player)
 
-    fun ignorePlayer(`player`: UUID) {
-        ignoring.add(`player`)
+    fun ignorePlayer(player: UUID) {
+        ignoring.add(player)
     }
 
-    fun unignorePlayer(`player`: UUID) {
-        ignoring.remove(`player`)
+    fun unignorePlayer(player: UUID) {
+        ignoring.remove(player)
     }
 
     fun getIgnoringSet(): Set<UUID> = ignoring
 
-    fun isToggledChat(): Boolean = toggledChat
-    fun isJoinMessages(): Boolean = joinMessages
+    val isToggledChat: Boolean get() = toggledChat
+    val isJoinMessages: Boolean get() = joinMessages
 
-    fun shouldNotSave(): Boolean = ignoring.isEmpty() && !toggledChat && !joinMessages
+    fun shouldNotSave(): Boolean = ignoring.isEmpty() && !toggledChat && !joinMessages && !chatLock && mutedUntil == 0L
 
     fun saveChatInfo() {
         manager.chatInfoStore.save(this, player)
@@ -83,11 +83,9 @@ class ChatInfo @JvmOverloads constructor(
             return cached
         }
 
-        var displayName = animatedNameCache[cacheKey]
-        if (displayName == null) {
-            displayName = me.gb8.core.util.GlobalUtils.parseDisplayName(player.name, nickname, nameGradient, nameAnimation, nameSpeed, nameDecorations, animTick)
+        val displayName = animatedNameCache.computeIfAbsent(cacheKey) {
             if (animatedNameCache.size > 120) animatedNameCache.clear()
-            animatedNameCache[cacheKey] = displayName
+            me.gb8.core.util.GlobalUtils.parseDisplayName(player.name, nickname, nameGradient, nameAnimation, nameSpeed, nameDecorations, animTick)
         }
 
         cachedDisplayName = displayName

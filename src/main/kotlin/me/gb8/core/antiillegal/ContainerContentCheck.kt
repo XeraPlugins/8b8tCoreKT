@@ -24,21 +24,23 @@ class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
         if (item == null || !item.hasData(DataComponentTypes.CONTAINER)) return false
         val contents = item.getData(DataComponentTypes.CONTAINER) ?: return false
 
-        for (content in contents.contents()) {
-            if (content == null || content.type.isAir) continue
-            for (check in main.checks) {
-                if (check == this || check is AntiPrefilledContainers) continue
-                if (check is EnchantCheck || check is IllegalDataCheck) continue
-                if (check.shouldCheck(content) && check.check(content)) {
-                    if (AntiIllegalMain.debug) GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged shulker because of item %s flagged by %s", content.type.toString(), check.javaClass.simpleName)
+        val applicableChecks = main.checks.filter { isApplicableCheck(it) }
+
+        return contents.contents().any { content ->
+            hasIllegalContent(content, applicableChecks)
+        }.also { hasIllegal ->
+            if (hasIllegal && AntiIllegalMain.debug) {
+                val failingCheck = applicableChecks.firstOrNull { check ->
+                    contents.contents().any { content -> hasIllegalContent(content, listOf(check)) }
+                }
+                failingCheck?.let {
+                    GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged shulker because of item flagged by %s", it.javaClass.simpleName)
                     item.editPersistentDataContainer { pdc ->
-                        pdc.set(NamespacedKey(main.plugin, "last_failed_check"), PersistentDataType.STRING, check.javaClass.simpleName)
+                        pdc.set(NamespacedKey(main.plugin, "last_failed_check"), PersistentDataType.STRING, it.javaClass.simpleName)
                     }
-                    return true
                 }
             }
         }
-        return false
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
@@ -49,26 +51,36 @@ class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
         if (item == null || !item.hasData(DataComponentTypes.CONTAINER)) return
         val contents = item.getData(DataComponentTypes.CONTAINER) ?: return
 
-        val newContents = mutableListOf<ItemStack?>()
+        val fixableChecks = main.checks.filter { isFixableCheck(it) }
         var changed = false
-        for (content in contents.contents()) {
-            if (content == null || content.type.isAir) {
-                newContents.add(content)
-                continue
-            }
-            for (check in main.checks) {
-                if (check == this || check is AntiPrefilledContainers) continue
-                if (check.shouldCheck(content) && check.check(content)) {
-                    if (check is EnchantCheck || check is IllegalDataCheck) {
-                        check.fix(content)
+
+        val newContents = contents.contents().map { content ->
+            content?.let { item ->
+                if (item.type.isAir) return@let item
+                fixableChecks.forEach { check ->
+                    if (check.shouldCheck(item) && check.check(item)) {
+                        check.fix(item)
                         changed = true
                     }
                 }
+                item
             }
-            newContents.add(content)
         }
+
         if (changed) {
             item.setData(DataComponentTypes.CONTAINER, ItemContainerContents.containerContents(newContents))
         }
+    }
+
+    private fun isApplicableCheck(check: Check): Boolean =
+        check != this && check !is AntiPrefilledContainers && check !is EnchantCheck && check !is IllegalDataCheck
+
+    private fun isFixableCheck(check: Check): Boolean =
+        check is EnchantCheck || check is IllegalDataCheck
+
+    private fun hasIllegalContent(content: ItemStack?, checks: List<Check>): Boolean {
+        content ?: return false
+        if (content.type.isAir) return false
+        return checks.any { check -> check.shouldCheck(content) && check.check(content) }
     }
 }

@@ -25,97 +25,82 @@ class EnchantCheck : Check {
         val meta = item.itemMeta
         if (item.type == Material.ENCHANTED_BOOK) return false
         if (item.type.isBlock) {
-            if (isCarvedPumpkin(item) || isPumpkin(item) || isHead(item) || isSkull(item)) {
+            if (isSpecialBlock(item)) {
                 val enchants = meta.enchants
-                for (e in enchants.keys) {
-                    val k = keyOf(e)
-                    if (k != "binding_curse" && k != "vanishing_curse") return true
-                }
-                return false
+                return enchants.keys.any { keyOf(it) !in curseEnchantments }
             }
             return meta.hasEnchants()
         }
         val enchants = meta.enchants
-        for ((ench, lvl) in enchants.entries) {
-            if (lvl > ench.maxLevel) {
-                if (AntiIllegalMain.debug) GlobalUtils.log(Level.INFO, "&cEnchantCheck flagged item %s for over-level enchantment %s: %d > %d", item.type.toString(), ench.key.key, lvl, ench.maxLevel)
-                return true
-            }
-            if (!ench.canEnchantItem(item) || !allowedKeysFor(item).contains(keyOf(ench))) {
-                if (AntiIllegalMain.debug) GlobalUtils.log(Level.INFO, "&cEnchantCheck flagged item %s for incompatible enchantment %s", item.type.toString(), ench.key.key)
-                return true
-            }
+        val hasIllegalEnchant = enchants.entries.any { (ench, lvl) ->
+            lvl > ench.maxLevel || !ench.canEnchantItem(item) || keyOf(ench) !in allowedKeysFor(item)
         }
-        val keys = enchants.keys.toTypedArray()
-        for (i in keys.indices) {
-            for (j in i + 1 until keys.size) {
-                if (keys[i].conflictsWith(keys[j])) {
-                    if (AntiIllegalMain.debug) GlobalUtils.log(Level.INFO, "&cEnchantCheck flagged item %s for conflicting enchantments %s and %s", item.type.toString(), keys[i].key.key, keys[j].key.key)
-                    return true
-                }
-            }
-        }
-        return false
+        if (hasIllegalEnchant) return true
+
+        val keys = enchants.keys.toList()
+        return keys.any { a -> keys.any { b -> a != b && a.conflictsWith(b) } }
     }
+
+    private fun isSpecialBlock(item: ItemStack): Boolean =
+        isCarvedPumpkin(item) || isPumpkin(item) || isHead(item) || isSkull(item)
+
+    private val curseEnchantments = setOf("binding_curse", "vanishing_curse")
 
     override fun shouldCheck(item: ItemStack?): Boolean = true
 
     override fun fix(item: ItemStack?) {
-        var meta = item?.itemMeta ?: return
-        if (item.type == Material.ENCHANTED_BOOK) return
-        val enchants = meta.enchants.toMutableMap()
-        var changed = false
-        val removeAll = item.type.isBlock && !(isCarvedPumpkin(item) || isPumpkin(item) || isHead(item) || isSkull(item))
-        for ((ench, lvl) in enchants.entries.toList()) {
-            if (removeAll) {
-                meta.removeEnchant(ench)
-                enchants.remove(ench)
-                changed = true
-                continue
-            }
-            if (item.type.isBlock && (isCarvedPumpkin(item) || isPumpkin(item) || isHead(item) || isSkull(item))) {
-                val k = keyOf(ench)
-                if (k != "binding_curse" && k != "vanishing_curse") {
-                    meta.removeEnchant(ench)
-                    enchants.remove(ench)
-                    changed = true
-                } else if (lvl > ench.maxLevel) {
-                    meta.removeEnchant(ench)
-                    meta.addEnchant(ench, ench.maxLevel, false)
-                    enchants[ench] = ench.maxLevel
-                    changed = true
-                }
-                continue
-            }
-            if (lvl > ench.maxLevel) {
-                meta.removeEnchant(ench)
-                meta.addEnchant(ench, ench.maxLevel, false)
-                enchants[ench] = ench.maxLevel
-                changed = true
-            }
-            if (!ench.canEnchantItem(item)) {
-                meta.removeEnchant(ench)
-                enchants.remove(ench)
-                changed = true
-            }
-        }
-        val sorted = enchants.entries.sortedWith { a, b -> Integer.compare(b.value, a.value) }
-        val kept = mutableSetOf<Enchantment>()
-        for (e in sorted) {
-            var conflict = false
-            for (k in kept) {
-                if (e.key.conflictsWith(k)) {
-                    conflict = true
-                    break
+        item?.itemMeta?.let { meta ->
+            if (item.type == Material.ENCHANTED_BOOK) return
+            val enchants = meta.enchants.toMutableMap()
+            var changed = false
+            val removeAll = item.type.isBlock && !isSpecialBlock(item)
+
+            enchants.entries.toList().forEach { (ench, lvl) ->
+                when {
+                    removeAll -> {
+                        meta.removeEnchant(ench)
+                        enchants.remove(ench)
+                        changed = true
+                    }
+                    item.type.isBlock && isSpecialBlock(item) -> {
+                        val k = keyOf(ench)
+                        if (k !in curseEnchantments) {
+                            meta.removeEnchant(ench)
+                            enchants.remove(ench)
+                            changed = true
+                        } else if (lvl > ench.maxLevel) {
+                            meta.removeEnchant(ench)
+                            meta.addEnchant(ench, ench.maxLevel, false)
+                            enchants[ench] = ench.maxLevel
+                            changed = true
+                        }
+                    }
+                    lvl > ench.maxLevel -> {
+                        meta.removeEnchant(ench)
+                        meta.addEnchant(ench, ench.maxLevel, false)
+                        enchants[ench] = ench.maxLevel
+                        changed = true
+                    }
+                    !ench.canEnchantItem(item) -> {
+                        meta.removeEnchant(ench)
+                        enchants.remove(ench)
+                        changed = true
+                    }
                 }
             }
-            if (conflict) {
-                meta.removeEnchant(e.key)
-                enchants.remove(e.key)
-                changed = true
-            } else kept.add(e.key)
+
+            val sorted = enchants.entries.sortedByDescending { it.value }
+            val kept = mutableSetOf<Enchantment>()
+            sorted.forEach { e ->
+                val conflict = kept.any { it.conflictsWith(e.key) }
+                if (conflict) {
+                    meta.removeEnchant(e.key)
+                    enchants.remove(e.key)
+                    changed = true
+                } else kept.add(e.key)
+            }
+            if (changed) item.itemMeta = meta
         }
-        if (changed) item.itemMeta = meta
     }
 
     private fun keyOf(e: Enchantment): String = e.key.key.lowercase()
@@ -169,7 +154,7 @@ class EnchantCheck : Check {
             "smite", "bane_of_arthropods", "density", "breach")
         if (isSpear(item)) return baseKeys(
             "mending", "unbreaking", "vanishing_curse", "sharpness", "lunge")
-        return HashSet()
+        return emptySet()
     }
 
     private fun isHelmet(item: ItemStack): Boolean {
@@ -197,6 +182,6 @@ class EnchantCheck : Check {
         val n = item.type.name
         return n.endsWith("PICKAXE") || n.endsWith("SHOVEL") || n.endsWith("HOE")
     }
-    private fun isMace(item: ItemStack): Boolean = try { item.type.name == "MACE" } catch (e: Exception) { false }
-    private fun isSpear(item: ItemStack): Boolean = try { item.type.name.endsWith("_SPEAR") } catch (e: Exception) { false }
+    private fun isMace(item: ItemStack): Boolean = item.type.name == "MACE"
+    private fun isSpear(item: ItemStack): Boolean = item.type.name.endsWith("_SPEAR")
 }

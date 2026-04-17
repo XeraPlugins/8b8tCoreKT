@@ -33,7 +33,7 @@ class PvpPatchListeners : Listener {
     fun onPlayerSuffocation(event: EntityDamageEvent) {
         val player = event.entity as? Player ?: return
         if (event.cause == DamageCause.SUFFOCATION) {
-            if (suffocationMaterials.contains(player.location.block.type)) {
+            if (player.location.block.type in suffocationMaterials) {
                 event.damage = 7.0
             }
         }
@@ -46,7 +46,7 @@ class PvpPatchListeners : Listener {
             event.from.blockZ == event.to.blockZ) return
 
         val player = event.player
-        if (suffocationMaterials.contains(event.to.block.type)) {
+        if (event.to.block.type in suffocationMaterials) {
             val now = System.currentTimeMillis()
             val last = lastDamage[player.uniqueId]
             if (last == null || (now - last) >= 500) {

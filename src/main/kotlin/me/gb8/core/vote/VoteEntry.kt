@@ -8,22 +8,10 @@
 
 package me.gb8.core.vote
 
-class VoteEntry {
-    var count: Int = 0
-    var timestamp: Long = 0
-
-    constructor()
-
-    constructor(count: Int, timestamp: Long) {
-        this.count = count
-        this.timestamp = timestamp
-    }
-
-    constructor(count: Int) {
-        this.count = count
-        this.timestamp = System.currentTimeMillis()
-    }
-
+data class VoteEntry(
+    var count: Int = 0,
+    var timestamp: Long = System.currentTimeMillis()
+) {
     fun isExpired(expirationDays: Int): Boolean {
         if (expirationDays <= 0) return false
         val expirationTime = timestamp + (expirationDays * 24L * 60L * 60L * 1000L)
@@ -31,12 +19,10 @@ class VoteEntry {
     }
 
     fun addVote() {
-        this.count++
+        count++
     }
 
     fun decrementVote() {
-        if (this.count > 0) {
-            this.count--
-        }
+        if (count > 0) count--
     }
 }

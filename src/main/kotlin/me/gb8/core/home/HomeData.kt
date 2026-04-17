@@ -8,18 +8,13 @@
 
 package me.gb8.core.home
 
-import java.util.ArrayList
-import java.util.Collections
-import java.util.List
-import java.util.stream.Stream
-
 class HomeData {
-    private val homes: MutableList<Home> = ArrayList()
+    private val homes = mutableListOf<Home>()
 
     constructor()
 
     constructor(homesList: List<Home>) {
-        this.homes.addAll(homesList)
+        homes.addAll(homesList)
     }
 
     fun addHome(home: Home) {
@@ -30,13 +25,9 @@ class HomeData {
         homes.remove(home)
     }
 
-    fun stream(): Stream<Home> = homes.stream()
+    fun stream(): Sequence<Home> = homes.asSequence()
 
     fun hasHomes(): Boolean = homes.isNotEmpty()
 
-    @Suppress("UNCHECKED_CAST")
-    fun getHomes(): java.util.List<Home> {
-        val list = homes.toList()
-        return list as java.util.List<Home>
-    }
+    fun getHomes(): List<Home> = homes.toList()
 }

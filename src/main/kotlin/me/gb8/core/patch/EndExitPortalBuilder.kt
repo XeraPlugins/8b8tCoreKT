@@ -14,20 +14,25 @@ import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.plugin.java.JavaPlugin
-import me.gb8.core.antiillegal.IllegalConstants
 import java.util.Objects
 import java.util.concurrent.CompletableFuture
 import java.util.function.Consumer
 
 class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
+    companion object {
+        private const val EXIT_PORTAL_X = 0
+        private const val EXIT_PORTAL_Y_MIN = 58
+        private const val EXIT_PORTAL_Z = 0
+        private const val EXIT_PORTAL_RADIUS = 5
+    }
 
     override fun run() {
         val endWorld = Bukkit.getWorlds().firstOrNull { it.environment == World.Environment.THE_END }
                 ?: return
 
-        val centerX = IllegalConstants.EXIT_PORTAL_X
-        val centerY = IllegalConstants.EXIT_PORTAL_Y_MIN + 1
-        val centerZ = IllegalConstants.EXIT_PORTAL_Z
+        val centerX = EXIT_PORTAL_X
+        val centerY = EXIT_PORTAL_Y_MIN + 1
+        val centerZ = EXIT_PORTAL_Z
 
         val neededChunks = getNeededChunks(centerX, centerZ)
 
@@ -95,7 +100,7 @@ class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
 
     private fun getNeededChunks(centerX: Int, centerZ: Int): Set<ChunkCoord> {
         val chunks = mutableSetOf<ChunkCoord>()
-        val r = IllegalConstants.EXIT_PORTAL_RADIUS
+        val r = EXIT_PORTAL_RADIUS
         for (dx in -r..r) {
             for (dz in -r..r) {
                 val blockX = centerX + dx

@@ -22,10 +22,8 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerTeleportEvent
-import org.bukkit.inventory.ItemStack
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Consumer
 
 class AttackListener(private val plugin: Main) : Listener {
 
@@ -34,9 +32,7 @@ class AttackListener(private val plugin: Main) : Listener {
     private val tickStartLocations = ConcurrentHashMap<UUID, Location>()
 
     init {
-        for (p in Bukkit.getOnlinePlayers()) {
-            startTracking(p)
-        }
+        Bukkit.getOnlinePlayers().forEach { startTracking(it) }
     }
 
     private fun startTracking(player: Player) {
@@ -85,11 +81,14 @@ class AttackListener(private val plugin: Main) : Listener {
         val mainHand = player.inventory.itemInMainHand
         val offHand = player.inventory.itemInOffHand
 
-        val hasMace = mainHand.type.name == "MACE" || offHand.type.name == "MACE"
-        val hasSpear = mainHand.type.name.endsWith("_SPEAR") || offHand.type.name.endsWith("_SPEAR")
-        val hasTrident = mainHand.type == Material.TRIDENT || offHand.type == Material.TRIDENT
+        val weaponType = when {
+            mainHand.type.name == "MACE" || offHand.type.name == "MACE" -> "MACE"
+            mainHand.type.name.endsWith("_SPEAR") || offHand.type.name.endsWith("_SPEAR") -> "SPEAR"
+            mainHand.type == Material.TRIDENT || offHand.type == Material.TRIDENT -> "TRIDENT"
+            else -> null
+        }
 
-        if (!hasMace && !hasSpear && !hasTrident) return
+        if (weaponType == null) return
 
         val damage = event.damage
         val targetLoc = event.entity.location
@@ -103,41 +102,39 @@ class AttackListener(private val plugin: Main) : Listener {
             return
         }
 
-        if (hasMace) {
+        if (weaponType == "MACE") {
             val fallDist = player.fallDistance
             val now = System.currentTimeMillis()
             val timeInAir = now - lastGroundTime.getOrDefault(player.uniqueId, now)
             val t = timeInAir / 1000.0
             val maxPhysFall = (25.0 * (t * t)) + (t * 2.0) + 1.5
 
-            if (fallDist > maxPhysFall && timeInAir < 60000) {
-                cancelAttack(event)
-                return
-            }
-
-            if (damage > 30.0) {
-                val lastSmash = lastSmashTime.getOrDefault(player.uniqueId, 0L)
-                if (now - lastSmash < 600) {
+            when {
+                fallDist > maxPhysFall && timeInAir < 60000 -> {
                     cancelAttack(event)
                     return
                 }
+                damage > 30.0 && now - lastSmashTime.getOrDefault(player.uniqueId, 0L) < 600 -> {
+                    cancelAttack(event)
+                    return
+                }
+                fallDist < 1.0 && damage > 35.0 -> event.damage = 25.0
+                fallDist >= 1.0 -> {
+                    val ceiling = (7.5 * fallDist) + 30.0
+                    if (damage > ceiling && damage > 50.0) {
+                        event.damage = ceiling
+                    }
+                }
+                damage > 1000.0 -> event.damage = 1000.0
+            }
+
+            if (damage > 30.0) {
                 lastSmashTime[player.uniqueId] = now
             }
-
-            if (fallDist < 1.0 && damage > 35.0) {
-                event.damage = 25.0
-            } else if (fallDist >= 1.0) {
-                val ceiling = (7.5 * fallDist) + 30.0
-                if (damage > ceiling && damage > 50.0) {
-                    event.damage = ceiling
-                }
-            }
-
-            if (damage > 1000.0) event.damage = 1000.0
             return
         }
 
-        if (hasSpear || hasTrident) {
+        if (weaponType == "SPEAR" || weaponType == "TRIDENT") {
             if (damage > 150.0) {
                 cancelAttack(event)
             }

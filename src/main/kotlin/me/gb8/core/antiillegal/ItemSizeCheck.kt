@@ -14,29 +14,25 @@ import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.BlockStateMeta
 
-class ItemSizeCheck : Check {
+final class ItemSizeCheck : Check {
     override fun check(item: ItemStack?): Boolean {
         item ?: return false
-        val size = getSize(item)
-        return size > MAX_SIZE
+        return GlobalUtils.calculateItemSize(item) > MAX_SIZE
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
         if (item == null || item.type == Material.AIR || !item.hasItemMeta()) return false
 
-        val type = item.type
-        return item.itemMeta is BlockStateMeta ||
-                type == Material.WRITTEN_BOOK ||
-                type == Material.WRITABLE_BOOK ||
-                type == Material.FILLED_MAP
+        return when (item.type) {
+            Material.WRITTEN_BOOK,
+            Material.WRITABLE_BOOK,
+            Material.FILLED_MAP -> true
+            else -> item.itemMeta is BlockStateMeta
+        }
     }
 
     override fun fix(item: ItemStack?) {
         item?.amount = 0
-    }
-
-    private fun getSize(itemStack: ItemStack): Int {
-        return GlobalUtils.calculateItemSize(itemStack)
     }
 
     companion object {

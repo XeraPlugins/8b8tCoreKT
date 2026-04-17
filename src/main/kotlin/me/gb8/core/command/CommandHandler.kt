@@ -17,7 +17,8 @@ import org.bukkit.command.TabExecutor
 import org.bukkit.entity.Player
 
 class CommandHandler(private val main: CommandSection) : TabExecutor {
-    val commands = mutableListOf<BaseCommand>()
+    private val commands = mutableMapOf<String, BaseCommand>()
+    val commandMap: Map<String, BaseCommand> get() = commands
 
     fun registerCommands() {
         addCommand(BaseCmd(main))
@@ -54,63 +55,49 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
     }
 
     private fun addCommand(command: BaseCommand) {
-        commands.add(command)
-        val cmd: PluginCommand? = main.plugin.getCommand(command.name)
-        cmd?.let {
-            it.setExecutor(this)
-            it.setTabCompleter(this)
+        commands[command.name.lowercase()] = command
+        main.plugin.getCommand(command.name)?.let { cmd ->
+            cmd.setExecutor(this)
+            cmd.setTabCompleter(this)
             if (command.permissions.isNotEmpty()) {
-                it.setPermission(command.permissions[0])
+                cmd.setPermission(command.permissions[0])
             }
         }
     }
 
-    override fun onCommand(sender: CommandSender, cmd: Command, label: String, args: Array<String>): Boolean {
-        for (command in commands) {
-            if (command.name.equals(cmd.name, ignoreCase = true)) {
-                var hasPermission = false
-                for (permission in command.permissions) {
-                    if (sender.hasPermission(permission) || sender.isOp || sender.hasPermission("*")) {
-                        hasPermission = true
-                        break
-                    }
-                }
+    private fun hasPermission(sender: CommandSender, command: BaseCommand): Boolean {
+        return command.permissions.any { permission ->
+            sender.hasPermission(permission) || sender.isOp || sender.hasPermission("*")
+        }
+    }
 
-                if (hasPermission) {
-                    command.execute(sender, args)
-                } else {
-                    command.sendNoPermission(sender)
-                }
-                break
-            }
+    override fun onCommand(sender: CommandSender, cmd: Command, label: String, args: Array<String>): Boolean {
+        val command = commands[cmd.name.lowercase()] ?: return true
+
+        if (hasPermission(sender, command)) {
+            command.execute(sender, args)
+        } else {
+            command.sendNoPermission(sender)
         }
         return true
     }
 
     override fun onTabComplete(sender: CommandSender, cmd: Command, alias: String, args: Array<String>): List<String> {
-        for (command in commands) {
-            if (command.name.equals(cmd.name, ignoreCase = true)) {
-                var hasPermission = false
-                for (permission in command.permissions) {
-                    if (sender.hasPermission(permission) || sender.isOp || sender.hasPermission("*")) {
-                        hasPermission = true
-                        break
-                    }
-                }
-                if (!hasPermission) return emptyList()
+        val command = commands[cmd.name.lowercase()] ?: return emptyList()
 
-                if (command is BaseTabCommand) return command.onTab(sender, args)
-                if (command.subCommands != null && args.size == 1) {
-                    return command.subCommands.map { it.split("::")[0] }
-                        .filter { it.startsWith(args[0].lowercase()) }
-                } else if (args.size > 1) {
-                    return Bukkit.getOnlinePlayers().map { it.name }
-                        .filter { it.lowercase().startsWith(args[args.size - 1].lowercase()) }
-                } else {
-                    return Bukkit.getOnlinePlayers().map { it.name }
-                }
+        if (!hasPermission(sender, command)) return emptyList()
+
+        return when {
+            command is BaseTabCommand -> command.onTab(sender, args)
+            command.subCommands != null && args.size == 1 -> {
+                command.subCommands.map { it.split("::")[0] }
+                    .filter { it.startsWith(args[0].lowercase()) }
             }
+            args.size > 1 -> {
+                Bukkit.getOnlinePlayers().map { it.name }
+                    .filter { it.lowercase().startsWith(args.last().lowercase()) }
+            }
+            else -> Bukkit.getOnlinePlayers().map { it.name }
         }
-        return listOf("")
     }
 }

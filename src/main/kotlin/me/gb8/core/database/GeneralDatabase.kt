@@ -49,32 +49,27 @@ class GeneralDatabase : Listener {
         "prefixGradient", "prefix_animation", "prefix_speed", "prefixDecorations"
     )
 
+    private fun validateColumn(column: String) {
+        require(column in VALID_COLUMNS) { "Invalid column name: $column" }
+    }
+
     private val cache = ConcurrentHashMap<String, PlayerDataCache>()
 
     class PlayerDataCache {
-        private val data = ConcurrentHashMap<String, Any?>()
+        internal val data = ConcurrentHashMap<String, Any?>()
         fun get(key: String): Any? = data[key]
         fun set(key: String, value: Any?) {
             if (value == null) data.remove(key)
             else data[key] = value
         }
         fun getString(key: String): String? = data[key] as? String
-        fun getBoolean(key: String, def: Boolean): Boolean {
-            val value = data[key]
-            if (value is Int) return value == 1
-            if (value is Boolean) return value
-            return def
+        fun getBoolean(key: String, def: Boolean): Boolean = when (val v = data[key]) {
+            is Int -> v == 1
+            is Boolean -> v
+            else -> def
         }
-        fun getInt(key: String, def: Int): Int {
-            val value = data[key]
-            if (value is Number) return value.toInt()
-            return def
-        }
-        fun getLong(key: String, def: Long): Long {
-            val value = data[key]
-            if (value is Number) return value.toLong()
-            return def
-        }
+        fun getInt(key: String, def: Int): Int = (data[key] as? Number)?.toInt() ?: def
+        fun getLong(key: String, def: Long): Long = (data[key] as? Number)?.toLong() ?: def
     }
 
     private constructor(pluginFolderPath: String) {
@@ -108,6 +103,8 @@ class GeneralDatabase : Listener {
     }
 
     private fun getConnection(): Connection = dataSource.connection
+
+    private inline fun <T> Connection.useAndExecute(block: Connection.() -> T): T = use { block(it) }
 
     private fun createTables(): Unit {
         val createTableSQL = """
@@ -164,12 +161,6 @@ class GeneralDatabase : Listener {
         }
     }
 
-    private fun validateColumn(column: String) {
-        if (!VALID_COLUMNS.contains(column)) {
-            throw IllegalArgumentException("Invalid column name: $column")
-        }
-    }
-
     private fun executeUpdate(sql: String, vararg params: Any?): CompletableFuture<Void> {
         return CompletableFuture.runAsync({
             try {
@@ -209,11 +200,22 @@ class GeneralDatabase : Listener {
         }, databaseExecutor)
     }
 
+    private fun <T> getCachedOrQuery(
+        username: String,
+        column: String,
+        defaultValue: T,
+        cacheGetter: (PlayerDataCache) -> T?,
+        mapper: (ResultSet) -> T
+    ): CompletableFuture<T> {
+        validateColumn(column)
+        return cache[username]?.let(cacheGetter)?.let { CompletableFuture.completedFuture(it) }
+            ?: executeQueryAsync("SELECT $column FROM playerdata WHERE username = ?", mapper, defaultValue, username)
+    }
+
     fun upsertPlayer(username: String, column: String, value: Any?): CompletableFuture<Void> {
         validateColumn(column)
-        val pd = cache[username]
-        pd?.set(column, value)
-        
+        cache[username]?.set(column, value)
+
         val sql = "INSERT INTO playerdata (username, displayname, $column) VALUES (?, ?, ?) " +
                      "ON CONFLICT(username) DO UPDATE SET $column = excluded.$column"
         return executeUpdate(sql, username, username, value)
@@ -263,15 +265,13 @@ class GeneralDatabase : Listener {
     }
 
     fun getNicknameAsync(username: String): CompletableFuture<String?> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("displayname"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("displayname")) }
         return getPlayerDataAsync(username, "displayname")
     }
 
     fun getPlayerDataAsync(username: String, column: String): CompletableFuture<String?> {
         validateColumn(column)
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString(column))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString(column)) }
 
         return executeQueryAsync<String?>(
                 "SELECT $column FROM playerdata WHERE username = ?",
@@ -283,8 +283,7 @@ class GeneralDatabase : Listener {
 
     fun getBooleanAsync(username: String, column: String, defaultValue: Boolean): CompletableFuture<Boolean> {
         validateColumn(column)
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getBoolean(column, defaultValue))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getBoolean(column, defaultValue)) }
         return executeQueryAsync(
                 "SELECT $column FROM playerdata WHERE username = ?",
                 { rs -> rs.getInt(column) == 1 },
@@ -334,8 +333,7 @@ class GeneralDatabase : Listener {
     }
 
     fun isMutedAsync(username: String): CompletableFuture<Boolean> {
-        val pd = cache[username]
-        if (pd != null) {
+        cache[username]?.let { pd ->
             val mutedUntil = pd.getLong("muted", 0L)
             if (mutedUntil <= Instant.now().epochSecond) {
                 if (mutedUntil != 0L) unmute(username)
@@ -371,8 +369,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getMutedUntilAsync(username: String): CompletableFuture<Long> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getLong("muted", 0L))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getLong("muted", 0L)) }
         return executeQueryAsync(
                 "SELECT muted FROM playerdata WHERE username = ?",
                 { rs -> val `val` = rs.getLong("muted"); if (rs.wasNull()) 0L else `val` },
@@ -390,8 +387,7 @@ class GeneralDatabase : Listener {
     }
 
     fun unmute(username: String): CompletableFuture<Void> {
-        val pd = cache[username]
-        if (pd != null) pd.set("muted", null)
+        cache[username]?.set("muted", null)
         val sql = "UPDATE playerdata SET muted = NULL WHERE username = ?"
         return executeUpdate(sql, username)
     }
@@ -401,8 +397,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getSelectedRankAsync(username: String): CompletableFuture<String?> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("selectedRank"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("selectedRank")) }
         return executeQueryAsync<String?>(
                 "SELECT selectedRank FROM playerdata WHERE username = ?",
                 { rs -> val `val` = rs.getString("selectedRank"); if (rs.wasNull()) null else `val` },
@@ -420,8 +415,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getCustomGradientAsync(username: String): CompletableFuture<String?> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("customGradient"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("customGradient")) }
         return executeQueryAsync<String?>(
                 "SELECT customGradient FROM playerdata WHERE username = ?",
                 { rs -> val `val` = rs.getString("customGradient"); if (rs.wasNull()) null else `val` },
@@ -455,8 +449,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getGradientAnimationAsync(username: String): CompletableFuture<String> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("gradient_animation"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("gradient_animation")) }
         return executeQueryAsync(
                 "SELECT gradient_animation FROM playerdata WHERE username = ?",
                 { it.getString("gradient_animation") },
@@ -470,8 +463,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getGradientSpeedAsync(username: String): CompletableFuture<Int> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getInt("gradient_speed", 5))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getInt("gradient_speed", 5)) }
         return executeQueryAsync(
                 "SELECT gradient_speed FROM playerdata WHERE username = ?",
                 { it.getInt("gradient_speed") },
@@ -493,8 +485,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getPrefixGradientAsync(username: String): CompletableFuture<String?> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("prefixGradient"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("prefixGradient")) }
         return executeQueryAsync<String?>(
                 "SELECT prefixGradient FROM playerdata WHERE username = ?",
                 { rs -> val `val` = rs.getString("prefixGradient"); if (rs.wasNull()) null else `val` },
@@ -508,8 +499,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getPrefixAnimationAsync(username: String): CompletableFuture<String> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("prefix_animation"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("prefix_animation")) }
         return executeQueryAsync(
                 "SELECT prefix_animation FROM playerdata WHERE username = ?",
                 { it.getString("prefix_animation") },
@@ -523,8 +513,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getPrefixSpeedAsync(username: String): CompletableFuture<Int> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getInt("prefix_speed", 5))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getInt("prefix_speed", 5)) }
         return executeQueryAsync(
                 "SELECT prefix_speed FROM playerdata WHERE username = ?",
                 { it.getInt("prefix_speed") },
@@ -538,8 +527,7 @@ class GeneralDatabase : Listener {
     }
 
     fun getPrefixDecorationsAsync(username: String): CompletableFuture<String?> {
-        val pd = cache[username]
-        if (pd != null) return CompletableFuture.completedFuture(pd.getString("prefixDecorations"))
+        cache[username]?.let { return CompletableFuture.completedFuture(it.getString("prefixDecorations")) }
         return executeQueryAsync<String?>(
                 "SELECT prefixDecorations FROM playerdata WHERE username = ?",
                 { it.getString("prefixDecorations") },

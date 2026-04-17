@@ -8,42 +8,64 @@
 
 package me.gb8.core.util
 
+import kotlin.math.abs
+import kotlin.math.pow
+import kotlin.math.sin
+
 object GradientAnimator {
 
     fun applyAnimation(baseGradient: String?, animationType: String?, speed: Int, tick: Long): String? {
-        if (baseGradient == null || animationType == null || animationType.equals("none", ignoreCase = true) || animationType.isEmpty() || !baseGradient.contains(":") || baseGradient.lowercase().contains("tobias:")) {
+        if (baseGradient == null || animationType.isNullOrEmpty() || 
+            animationType.equals("none", ignoreCase = true) || 
+            !baseGradient.contains(":") || 
+            baseGradient.lowercase().contains("tobias:")) {
             return baseGradient
         }
 
-        var phase: Double
         val effectiveSpeed = minOf(5.0, speed.toDouble())
         val normalizedSpeed = effectiveSpeed / 5.0
         val t = tick * normalizedSpeed
 
-        phase = when (animationType.lowercase()) {
-            "wave" -> (Math.sin(t * 0.15) + 1.0) / 2.0
-            "pulse" -> (Math.sin(t * 0.05) + 1.0) / 2.0
-            "smooth" -> {
-                var st = (t * 0.06) % 2.0
-                if (st > 1.0) st = 2.0 - st
-                if (st < 0.5) 2 * st * st else 1 - Math.pow(-2 * st + 2, 2.0) / 2
-            }
-            "saturate" -> (Math.sin(t * 0.12) + Math.sin(t * 0.24)) / 4.0 + 0.5
-            "bounce" -> Math.abs(Math.sin(t * 0.2))
-            "billboard" -> Math.floor(((t * 0.05) % 1.0) * 5) / 4.0
-            "sweep" -> {
-                var sw = (t * 0.07) % 2.0
-                if (sw > 1.0) sw = 2.0 - sw
-                sw * sw * (3 - 2 * sw)
-            }
-            "shimmer" -> minOf(1.0, maxOf(0.0, (t * 0.15) % 3.0 - 1.0))
+        val phase = when (animationType.lowercase()) {
+            "wave" -> waveAnimation(t)
+            "pulse" -> pulseAnimation(t)
+            "smooth" -> smoothAnimation(t)
+            "saturate" -> saturateAnimation(t)
+            "bounce" -> bounceAnimation(t)
+            "billboard" -> billboardAnimation(t)
+            "sweep" -> sweepAnimation(t)
+            "shimmer" -> shimmerAnimation(t)
             else -> return baseGradient
         }
 
-        phase = maxOf(0.0, minOf(1.0, phase))
-        val rounded = Math.round(phase * 100.0) / 100.0
+        val clampedPhase = phase.coerceIn(0.0, 1.0)
+        val rounded = (clampedPhase * 100.0).toLong() / 100.0
         return "$baseGradient:$rounded"
     }
+
+    private fun waveAnimation(t: Double): Double = (sin(t * 0.15) + 1.0) / 2.0
+
+    private fun pulseAnimation(t: Double): Double = (sin(t * 0.05) + 1.0) / 2.0
+
+    private fun smoothAnimation(t: Double): Double {
+        var st = (t * 0.06) % 2.0
+        if (st > 1.0) st = 2.0 - st
+        return if (st < 0.5) 2 * st * st else 1 - (-2 * st + 2).pow(2.0) / 2
+    }
+
+    private fun saturateAnimation(t: Double): Double = (sin(t * 0.12) + sin(t * 0.24)) / 4.0 + 0.5
+
+    private fun bounceAnimation(t: Double): Double = abs(sin(t * 0.2))
+
+    private fun billboardAnimation(t: Double): Double = (((t * 0.05) % 1.0) * 5).toLong() / 4.0
+
+    private fun sweepAnimation(t: Double): Double {
+        var sw = (t * 0.07) % 2.0
+        if (sw > 1.0) sw = 2.0 - sw
+        return sw * sw * (3 - 2 * sw)
+    }
+
+    private fun shimmerAnimation(t: Double): Double = minOf(1.0, maxOf(0.0, (t * 0.15) % 3.0 - 1.0))
 
     fun getAnimationTick(): Long = System.currentTimeMillis() / 50
 }

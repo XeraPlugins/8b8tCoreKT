@@ -11,7 +11,6 @@ package me.gb8.core.command.commands
 import me.gb8.core.command.BaseTabCommand
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.EntityType
-import java.util.stream.Collectors
 import me.gb8.core.util.GlobalUtils.sendMessage
 
 class SpawnCommand : BaseTabCommand(
@@ -42,15 +41,11 @@ class SpawnCommand : BaseTabCommand(
     }
 
     private fun getEntityTypes(): List<String> {
-        val entityTypes = ArrayList<String>()
-        for (entityType in EntityType.values()) {
-            entityTypes.add(entityType.toString().lowercase())
-        }
-        return entityTypes
+        return EntityType.entries.map { it.name.lowercase() }
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
         return if (args.isEmpty()) entityTypes
-        else entityTypes.stream().filter { s -> s.startsWith(args[0].lowercase()) }.collect(Collectors.toList())
+        else entityTypes.filter { it.startsWith(args[0].lowercase()) }
     }
 }

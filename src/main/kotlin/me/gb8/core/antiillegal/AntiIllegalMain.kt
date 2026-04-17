@@ -13,6 +13,8 @@ import me.gb8.core.Section
 import me.gb8.core.antiillegal.Check
 import me.gb8.core.antiillegal.*
 import me.gb8.core.listeners.*
+import me.gb8.core.util.GlobalUtils
+import me.gb8.core.Localization
 import org.bukkit.Material
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.event.Cancellable
@@ -23,8 +25,6 @@ import org.bukkit.inventory.ItemStack
 import io.papermc.paper.persistence.PersistentDataContainerView
 import org.bukkit.NamespacedKey
 import org.bukkit.persistence.PersistentDataType
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.TextComponent
 import java.util.logging.Level
 
 class AntiIllegalMain(override val plugin: Main) : Section {
@@ -39,7 +39,7 @@ class AntiIllegalMain(override val plugin: Main) : Section {
     }
 
     override fun enable() {
-        if (config == null) config = plugin.getSectionConfig(this)
+        config = plugin.getSectionConfig(this)
         val cfg = config ?: return
 
         if (checks.isEmpty()) {
@@ -61,14 +61,14 @@ class AntiIllegalMain(override val plugin: Main) : Section {
 
         checks.add(NameCheck(cfg))
 
-        plugin.register(
+        listOf(
             PlayerListeners(this),
             MiscListeners(this),
             InventoryListeners(this),
             AttackListener(plugin),
             PlayerEffectListener(plugin, this),
             EntityEffectListener(plugin)
-        )
+        ).forEach { plugin.register(it) }
 
         if (cfg.getBoolean("EnableIllegalBlocksCleaner", true)) {
             plugin.register(IllegalBlocksCleaner(plugin, cfg))
@@ -84,58 +84,64 @@ class AntiIllegalMain(override val plugin: Main) : Section {
     override val name: String = "AntiIllegal"
 
     fun checkFixItem(item: ItemStack?, cancellable: Cancellable?): Boolean {
-        if (item == null || item.type == Material.AIR) return false
+        item?.takeIf { it.type != Material.AIR } ?: return false
 
         val isInventoryOpen = cancellable is InventoryOpenEvent
         var wasIllegal = false
 
         for (check in checks) {
-            if (check is AntiPrefilledContainers) {
-                if (!isInventoryOpen) continue
-            }
-
-            if (!check.shouldCheck(item)) continue
-            if (!check.check(item)) continue
+            if (check is AntiPrefilledContainers && !isInventoryOpen) continue
+            if (!check.shouldCheck(item) || !check.check(item)) continue
 
             wasIllegal = true
-            if (debug) me.gb8.core.util.GlobalUtils.log(Level.INFO, "&cItem %s flagged by %s", item.type.toString(), check::class.simpleName)
-            if (informPlayer && (cancellable is BlockPlaceEvent || cancellable is PlayerInteractEvent)) {
-                val player: org.bukkit.entity.Player = when (cancellable) {
-                    is BlockPlaceEvent -> cancellable.player
-                    is PlayerInteractEvent -> cancellable.player
-                    else -> null
-                } ?: continue
-                try {
-                    var checkName = check::class.simpleName
-                    if (check is me.gb8.core.antiillegal.ContainerContentCheck) {
-                        val pdc: PersistentDataContainerView = item.persistentDataContainer
-                        val key = NamespacedKey(plugin, "last_failed_check")
-                        if (pdc.has(key, PersistentDataType.STRING)) {
-                            checkName = pdc.get(key, PersistentDataType.STRING) ?: checkName
-                        }
-                    }
-                    
-                    val loc = me.gb8.core.Localization.getLocalization(player.locale.toString())
-                    val msg = String.format(loc.get("antiillegal_flagged_placement"), checkName)
-                    val prefixMsg = me.gb8.core.util.GlobalUtils.translateChars(Main.prefix + " >> " + msg)
-                    player.sendMessage(prefixMsg)
-                    if (debug) me.gb8.core.util.GlobalUtils.log(Level.INFO, "Sent message to %s: %s", player.name, msg)
-                } catch (t: Throwable) {
-                    if (debug) me.gb8.core.util.GlobalUtils.log(Level.WARNING, "Failed to send localized message: %s", t.message)
-                }
-            }
+            logDebug(item, check)
+            notifyPlayerIfNeeded(item, check, cancellable)
             check.fix(item)
 
-            if (item.hasItemMeta()) {
-                item.itemMeta = item.itemMeta
-            }
-
             if (item.type == Material.AIR || item.amount <= 0) {
-                if (cancellable is io.papermc.paper.event.block.BlockPreDispenseEvent) {
-                    cancellable.isCancelled = true
-                }
+                (cancellable as? io.papermc.paper.event.block.BlockPreDispenseEvent)?.isCancelled = true
             }
         }
+
+        item.takeIf { it.hasItemMeta() }?.let { it.itemMeta = it.itemMeta }
+
         return wasIllegal
+    }
+
+    private fun logDebug(item: ItemStack, check: Check) {
+        if (debug) {
+            GlobalUtils.log(Level.INFO, "&cItem %s flagged by %s", item.type.toString(), check::class.simpleName)
+        }
+    }
+
+    private fun notifyPlayerIfNeeded(item: ItemStack, check: Check, cancellable: Cancellable?) {
+        if (!informPlayer) return
+        if (cancellable !is BlockPlaceEvent && cancellable !is PlayerInteractEvent) return
+
+        val player = when (cancellable) {
+            is BlockPlaceEvent -> cancellable.player
+            is PlayerInteractEvent -> cancellable.player
+            else -> null
+        } ?: return
+
+        runCatching {
+            val checkName = getCheckName(item, check)
+            val loc = Localization.getLocalization(player.locale.toString())
+            val msg = String.format(loc.get("antiillegal_flagged_placement"), checkName)
+            GlobalUtils.sendMessage(player, Main.prefix + " >> " + msg)
+            if (debug) GlobalUtils.log(Level.INFO, "Sent message to %s: %s", player.name, msg)
+        }.onFailure { t ->
+            if (debug) GlobalUtils.log(Level.WARNING, "Failed to send localized message: %s", t.message)
+        }
+    }
+
+    private fun getCheckName(item: ItemStack, check: Check): String {
+        if (check !is ContainerContentCheck) {
+            return check::class.simpleName ?: "Unknown"
+        }
+
+        val pdc: PersistentDataContainerView = item.persistentDataContainer
+        val key = NamespacedKey(plugin, "last_failed_check")
+        return pdc.get(key, PersistentDataType.STRING) ?: check::class.simpleName ?: "Unknown"
     }
 }

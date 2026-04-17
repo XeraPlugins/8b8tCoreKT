@@ -98,15 +98,12 @@ class JoinDateCommand(private val plugin: Main) : BaseTabCommand(
     }
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        if (args.size == 1) {
-            val suggestions = ArrayList<String>()
-            suggestions.add("reload")
-            suggestions.addAll(Bukkit.getOnlinePlayers().map { it.name })
-            return suggestions.stream()
-                .filter { name -> name.lowercase().startsWith(args[0].lowercase()) }
-                .collect(Collectors.toList())
+        return if (args.size == 1) {
+            listOf("reload") + Bukkit.getOnlinePlayers().map { it.name }
+                .filter { it.lowercase().startsWith(args[0].lowercase()) }
+        } else {
+            emptyList()
         }
-        return ArrayList()
     }
 
     companion object {

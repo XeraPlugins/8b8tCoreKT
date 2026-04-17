@@ -9,8 +9,6 @@
 package me.gb8.core.listeners
 
 import io.papermc.paper.datacomponent.DataComponentTypes
-import io.papermc.paper.datacomponent.item.BundleContents
-import io.papermc.paper.datacomponent.item.ItemContainerContents
 import me.gb8.core.antiillegal.AntiIllegalMain
 import me.gb8.core.antiillegal.Check
 import org.bukkit.Material
@@ -31,23 +29,22 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     }
 
     private fun checkInventory(inv: Inventory, event: InventoryOpenEvent) {
-        val invType = inv.type.name
-        val openedShulker = invType.contains("SHULKER")
+        val openedShulker = inv.type.name.contains("SHULKER")
         for (i in 0 until inv.size) {
-            var item = inv.getItem(i)
-            if (item == null || item.type.isAir) continue
-            main.checkFixItem(item, event)
-            inv.setItem(i, item)
-            if (openedShulker && isContainer(item.type)) {
-                clearContainerContents(item)
+            inv.getItem(i)?.takeIf { !it.type.isAir }?.let { item ->
+                main.checkFixItem(item, event)
+                inv.setItem(i, item)
+                if (openedShulker && isContainer(item.type)) {
+                    clearContainerContents(item)
+                }
             }
         }
     }
 
     @EventHandler
     fun onInventoryClose(event: InventoryCloseEvent) {
-        for (item in event.inventory) {
-            main.checkFixItem(item, null)
+        event.inventory.forEach { item ->
+            item?.let { main.checkFixItem(it, null) }
         }
     }
 
@@ -67,7 +64,7 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     fun onDrag(event: InventoryDragEvent) {
         main.checkFixItem(event.oldCursor, event)
         main.checkFixItem(event.cursor, event)
-        for (item in event.newItems.values) {
+        event.newItems.values.forEach { item ->
             main.checkFixItem(item, event)
         }
     }
@@ -85,8 +82,8 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onTrade(event: TradeSelectEvent) {
-        for (item in event.inventory.contents) {
-            if (item != null) main.checkFixItem(item, event)
+        event.inventory.contents.forEach { item ->
+            item?.let { main.checkFixItem(it, event) }
         }
     }
 
@@ -104,90 +101,75 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     }
 
     private fun clearContainerContents(container: ItemStack) {
-        if (!container.hasData(DataComponentTypes.CONTAINER)) return
-
-        val contents = container.getData(DataComponentTypes.CONTAINER) ?: return
-
-        val hasContents = contents.contents().stream()
-            .anyMatch { item -> item != null && !item.type.isAir }
-
-        if (hasContents) {
-            container.unsetData(DataComponentTypes.CONTAINER)
+        container.takeIf { it.hasData(DataComponentTypes.CONTAINER) }?.let { item ->
+            val contents = item.getData(DataComponentTypes.CONTAINER) ?: return@let
+            val hasContents = contents.contents().any { content ->
+                content != null && !content.type.isAir
+            }
+            if (hasContents) {
+                item.unsetData(DataComponentTypes.CONTAINER)
+            }
         }
     }
 
     private fun checkBundleContents(item: ItemStack?) {
-        if (item == null || !isBundle(item.type)) return
-        if (!item.hasData(DataComponentTypes.BUNDLE_CONTENTS)) return
-
-        if (checkBundleRecursion(item, 0)) {
-            item.amount = 0
-            return
-        }
-
-        val contents = item.getData(DataComponentTypes.BUNDLE_CONTENTS) ?: return
-
-        var totalWeight = 0
-
-        for (bundleItem in contents.contents()) {
-            if (bundleItem == null || bundleItem.type.isAir) continue
-
-            if (isBundle(bundleItem.type)) {
-                item.amount = 0
-                return
+        item?.takeIf { isBundle(it.type) && it.hasData(DataComponentTypes.BUNDLE_CONTENTS) }?.let { bundle ->
+            if (checkBundleRecursion(bundle, 0)) {
+                bundle.amount = 0
+                return@let
             }
 
-            if (bundleItem.amount > bundleItem.type.maxStackSize) {
-                item.amount = 0
-                return
-            }
+            val contents = bundle.getData(DataComponentTypes.BUNDLE_CONTENTS) ?: return@let
+            var totalWeight = 0
 
-            val maxStack = bundleItem.type.maxStackSize
-            totalWeight += bundleItem.amount * (64 / maxStack)
-
-            for (check in main.checks) {
-                if (check.shouldCheck(bundleItem) && check.check(bundleItem)) {
-                    item.amount = 0
-                    return
+            contents.contents().forEach { bundleItem ->
+                bundleItem?.takeIf { !it.type.isAir }?.let { item ->
+                    when {
+                        isBundle(item.type) || item.amount > item.type.maxStackSize -> {
+                            bundle.amount = 0
+                            return@forEach
+                        }
+                        main.checks.any { check -> check.shouldCheck(item) && check.check(item) } -> {
+                            bundle.amount = 0
+                            return@forEach
+                        }
+                        else -> {
+                            totalWeight += item.amount * (64 / item.type.maxStackSize)
+                        }
+                    }
                 }
             }
-        }
 
-        if (totalWeight > MAX_BUNDLE_WEIGHT) {
-            item.amount = 0
+            if (totalWeight > MAX_BUNDLE_WEIGHT) {
+                bundle.amount = 0
+            }
         }
     }
 
     private fun isBundle(type: Material): Boolean = type.name.endsWith("BUNDLE")
-    private fun isShulkerBox(type: Material): Boolean = type.name.contains("SHULKER_BOX")
 
-    private fun isContainer(type: Material): Boolean {
-        return type.name.contains("SHULKER_BOX") ||
-               type == Material.CHEST ||
-               type == Material.TRAPPED_CHEST ||
-               type == Material.BARREL ||
-               type == Material.DISPENSER ||
-               type == Material.DROPPER ||
-               type == Material.HOPPER ||
-               type == Material.CHISELED_BOOKSHELF
-    }
+    private fun isContainer(type: Material): Boolean =
+        type.name.contains("SHULKER_BOX") ||
+        type == Material.CHEST ||
+        type == Material.TRAPPED_CHEST ||
+        type == Material.BARREL ||
+        type == Material.DISPENSER ||
+        type == Material.DROPPER ||
+        type == Material.HOPPER ||
+        type == Material.CHISELED_BOOKSHELF
 
     private fun checkBundleRecursion(item: ItemStack?, depth: Int): Boolean {
         if (item == null || !isBundle(item.type)) return false
         if (depth >= 1) return true
 
-        try {
+        return try {
             if (item.hasItemMeta() && item.itemMeta is org.bukkit.inventory.meta.BundleMeta) {
                 val bundleMeta = item.itemMeta as org.bukkit.inventory.meta.BundleMeta
-                for (inner in bundleMeta.items) {
-                    if (inner == null) continue
-                    if (isBundle(inner.type)) return true
-                }
-            }
+                bundleMeta.items.any { inner -> isBundle(inner.type) }
+            } else false
         } catch (e: Exception) {
-            return false
+            false
         }
-        return false
     }
 
     companion object {

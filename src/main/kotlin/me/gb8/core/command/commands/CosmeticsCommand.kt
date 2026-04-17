@@ -33,6 +33,51 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
     private val database = GeneralDatabase.getInstance()
     private val miniMessage = MiniMessage.miniMessage()
 
+    companion object {
+        private val VALID_STYLES = setOf("bold", "italic", "underlined", "strikethrough")
+        private val VALID_ANIMATIONS = setOf("wave", "pulse", "smooth", "saturate", "bounce", "billboard", "sweep", "shimmer", "none")
+    }
+
+    private fun hasNickPermission(player: Player): Boolean {
+        if (player.hasPermission("8b8tcore.command.nc")) return true
+
+        val hasRank = prefixManager.hasRank(player)
+        val hasVoterRole = (Main.instance.getSectionByName("Vote") as? VoteSection)
+            ?.let { !it.hasVoterRoleExpired(player.name) } ?: false
+
+        return hasRank || hasVoterRole
+    }
+
+    private fun parseColorsAndStyles(args: Array<String>, startIndex: Int = 2): Pair<String?, List<String>> {
+        val styles = mutableListOf<String>()
+        var colors: String? = null
+
+        for (i in startIndex until args.size) {
+            val arg = args[i].lowercase()
+            when {
+                arg.startsWith("#") -> colors = arg
+                arg in VALID_STYLES -> styles.add(arg)
+            }
+        }
+
+        return colors to styles
+    }
+
+    private fun parseColorsAndStylesItem(args: Array<String>): Pair<String?, List<String>> {
+        val styles = mutableListOf<String>()
+        var colors: String? = null
+
+        for (i in 2 until args.size) {
+            val arg = args[i].lowercase()
+            when {
+                arg.startsWith("#") -> colors = args[i]
+                arg in VALID_STYLES -> styles.add(arg)
+            }
+        }
+
+        return colors to styles
+    }
+
     override fun execute(sender: CommandSender, args: Array<String>) {
         if (sender !is Player) {
             sendMessage(sender, "&cOnly players can use this command.")
@@ -90,17 +135,7 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                     return
                 }
 
-                val styles = ArrayList<String>()
-                var colors: String? = null
-
-                for (i in 2 until args.size) {
-                    val arg = args[i].lowercase()
-                    if (arg.startsWith("#")) {
-                        colors = arg
-                    } else if (listOf("bold", "italic", "underlined", "strikethrough").contains(arg)) {
-                        styles.add(arg)
-                    }
-                }
+                val (colors, styles) = parseColorsAndStyles(args)
 
                 if (colors == null) {
                     sendMessage(player, "&cUsage: /cosmetics title color <#hex:#hex...> [styles]")
@@ -132,7 +167,7 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                     return
                 }
                 val anim = args[2].lowercase()
-                if (!listOf("wave", "pulse", "smooth", "saturate", "bounce", "billboard", "sweep", "shimmer", "none").contains(anim)) {
+                if (anim !in VALID_ANIMATIONS) {
                     sendMessage(player, "&cInvalid animation! Use: wave, pulse, smooth, saturate, bounce, billboard, sweep, shimmer, or none")
                     return
                 }
@@ -225,17 +260,9 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                 sendPrefixedLocalizedMessage(player, "nick_reset")
             }
             "color" -> {
-                if (!player.hasPermission("8b8tcore.command.nc")) {
-                    val hasRank = prefixManager.hasRank(player)
-                    var hasVoterRole = false
-                    val voteSection = Main.instance.getSectionByName("Vote") as? VoteSection
-                    if (voteSection != null) {
-                        hasVoterRole = !voteSection.hasVoterRoleExpired(player.name)
-                    }
-                    if (!hasRank && !hasVoterRole) {
-                        sendPrefixedLocalizedMessage(player, "nc_no_permission")
-                        return
-                    }
+                if (!hasNickPermission(player)) {
+                    sendPrefixedLocalizedMessage(player, "nc_no_permission")
+                    return
                 }
 
                 if (args.size > 2 && args[2].equals("tobias", ignoreCase = true)) {
@@ -243,17 +270,7 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                     return
                 }
 
-                val styles = ArrayList<String>()
-                var colors: String? = null
-
-                for (i in 2 until args.size) {
-                    val arg = args[i].lowercase()
-                    if (arg.startsWith("#")) {
-                        colors = arg
-                    } else if (listOf("bold", "italic", "underlined", "strikethrough").contains(arg)) {
-                        styles.add(arg)
-                    }
-                }
+                val (colors, styles) = parseColorsAndStyles(args)
 
                 if (colors == null) {
                     sendMessage(player, "&cUsage: /cosmetics nick color <#hex:#hex...> [styles]")
@@ -284,24 +301,16 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                 sendMessage(player, "&aNickname gradient set: &r$preview")
             }
             "animation" -> {
-                if (!player.hasPermission("8b8tcore.command.nc")) {
-                    val hasRank = prefixManager.hasRank(player)
-                    var hasVoterRole = false
-                    val voteSection = Main.instance.getSectionByName("Vote") as? VoteSection
-                    if (voteSection != null) {
-                        hasVoterRole = !voteSection.hasVoterRoleExpired(player.name)
-                    }
-                    if (!hasRank && !hasVoterRole) {
-                        sendPrefixedLocalizedMessage(player, "nc_no_permission")
-                        return
-                    }
+                if (!hasNickPermission(player)) {
+                    sendPrefixedLocalizedMessage(player, "nc_no_permission")
+                    return
                 }
                 if (args.size < 3) {
                     sendMessage(player, "&cUsage: /cosmetics nick animation <wave/pulse/smooth/saturate/bounce/billboard/sweep/shimmer/none>")
                     return
                 }
                 val anim = args[2].lowercase()
-                if (!listOf("wave", "pulse", "smooth", "saturate", "bounce", "billboard", "sweep", "shimmer", "none").contains(anim)) {
+                if (anim !in VALID_ANIMATIONS) {
                     sendMessage(player, "&cInvalid animation! Use: wave, pulse, smooth, saturate, bounce, billboard, sweep, shimmer, or none")
                     return
                 }
@@ -311,17 +320,9 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                 sendMessage(player, "&aNickname animation set to: &e$anim")
             }
             "speed" -> {
-                if (!player.hasPermission("8b8tcore.command.nc")) {
-                    val hasRank = prefixManager.hasRank(player)
-                    var hasVoterRole = false
-                    val voteSection = Main.instance.getSectionByName("Vote") as? VoteSection
-                    if (voteSection != null) {
-                        hasVoterRole = !voteSection.hasVoterRoleExpired(player.name)
-                    }
-                    if (!hasRank && !hasVoterRole) {
-                        sendPrefixedLocalizedMessage(player, "nc_no_permission")
-                        return
-                    }
+                if (!hasNickPermission(player)) {
+                    sendPrefixedLocalizedMessage(player, "nc_no_permission")
+                    return
                 }
                 if (args.size < 3) {
                     sendMessage(player, "&cUsage: /cosmetics nick speed <1-5>")
@@ -413,11 +414,7 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
             return
         }
 
-        val sb = StringBuilder()
-        for (i in startIndex until args.size) {
-            sb.append(args[i]).append(" ")
-        }
-        val raw = sb.toString().trim()
+        val raw = args.drop(startIndex).joinToString(" ").trim()
         val mmFormat = GlobalUtils.convertToMiniMessageFormat(raw) ?: raw
         val plain = PlainTextComponentSerializer.plainText()
             .serialize(miniMessage.deserialize(mmFormat)).trim()
@@ -451,17 +448,7 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                 return
             }
 
-            val styles = ArrayList<String>()
-            var colors: String? = null
-
-            for (i in 2 until args.size) {
-                val arg = args[i].lowercase()
-                if (arg.startsWith("#")) {
-                    colors = args[i]
-                } else if (listOf("bold", "italic", "underlined", "strikethrough").contains(arg)) {
-                    styles.add(arg)
-                }
-            }
+            val (colors, styles) = parseColorsAndStylesItem(args)
 
             if (colors == null) {
                 sendMessage(player, "&cYou must provide a color (e.g. #FF0000).")
@@ -472,24 +459,22 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
             val name = getCleanItemName(item)
             val escapedName = name.replace("<", "\\<").replace(">", "\\>")
 
-            val mm = StringBuilder()
+            val mm = buildString {
+                styles.forEach { style -> append("<$style>") }
 
-            for (style in styles)
-                mm.append("<").append(style).append(">")
+                val isGradient = colors.contains(":") && colors.indexOf('#') != colors.lastIndexOf('#')
 
-            val isGradient = colors.contains(":") && colors.indexOf('#') != colors.lastIndexOf('#')
+                val styledName = if (isGradient) {
+                    "<gradient:$colors>$escapedName</gradient>"
+                } else {
+                    "<color:${colors.split(":")[0]}>$escapedName</color>"
+                }
 
-            if (isGradient) {
-                mm.append("<gradient:").append(colors).append(">").append(escapedName).append("</gradient>")
-            } else {
-                mm.append("<color:").append(colors.split(":")[0]).append(">").append(escapedName).append("</color>")
+                append(styledName)
+                styles.reversed().forEach { style -> append("</$style>") }
             }
 
-            for (i in styles.indices.reversed()) {
-                mm.append("</").append(styles[i]).append(">")
-            }
-
-            meta.displayName(miniMessage.deserialize(mm.toString()).decoration(TextDecoration.ITALIC, false))
+            meta.displayName(miniMessage.deserialize(mm).decoration(TextDecoration.ITALIC, false))
             item.itemMeta = meta
             val displayName = meta.displayName()
             if (displayName != null) {

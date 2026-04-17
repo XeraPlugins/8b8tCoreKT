@@ -20,20 +20,27 @@ import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.inventory.ItemStack
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+
+@JvmInline
+value class PlayerId(val value: java.util.UUID)
 
 class DeathMessageListener : Listener {
 
-    private val deathTracker = ConcurrentHashMap<UUID, Long>()
+    private val deathTracker = ConcurrentHashMap<PlayerId, Long>()
     private val COOLDOWN_MS = 30_000L
+
+    companion object {
+        private val miniMessage = MiniMessage.miniMessage()
+        private val TOTEM_MATERIAL = Material.TOTEM_OF_UNDYING
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     fun handleDeath(event: PlayerDeathEvent) {
         event.deathMessage(null)
-        
+
         val deceased = event.entity
-        val deceasedId = deceased.uniqueId
+        val deceasedId = PlayerId(deceased.uniqueId)
         val now = System.currentTimeMillis()
 
         if (now - deathTracker.getOrDefault(deceasedId, 0L) < COOLDOWN_MS) return
@@ -47,84 +54,69 @@ class DeathMessageListener : Listener {
 
         if (cause == DeathCause.UNKNOWN) return
 
-        if (attacker != null) {
-            val weapon = getMainHandItem(attacker)
-            val weaponLabel = formatWeaponName(weapon)
-            var messageKey = DeathCause.PLAYER.configPath
-            
-            if (attacker.uniqueId == deceasedId) {
-                messageKey = DeathCause.END_CRYSTAL.configPath
+        attacker?.let { atk ->
+            val weaponLabel = formatWeaponName(getMainHandItem(atk))
+            val messageKey = if (atk.uniqueId == deceased.uniqueId) DeathCause.END_CRYSTAL.configPath else DeathCause.PLAYER.configPath
+            sendDeathMessage(messageKey, deceased.name, atk.name, weaponLabel)
+        } ?: run {
+            if (cause != DeathCause.ENTITY_ATTACK) {
+                sendDeathMessage(cause.configPath, deceased.name, "", "")
             }
-            
-            sendDeathMessage(messageKey, deceased.name, attacker.name, weaponLabel)
-        } else if (cause != DeathCause.ENTITY_ATTACK) {
-            sendDeathMessage(cause.configPath, deceased.name, "", "")
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun handleEntityDamage(event: EntityDamageByEntityEvent) {
         val target = event.entity as? Player ?: return
-        val targetId = target.uniqueId
+        val targetId = PlayerId(target.uniqueId)
         val now = System.currentTimeMillis()
 
         if (now - deathTracker.getOrDefault(targetId, 0L) < COOLDOWN_MS) return
         if (hasProtectionTotem(target)) return
         if (target.health - event.finalDamage > 0) return
 
-        var killer: Entity = event.damager
+        val killer: Entity? = (event.damager as? Projectile)?.shooter as? Entity ?: event.damager
 
-        if (event.damager is Projectile) {
-            val shooter = (event.damager as Projectile).shooter
-            if (shooter is Entity) killer = shooter
-        }
+        var cause = killer?.type?.let { DeathCause.resolve(it) } ?: DeathCause.UNKNOWN
 
-        var cause = DeathCause.resolve(killer.type)
-
-        if (cause == DeathCause.WITHER) {
-            cause = DeathCause.WITHER_BOSS
-        }
+        if (cause == DeathCause.WITHER) cause = DeathCause.WITHER_BOSS
 
         when (killer) {
-            is Player -> {
-                if (cause == DeathCause.END_CRYSTAL || cause == DeathCause.UNKNOWN) return
-
-                val weapon = getMainHandItem(killer)
-                val weaponLabel = formatWeaponName(weapon)
-
-                deathTracker[targetId] = now
-                sendDeathMessage(DeathCause.PLAYER.configPath, target.name, killer.name, weaponLabel)
-            }
-            else -> {
-                if (cause == DeathCause.END_CRYSTAL || cause == DeathCause.UNKNOWN) return
-
-                deathTracker[targetId] = now
-                sendDeathMessage(cause.configPath, target.name, killer.name, "")
-            }
+            is Player -> handlePlayerKill(target, targetId, now, cause)
+            else -> killer?.let { handleEntityKill(target, targetId, it, now, cause) }
         }
+    }
+
+    private fun handlePlayerKill(target: Player, targetId: PlayerId, now: Long, cause: DeathCause) {
+        if (cause == DeathCause.END_CRYSTAL || cause == DeathCause.UNKNOWN) return
+        val killer = target.killer ?: return
+
+        deathTracker[targetId] = now
+        val weaponLabel = formatWeaponName(getMainHandItem(killer))
+        sendDeathMessage(DeathCause.PLAYER.configPath, target.name, killer.name, weaponLabel)
+    }
+
+    private fun handleEntityKill(target: Player, targetId: PlayerId, killer: Entity, now: Long, cause: DeathCause) {
+        if (cause == DeathCause.END_CRYSTAL || cause == DeathCause.UNKNOWN) return
+
+        deathTracker[targetId] = now
+        sendDeathMessage(cause.configPath, target.name, killer.name, "")
     }
 
     private fun hasProtectionTotem(player: Player): Boolean {
         val inv = player.inventory
-        return inv.itemInMainHand.type == Material.TOTEM_OF_UNDYING ||
-               inv.itemInOffHand.type == Material.TOTEM_OF_UNDYING
+        return inv.itemInMainHand.type == TOTEM_MATERIAL || inv.itemInOffHand.type == TOTEM_MATERIAL
     }
 
-    private fun getMainHandItem(player: Player): ItemStack {
-        return player.inventory.itemInMainHand
-    }
+    private fun getMainHandItem(player: Player): ItemStack = player.inventory.itemInMainHand
 
     private fun formatWeaponName(item: ItemStack?): String {
-        if (item == null) return ""
-        
-        val meta = item.itemMeta
-        return when {
-            meta != null && meta.hasDisplayName() -> {
-                val display = meta.displayName()
-                if (display != null) MiniMessage.miniMessage().serialize(display)
-                else item.type.name.lowercase().replace("_", " ")
-            }
-            else -> item.type.name.lowercase().replace("_", " ")
-        }
+        return item?.let { stack ->
+            stack.itemMeta?.takeIf { it.hasDisplayName() }?.let { meta ->
+                meta.displayName()?.let { display ->
+                    miniMessage.serialize(display)
+                }
+            } ?: stack.type.name.lowercase().replace("_", " ")
+        } ?: ""
     }
 }

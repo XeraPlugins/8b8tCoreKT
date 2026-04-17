@@ -92,21 +92,14 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
     
     
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        if (args.size == 1) {
+        return if (args.size == 1) {
             val suggestions = mutableListOf<String>()
-            suggestions.addAll(Bukkit.getOnlinePlayers().stream()
-                    .map(Player::getName)
-                    .collect(Collectors.toList()))
-            
-            suggestions.addAll(lastSeenCache.values.stream()
-                    .map { it.name }
-                    .collect(Collectors.toList()))
-            
-            return suggestions.stream()
-                    .filter { it.lowercase().startsWith(args[0].lowercase()) }
-                    .collect(Collectors.toList())
+            suggestions.addAll(Bukkit.getOnlinePlayers().map { it.name })
+            suggestions.addAll(lastSeenCache.values.map { it.name })
+            suggestions.filter { it.lowercase().startsWith(args[0].lowercase()) }
+        } else {
+            emptyList()
         }
-        return mutableListOf()
     }
     
     @EventHandler

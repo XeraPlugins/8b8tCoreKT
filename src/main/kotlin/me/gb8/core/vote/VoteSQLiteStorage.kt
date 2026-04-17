@@ -24,7 +24,7 @@ class VoteSQLiteStorage(private val databaseFile: File) {
     }
 
     private fun initializeDatabase() {
-        try {
+        runCatching {
             Class.forName("org.sqlite.JDBC")
             
             val url = "jdbc:sqlite:${databaseFile.absolutePath}"
@@ -39,19 +39,18 @@ class VoteSQLiteStorage(private val databaseFile: File) {
             connection?.createStatement()?.use { stmt ->
                 stmt.execute(createTableSQL)
             }
-            
-        } catch (e: Exception) {
+        }.onFailure { e ->
             GlobalUtils.log(Level.SEVERE, "Failed to initialize SQLite vote database")
             e.printStackTrace()
         }
     }
 
-    fun save(voteMap: Map<String, VoteEntry>) {
+    fun save(voteMap: Map<PlayerName, VoteEntry>) {
         val conn = connection ?: run {
             GlobalUtils.log(Level.WARNING, "SQLite connection is null, cannot save votes")
             return
         }
-        try {
+        runCatching {
             conn.autoCommit = false
             conn.createStatement().use { clearStmt ->
                 clearStmt.execute("DELETE FROM votes")
@@ -60,8 +59,8 @@ class VoteSQLiteStorage(private val databaseFile: File) {
             val insertSQL = "INSERT INTO votes (username, times_voted, timestamp) VALUES (?, ?, ?)"
 
             conn.prepareStatement(insertSQL).use { stmt ->
-                for ((username, entry) in voteMap) {
-                    stmt.setString(1, username)
+                voteMap.forEach { (username, entry) ->
+                    stmt.setString(1, username.value)
                     stmt.setInt(2, entry.count)
                     stmt.setLong(3, entry.timestamp)
                     stmt.addBatch()
@@ -70,7 +69,7 @@ class VoteSQLiteStorage(private val databaseFile: File) {
                 stmt.executeBatch()
             }
             conn.commit()
-        } catch (e: SQLException) {
+        }.onFailure { e ->
             GlobalUtils.log(Level.SEVERE, "Failed to save votes to SQLite")
             e.printStackTrace()
             try {
@@ -78,7 +77,7 @@ class VoteSQLiteStorage(private val databaseFile: File) {
             } catch (ex: SQLException) {
                 ex.printStackTrace()
             }
-        } finally {
+        }.also {
             try {
                 conn.autoCommit = true
             } catch (e: SQLException) {
@@ -87,8 +86,8 @@ class VoteSQLiteStorage(private val databaseFile: File) {
         }
     }
 
-    fun load(): HashMap<String, VoteEntry> {
-        val voteMap = HashMap<String, VoteEntry>()
+    fun load(): HashMap<PlayerName, VoteEntry> {
+        val voteMap = HashMap<PlayerName, VoteEntry>()
         
         val conn = connection ?: run {
             GlobalUtils.log(Level.WARNING, "SQLite connection is null, returning empty vote map")
@@ -97,11 +96,11 @@ class VoteSQLiteStorage(private val databaseFile: File) {
 
         val selectSQL = "SELECT username, times_voted, timestamp FROM votes"
         
-        try {
+        runCatching {
             conn.createStatement().use { stmt ->
                 stmt.executeQuery(selectSQL).use { rs ->
                     while (rs.next()) {
-                        val username = rs.getString("username")
+                        val username = PlayerName(rs.getString("username").lowercase())
                         val timesVoted = rs.getInt("times_voted")
                         val timestamp = rs.getLong("timestamp")
                         
@@ -109,7 +108,7 @@ class VoteSQLiteStorage(private val databaseFile: File) {
                     }
                 }
             }
-        } catch (e: SQLException) {
+        }.onFailure { e ->
             GlobalUtils.log(Level.SEVERE, "Failed to load votes from SQLite")
             e.printStackTrace()
         }
@@ -119,10 +118,10 @@ class VoteSQLiteStorage(private val databaseFile: File) {
 
     fun close() {
         connection?.let { conn ->
-            try {
+            runCatching {
                 conn.close()
                 GlobalUtils.log(Level.INFO, "SQLite vote database connection closed")
-            } catch (e: SQLException) {
+            }.onFailure { e ->
                 GlobalUtils.log(Level.WARNING, "Error closing SQLite connection")
                 e.printStackTrace()
             }

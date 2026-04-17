@@ -29,8 +29,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityTargetEvent
 import com.destroystokyo.paper.event.entity.PhantomPreSpawnEvent
 import org.bukkit.persistence.PersistentDataType
-import java.util.UUID
-import java.util.stream.Collectors
+import kotlin.random.Random
 
 class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
     private val aggroKey = NamespacedKey(plugin, "phantom_aggroed")
@@ -41,6 +40,8 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
     @Volatile private var onlyHostileIfAttacked = true
     @Volatile private var disableScreechUntilAttacked = true
     @Volatile private var spawnAboveBlocks: List<String> = emptyList()
+    private val validMaterialsCache = mutableMapOf<String, Material?>()
+    private var cachedValidBlocks: Set<Material>? = null
 
     init {
         reloadConfig()
@@ -70,7 +71,7 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
                         val world = player.world
                         if (onlyInEnd && world.environment != World.Environment.THE_END) return@schedule
 
-                        if (Math.random() > 0.10) return@schedule
+                        if (Random.nextDouble() > 0.10) return@schedule
 
                         val playerLoc = player.location
 
@@ -78,7 +79,7 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
                             if (!player.isOnline()) return@run
 
                             val existing = player.getNearbyEntities(64.0, 64.0, 64.0)
-                            val phantomCount = existing.stream().filter { e -> e.type == EntityType.PHANTOM }.count()
+                            val phantomCount = existing.count { it.type == EntityType.PHANTOM }
                             if (phantomCount >= 8) return@run
 
                             var ground: Block? = null
@@ -95,20 +96,13 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
                             if (ground == null) return@run
 
                             if (spawnAboveBlocks.isNotEmpty()) {
-                                var valid = false
-                                val typeName = ground.type.name.lowercase()
-                                for (name in spawnAboveBlocks) {
-                                    if (typeName == name.lowercase()) {
-                                        valid = true
-                                        break
-                                    }
-                                }
-                                if (!valid) return@run
+                                val groundType = ground.type.name
+                                if (spawnAboveBlocks.none { it.equals(groundType, ignoreCase = true) }) return@run
                             }
 
-                            val spawnLoc = playerLoc.clone().add((Math.random() - 0.5) * 20, 20.0,
-                                    (Math.random() - 0.5) * 20)
-                            val count = 2 + (Math.random() * 3).toInt()
+                            val spawnLoc = playerLoc.clone().add((Random.nextDouble() - 0.5) * 20, 20.0,
+                                    (Random.nextDouble() - 0.5) * 20)
+                            val count = 2 + Random.nextInt(3)
                             for (i in 0 until count) {
                                 val phantom = world.spawnEntity(spawnLoc, EntityType.PHANTOM,
                                         CreatureSpawnEvent.SpawnReason.CUSTOM) as Phantom
@@ -145,18 +139,10 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
         if (event.entityType != EntityType.PHANTOM) return
 
         if (event.spawnReason == CreatureSpawnEvent.SpawnReason.NATURAL) {
-            var closest: Player? = null
-            var distSq = Double.MAX_VALUE
             val eventLoc = event.location
-            for (e in eventLoc.world.getNearbyEntities(eventLoc, 64.0, 64.0, 64.0)) {
-                if (e is Player) {
-                    val d = e.location.distanceSquared(eventLoc)
-                    if (d < distSq) {
-                        distSq = d
-                        closest = e
-                    }
-                }
-            }
+            val closest = eventLoc.world.getNearbyEntities(eventLoc, 64.0, 64.0, 64.0)
+                .filterIsInstance<Player>()
+                .minByOrNull { it.location.distanceSquared(eventLoc) }
             if (closest != null) {
                 val target = closest
                 event.isCancelled = true
@@ -194,28 +180,13 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
         }
 
         if (spawnAboveBlocks.isNotEmpty()) {
-            val validBlocks = spawnAboveBlocks.stream()
-                    .map { name ->
-                        try {
-                            Material.valueOf(name.uppercase())
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    .filter { m -> m != null }
-                    .collect(Collectors.toSet())
+            val validBlocks = getValidBlocks()
 
             if (validBlocks.isNotEmpty()) {
-                var found = false
                 val base = event.location.block
-
-                for (i in 1..64) {
+                val found = (1..64).any { i ->
                     val below = base.getRelative(0, -i, 0)
-                    if (below.type.isAir()) continue
-                    if (validBlocks.contains(below.type)) {
-                        found = true
-                        break
-                    }
+                    !below.type.isAir() && below.type in validBlocks
                 }
                 if (!found) {
                     event.isCancelled = true
@@ -288,6 +259,20 @@ class PhantomPatch(private val plugin: Main) : Listener, Reloadable {
     @EventHandler
     fun onWorldChange(event: org.bukkit.event.player.PlayerChangedWorldEvent) {
         resetPhantomAggro(event.player)
+    }
+
+    private fun getValidMaterial(name: String): Material? {
+        return validMaterialsCache.getOrPut(name) {
+            runCatching { Material.valueOf(name) }.getOrNull()
+        }
+    }
+
+    private fun getValidBlocks(): Set<Material> {
+        val currentHash = spawnAboveBlocks.hashCode()
+        if (cachedValidBlocks == null || cachedValidBlocks?.hashCode() != currentHash) {
+            cachedValidBlocks = spawnAboveBlocks.mapNotNull { getValidMaterial(it) }.toSet()
+        }
+        return cachedValidBlocks!!
     }
 
     private fun resetPhantomAggro(player: Player) {

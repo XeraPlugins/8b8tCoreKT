@@ -118,5 +118,28 @@ enum class DeathCause(val configPath: String) {
         }
 
         fun isValidPath(path: String): Boolean = path in validPaths
+
+        private val configPathLookup = entries.groupBy { it.configPath }
+        fun getCausesByConfigPath(path: String): List<DeathCause> = configPathLookup[path] ?: emptyList()
+
+        private val ENVIRONMENTAL = setOf(VOID, FALL, LAVA, FIRE, FIRE_TICK, DROWNING, SUFFOCATION, CONTACT, HOT_FLOOR, CRAMMING, FREEZE, FLY_INTO_WALL, STARVATION)
+        private val EXPLOSION = setOf(BLOCK_EXPLOSION, ENTITY_EXPLOSION, LIGHTNING)
+
+        fun getEnvironmentalCauses(): Set<DeathCause> = ENVIRONMENTAL
+        fun getEntityCauses(): Set<DeathCause> = entries.filter { it !in ENVIRONMENTAL && it !in EXPLOSION }.toSet()
+        fun getExplosionCauses(): Set<DeathCause> = EXPLOSION
+
+        fun getByConfigPath(path: String): DeathCause? = entries.find { it.configPath == path }
     }
+
+    val isEnvironmental: Boolean
+        get() = this in DeathCause.getEnvironmentalCauses()
+
+    val isEntityBased: Boolean
+        get() = this in DeathCause.getEntityCauses()
+
+    val isExplosion: Boolean
+        get() = this in DeathCause.getExplosionCauses()
 }
+
+fun Enum<*>.toDeathCause(): DeathCause = DeathCause.resolve(this)

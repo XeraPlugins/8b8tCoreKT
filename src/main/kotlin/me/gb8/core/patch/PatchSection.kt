@@ -34,26 +34,35 @@ class PatchSection(override val plugin: Main) : Section, Listener {
     fun getConfig(): ConfigurationSection? = config
 
     override fun enable() {
-        val cfg = plugin.getSectionConfig(this)
-        config = cfg
+        val cfg = plugin.getSectionConfig(this).also { config = it }
         entityPerChunk = parseEntityConf()
-        plugin.register(PhantomPatch(plugin))
-        plugin.register(AntiLagChest(plugin))
-        plugin.register(FallFlyListener(plugin) as org.bukkit.event.Listener)
-        plugin.register(MapCreationListener(plugin))
-        plugin.register(MapRemovalPatch(plugin))
-        plugin.register(EntitySwitchWorldListener(plugin))
-        plugin.register(BoundaryListener(plugin))
-        plugin.register(VanishVerifierListener(plugin))
-        plugin.register(NbtBanListener(plugin))
-        plugin.register(ChestLimiter(plugin))
-        if (cfg?.getBoolean("EntityPerChunk.Enable", false) == true) {
-            val intervalTicks = (cfg.getInt("EntityPerChunk.CheckInterval", 5) * 60 * 20L)
-            org.bukkit.Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
+
+        listOf(
+            PhantomPatch(plugin),
+            AntiLagChest(plugin),
+            FallFlyListener(plugin) as org.bukkit.event.Listener,
+            MapCreationListener(plugin),
+            MapRemovalPatch(plugin),
+            EntitySwitchWorldListener(plugin),
+            BoundaryListener(plugin),
+            VanishVerifierListener(plugin),
+            NbtBanListener(plugin),
+            ChestLimiter(plugin)
+        ).forEach { plugin.register(it) }
+
+        cfg?.let { setupScheduledTasks(it) }
+    }
+
+    private fun setupScheduledTasks(cfg: ConfigurationSection) {
+        if (cfg.getBoolean("EntityPerChunk.Enable", false)) {
+            val intervalTicks = cfg.getInt("EntityPerChunk.CheckInterval", 5) * 60 * 20L
+            val ticks = if (intervalTicks < 200L) 200L else intervalTicks
+            Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
                 EntityCheckTask(this).run()
-            }, 20L, maxOf(200L, intervalTicks))
+            }, 20L, ticks)
         }
-        if (cfg?.getBoolean("EntitySpawnListener.Enable", true) == true) {
+
+        if (cfg.getBoolean("EntitySpawnListener.Enable", true)) {
             plugin.register(EntitySpawnListener(this))
         }
     }
@@ -75,25 +84,30 @@ class PatchSection(override val plugin: Main) : Section, Listener {
 
     private fun parseEntityConf(): MutableMap<EntityType, Int> {
         val cfg = config ?: return mutableMapOf()
-        val raw = cfg.getStringList("EntityPerChunk.EntitiesPerChunk")
-        val buf = mutableMapOf<EntityType, Int>()
-        for (str in raw) {
-            val split = str.split("::")
-            try {
-                val type = EntityType.valueOf(split[0].uppercase())
-                val i = split[1].toInt()
-                buf[type] = i
-            } catch (e: Exception) {
-                when (e) {
-                    is NumberFormatException -> log(Level.INFO, "%s%s%s%s is not a number", split[1])
-                    else -> log(Level.INFO, "Unknown EntityType %s", split[0])
-                }
-            }
-        }
+
+        val buf = cfg.getStringList("EntityPerChunk.EntitiesPerChunk")
+            .mapNotNull { parseEntityEntry(it) }
+            .toMap()
+            .toMutableMap()
+
         val defMax = cfg.getInt("EntityPerChunk.DefaultMax")
         if (defMax != -1) {
-            for (type in EntityType.entries) buf.getOrPut(type) { defMax }
+            EntityType.entries.forEach { type -> buf.getOrPut(type) { defMax } }
         }
         return buf
+    }
+
+    private fun parseEntityEntry(entry: String): Pair<EntityType, Int>? {
+        val parts = entry.split("::")
+        if (parts.size != 2) return null
+        return try {
+            EntityType.valueOf(parts[0].uppercase()) to parts[1].toInt()
+        } catch (e: Exception) {
+            when (e) {
+                is NumberFormatException -> log(Level.INFO, "%s is not a number", parts[1])
+                else -> log(Level.INFO, "Unknown EntityType %s", parts[0])
+            }
+            null
+        }
     }
 }
