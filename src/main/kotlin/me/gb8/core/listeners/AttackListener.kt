@@ -92,6 +92,9 @@ class AttackListener(private val plugin: Main) : Listener {
 
         val damage = event.damage
         val targetLoc = event.entity.location
+        val targetWorld = targetLoc.world ?: return
+        val playerWorld = player.location.world
+        if (playerWorld != targetWorld) return
         val currDistance = player.location.distance(targetLoc)
         val origin = tickStartLocations.getOrDefault(player.uniqueId, player.location)
         val tickStartDistance = origin.distance(targetLoc)

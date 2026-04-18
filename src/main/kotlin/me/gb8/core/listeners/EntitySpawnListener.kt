@@ -42,7 +42,13 @@ class EntitySpawnListener(private val main: PatchSection) : Listener {
             chunkMap[type] = currentCount - 1
             
             FoliaCompat.schedule(entity, main.plugin) {
-                if (entity.isValid) entity.remove()
+                if (entity.isValid) {
+                    if (entity is org.bukkit.entity.Player) {
+                        entity.kick(net.kyori.adventure.text.Component.text("Entity limit exceeded"))
+                    } else {
+                        entity.remove()
+                    }
+                }
             }
         }
     }
