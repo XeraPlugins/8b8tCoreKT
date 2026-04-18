@@ -13,13 +13,11 @@ import me.gb8.core.util.GlobalUtils
 import net.kyori.adventure.text.Component
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.BookMeta
-import java.nio.charset.CharsetEncoder
 import java.nio.charset.StandardCharsets
 
 class BookCheck : Check {
-    private val encoder: CharsetEncoder = StandardCharsets.UTF_8.newEncoder()
-
     override fun check(item: ItemStack?): Boolean {
+        val encoder = StandardCharsets.UTF_8.newEncoder()
         val meta = runCatching { item?.itemMeta as? BookMeta }.getOrNull() ?: return false
         val pages = getPages(meta) ?: return false
         return !encoder.canEncode(pages.joinToString(""))
@@ -33,6 +31,7 @@ class BookCheck : Check {
     override fun fix(item: ItemStack?) {
         val meta = item?.itemMeta as? BookMeta ?: return
         val currPages = getPages(meta) ?: return
+        val encoder = StandardCharsets.UTF_8.newEncoder()
 
         val cleanPages = currPages.map { page ->
             val cleanText = page.filter { encoder.canEncode(it) }
