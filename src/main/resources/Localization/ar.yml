@@ -38,6 +38,7 @@ sethome_max_reached: "&3لقد وصلت للحد الأقصى من البيوت!
 sethome_success: "&3تم تعيين البيت&r&a %s &r&3بنجاح"
 back_teleported: "&3جارٍ الانتقال إلى موقعك الأخير..."
 back_no_last_location: "&cليس لديك أي مواقع سابقة مسجلة."
+back_invalid_location: "&cموقعك الأخير لم يعد صالحًا أو خارج الحدود."
 kick_restarting: "&3السيرفر قيد إعادة التشغيل"
 elytra_tile_entities_too_fast: "&cيوجد الكثير من الكائنات في هذا الـ Chunk. لا يمكن أن تتجاوز سرعتك %s بلوكة في الثانية."
 elytra_too_fast: "&cأقصى سرعة مسموح بها هي %s بلوكة في الثانية."

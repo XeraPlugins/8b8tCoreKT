@@ -37,14 +37,34 @@ class BackCommand(private val main: HomeManager) : CommandExecutor {
         }
 
         val loc = lastLocation
-        loc.world?.getChunkAtAsyncUrgently(loc.blockX, loc.blockZ)?.thenAccept {
+        val world = loc.world
+        if (world == null) {
+            GlobalUtils.sendPrefixedLocalizedMessage(player, "back_invalid_location")
+            main.main.lastLocations.remove(player.uniqueId)
+            return true
+        }
+
+        val worldBorder = world.worldBorder
+        val borderSize = worldBorder.size / 2.0
+        val center = worldBorder.center
+        val minX = (center.x - borderSize).toInt()
+        val maxX = (center.x + borderSize).toInt()
+        val minZ = (center.z - borderSize).toInt()
+        val maxZ = (center.z + borderSize).toInt()
+
+        if (loc.blockX < minX || loc.blockX > maxX || loc.blockZ < minZ || loc.blockZ > maxZ) {
+            GlobalUtils.sendPrefixedLocalizedMessage(player, "back_invalid_location")
+            main.main.lastLocations.remove(player.uniqueId)
+            return true
+        }
+
+        world.getChunkAtAsyncUrgently(loc.blockX, loc.blockZ).thenAccept {
             if (player.isOnline) {
                 player.teleportAsync(loc, PlayerTeleportEvent.TeleportCause.PLUGIN)
                 GlobalUtils.sendPrefixedLocalizedMessage(player, "back_teleported")
                 main.main.lastLocations.remove(player.uniqueId)
             }
         }
-        main.main.lastLocations.remove(player.uniqueId)
         return true
     }
 }
