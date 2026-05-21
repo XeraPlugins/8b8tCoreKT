@@ -47,11 +47,31 @@ class EndPortalGateways {
         }
 
         private fun buildSingleGateway(world: World, x: Int, y: Int, z: Int) {
-            val bedrockOffsets = listOf(listOf(0, -1, 0), listOf(0, 1, 0), listOf(-1, 0, 0), listOf(1, 0, 0), listOf(0, 0, -1), listOf(0, 0, 1))
+            val bedrockOffsets = listOf(
+                listOf(0, -2, 0),
+                listOf(0, -1, 0),
+                listOf(-1, -1, 0),
+                listOf(1, -1, 0),
+                listOf(0, -1, -1),
+                listOf(0, -1, 1),
+                listOf(0, 1, 0),
+                listOf(-1, 1, 0),
+                listOf(1, 1, 0),
+                listOf(0, 1, -1),
+                listOf(0, 1, 1),
+                listOf(0, 2, 0)
+            )
             for (offset in bedrockOffsets) {
                 val block = world.getBlockAt(x + offset[0], y + offset[1], z + offset[2])
                 if (block.type != Material.BEDROCK) block.type = Material.BEDROCK
             }
+
+            val centerLayerOffsets = listOf(listOf(-1, 0, 0), listOf(1, 0, 0), listOf(0, 0, -1), listOf(0, 0, 1))
+            for (offset in centerLayerOffsets) {
+                val block = world.getBlockAt(x + offset[0], y, z + offset[2])
+                if (block.type == Material.BEDROCK) block.type = Material.AIR
+            }
+
             val gatewayBlock = world.getBlockAt(x, y, z)
             gatewayBlock.type = Material.END_GATEWAY
             val state = gatewayBlock.state

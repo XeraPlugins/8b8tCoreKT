@@ -47,23 +47,22 @@ class HomeCommand(private val main: HomeManager) : TabExecutor {
             return true
         }
 
-        var homeFound = false
-        for (home in homesList) {
-            if (home.name != args[0]) continue
+        val targetHome = resolveHome(homesList, args[0])
+        if (targetHome != null) {
             vanish(player)
             main.main.lastLocations[player.uniqueId] = player.location
             
-            var targetLoc = home.location
+            var targetLoc = targetHome.location
             if (targetLoc.world == null) {
-                val world = Bukkit.getWorld(home.worldName)
+                val world = Bukkit.getWorld(targetHome.worldName)
                 if (world == null) {
-                    GlobalUtils.sendPrefixedLocalizedMessage(player, "home_world_not_loaded", home.worldName)
+                    GlobalUtils.sendPrefixedLocalizedMessage(player, "home_world_not_loaded", targetHome.worldName)
                     return true
                 }
                 targetLoc.world = world
             }
 
-            val homeName = home.name
+            val homeName = targetHome.name
             player.teleportAsync(targetLoc).thenAccept { success ->
                 if (player.isOnline) {
                     if (!main.main.vanishedPlayers.contains(player.uniqueId)) unVanish(player)
@@ -72,11 +71,18 @@ class HomeCommand(private val main: HomeManager) : TabExecutor {
                     }
                 }
             }
-            homeFound = true
-            break
+        } else {
+            GlobalUtils.sendPrefixedLocalizedMessage(player, "home_not_found", args[0])
         }
-        if (!homeFound) GlobalUtils.sendPrefixedLocalizedMessage(player, "home_not_found", args[0])
         return true
+    }
+
+    private fun resolveHome(homes: List<Home>, input: String): Home? {
+        val exactMatch = homes.firstOrNull { it.name.equals(input, ignoreCase = true) }
+        if (exactMatch != null) return exactMatch
+
+        val prefixMatches = homes.filter { it.name.startsWith(input, ignoreCase = true) }
+        return prefixMatches.singleOrNull()
     }
 
     private fun vanish(player: Player) {
@@ -97,7 +103,7 @@ class HomeCommand(private val main: HomeManager) : TabExecutor {
 
     override fun onTabComplete(sender: CommandSender, command: Command, label: String, args: Array<String>): List<String> {
         return if (sender is Player && args.size == 1) {
-            main.getHomes(sender.uniqueId).getHomes().map { home -> home.name }
+            main.tabComplete(sender, args)
         } else emptyList()
     }
 }

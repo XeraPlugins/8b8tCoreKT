@@ -58,11 +58,21 @@ class BackCommand(private val main: HomeManager) : CommandExecutor {
             return true
         }
 
-        world.getChunkAtAsyncUrgently(loc.blockX, loc.blockZ).thenAccept {
+        val previousLocation = player.location
+        val chunkX = loc.blockX shr 4
+        val chunkZ = loc.blockZ shr 4
+        world.getChunkAtAsyncUrgently(chunkX, chunkZ).thenAccept {
             if (player.isOnline) {
-                player.teleportAsync(loc, PlayerTeleportEvent.TeleportCause.PLUGIN)
-                GlobalUtils.sendPrefixedLocalizedMessage(player, "back_teleported")
-                main.main.lastLocations.remove(player.uniqueId)
+                player.teleportAsync(loc, PlayerTeleportEvent.TeleportCause.PLUGIN).thenAccept { success ->
+                    if (player.isOnline) {
+                        if (success) {
+                            main.main.lastLocations[player.uniqueId] = previousLocation
+                            GlobalUtils.sendPrefixedLocalizedMessage(player, "back_teleported")
+                        } else {
+                            GlobalUtils.sendPrefixedLocalizedMessage(player, "back_invalid_location")
+                        }
+                    }
+                }
             }
         }
         return true

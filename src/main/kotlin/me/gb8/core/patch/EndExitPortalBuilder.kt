@@ -21,7 +21,6 @@ import java.util.function.Consumer
 class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
     companion object {
         private const val EXIT_PORTAL_X = 0
-        private const val EXIT_PORTAL_Y_MIN = 58
         private const val EXIT_PORTAL_Z = 0
         private const val EXIT_PORTAL_RADIUS = 5
     }
@@ -31,7 +30,6 @@ class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
                 ?: return
 
         val centerX = EXIT_PORTAL_X
-        val centerY = EXIT_PORTAL_Y_MIN + 1
         val centerZ = EXIT_PORTAL_Z
 
         val neededChunks = getNeededChunks(centerX, centerZ)
@@ -43,15 +41,49 @@ class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
 
         val finalWorld = endWorld
         val finalX = centerX
-        val finalY = centerY
         val finalZ = centerZ
 
         CompletableFuture.allOf(*loadFutures.toTypedArray()).thenRun {
-            val location = Location(finalWorld, finalX.toDouble(), finalY.toDouble(), finalZ.toDouble())
+            val location = Location(finalWorld, finalX.toDouble(), 64.0, finalZ.toDouble())
             Bukkit.getRegionScheduler().run(plugin, location, Consumer {
-                buildEndPortal(finalWorld, finalX, finalY, finalZ)
+                clearExistingPortal(finalWorld, finalX, finalZ)
+                val centerY = findPortalBaseY(finalWorld, finalX, finalZ)
+                buildEndPortal(finalWorld, finalX, centerY, finalZ)
             })
         }
+    }
+
+    private fun clearExistingPortal(world: World, x: Int, z: Int) {
+        for (dx in -EXIT_PORTAL_RADIUS..EXIT_PORTAL_RADIUS) {
+            for (dz in -EXIT_PORTAL_RADIUS..EXIT_PORTAL_RADIUS) {
+                for (y in world.minHeight until world.maxHeight) {
+                    val block = world.getBlockAt(x + dx, y, z + dz)
+                    if (block.type == Material.BEDROCK ||
+                        block.type == Material.END_PORTAL ||
+                        block.type == Material.FIRE ||
+                        block.type == Material.TORCH ||
+                        block.type == Material.WALL_TORCH) {
+                        block.type = Material.AIR
+                    }
+                }
+            }
+        }
+    }
+
+    private fun findPortalBaseY(world: World, x: Int, z: Int): Int {
+        for (y in world.maxHeight - 1 downTo world.minHeight) {
+            val type = world.getBlockAt(x, y, z).type
+            if (type == Material.AIR ||
+                type == Material.CAVE_AIR ||
+                type == Material.VOID_AIR ||
+                type == Material.BEDROCK ||
+                type == Material.END_PORTAL ||
+                type == Material.FIRE) continue
+
+            return y - 1
+        }
+
+        return world.minHeight
     }
 
     private fun buildEndPortal(world: World, x: Int, y: Int, z: Int) {
@@ -78,6 +110,7 @@ class EndExitPortalBuilder(private val plugin: JavaPlugin) : Runnable {
         )
 
         for (offset in bedrockLayer2) {
+            world.getBlockAt(x + offset[0], y, z + offset[1]).type = Material.END_STONE
             world.getBlockAt(x + offset[0], y + 1, z + offset[1]).type = Material.BEDROCK
         }
 

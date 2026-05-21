@@ -30,8 +30,8 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
     companion object {
         const val EXIT_PORTAL_X = 0
         const val EXIT_PORTAL_Z = 0
-        const val EXIT_PORTAL_Y_MIN = 58
-        const val EXIT_PORTAL_Y_MAX = 64
+        const val EXIT_PORTAL_Y_MIN = 0
+        const val EXIT_PORTAL_Y_MAX = 90
         const val EXIT_PORTAL_RADIUS = 5
         const val GATEWAY_RING_Y_MIN = 74
         const val GATEWAY_RING_Y_MAX = 76
