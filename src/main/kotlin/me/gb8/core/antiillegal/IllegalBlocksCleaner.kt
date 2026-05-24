@@ -95,8 +95,8 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
     }
 
     private fun checkAndScan(chunk: Chunk) {
-        chunk.persistentDataContainer.get(scanKey, PersistentDataType.INTEGER)?.takeIf { it != configHash }
-            ?.let { performDeepScan(chunk) }
+        val savedHash = chunk.persistentDataContainer.get(scanKey, PersistentDataType.INTEGER)
+        if (savedHash != configHash) performDeepScan(chunk)
     }
 
     private fun performDeepScan(chunk: Chunk) {
