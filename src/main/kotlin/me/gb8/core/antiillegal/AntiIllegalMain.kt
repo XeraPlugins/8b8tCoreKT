@@ -50,6 +50,7 @@ class AntiIllegalMain(override val plugin: Main) : Section {
                 EnchantCheck(),
                 PotionCheck(),
                 BookCheck(),
+                ItemSizeCheck(plugin.config.getInt("NbtBanItemChecker.maxItemSizeAllowed", 48000)),
                 LegacyTextCheck(),
                 IllegalItemCheck(),
                 IllegalDataCheck(),
