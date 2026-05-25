@@ -86,10 +86,12 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
         FoliaCompat.schedule(sender, manager.plugin) {
             if (!sender.isOnline) return@schedule
 
-            if (blockedCheck(ogMessage) || ci.mutedUntil > Instant.now().epochSecond || domainCheck(ogMessage)) {
+            val blocked = manager.isBlockedMessage(ogMessage)
+            val domainBlocked = domainCheck(ogMessage)
+            if (blocked || ci.mutedUntil > Instant.now().epochSecond || domainBlocked) {
                 val senderComp = getSenderComponent(sender, ci)
                 sender.sendMessage(senderComp.append(Component.text(ogMessage).color(messageColor(ogMessage))))
-                if (!blockedCheck(ogMessage) && !domainCheck(ogMessage)) return@schedule
+                if (!blocked && !domainBlocked) return@schedule
                 log(Level.INFO, "&3Prevented&r&a %s&r&3 from sending a message (banned words/link)", senderName)
                 return@schedule
             }
@@ -160,15 +162,6 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
                 }
                 if (word in tlds) return true
             }
-        }
-        return false
-    }
-
-    private fun blockedCheck(message: String): Boolean {
-        val config = manager.config ?: return false
-        val blocked = config.getStringList("Blocked")
-        for (blockedWord in blocked) {
-            if (message.lowercase().contains(blockedWord.lowercase())) return true
         }
         return false
     }

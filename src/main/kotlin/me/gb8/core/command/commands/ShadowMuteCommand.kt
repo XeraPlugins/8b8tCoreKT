@@ -60,7 +60,7 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
                 val finalMuteUntil = currentTime + (hours * 3600)
                 val finalHours = hours
 
-                database.mute(playerName).thenRun {
+                database.mute(playerName, finalMuteUntil).thenRun {
                     val target = Bukkit.getPlayer(playerName)
                     if (target != null) {
                         val pluginInstance = Main.instance

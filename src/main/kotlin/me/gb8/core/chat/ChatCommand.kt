@@ -13,15 +13,23 @@ import org.bukkit.command.CommandExecutor
 import org.bukkit.entity.Player
 import me.gb8.core.util.GlobalUtils.sendLocalizedAmpersandMessage
 import me.gb8.core.util.GlobalUtils.sendLocalizedMessage
+import me.gb8.core.util.GlobalUtils.log
+import java.util.logging.Level
 
 abstract class ChatCommand(protected val manager: ChatSection) : CommandExecutor {
 
     fun sendWhisper(player: Player, senderInfo: ChatInfo, target: Player, targetInfo: ChatInfo, msg: String) {
         if (!senderInfo.isIgnoring(target.uniqueId)) {
             if (!targetInfo.isIgnoring(player.uniqueId)) {
+                val finalMsg = sanitizeMessage(msg)
+                if (manager.isBlockedMessage(msg) || manager.isBlockedMessage(finalMsg)) {
+                    sendLocalizedAmpersandMessage(player, "whisper_to", false, target.name, finalMsg)
+                    log(Level.INFO, "&3Prevented&r&a %s&r&3 from sending a private message (banned words)", player.name)
+                    return
+                }
+
                 targetInfo.replyTarget = player
                 senderInfo.replyTarget = target
-                val finalMsg = sanitizeMessage(msg)
 
                 sendLocalizedAmpersandMessage(player, "whisper_to", false, target.name, finalMsg)
                 val database = GeneralDatabase.getInstance()

@@ -124,5 +124,14 @@ class ChatSection(override val plugin: Main) : Section {
         map.remove(player.uniqueId)
     }
 
+    fun isBlockedMessage(message: String): Boolean {
+        val blocked = config?.getStringList("Blocked") ?: return false
+        val lowercaseMessage = message.lowercase()
+        for (blockedWord in blocked) {
+            if (blockedWord.isNotBlank() && lowercaseMessage.contains(blockedWord.lowercase())) return true
+        }
+        return false
+    }
+
     fun getInfo(player: Player): ChatInfo? = map.getOrDefault(player.uniqueId, null)
 }
