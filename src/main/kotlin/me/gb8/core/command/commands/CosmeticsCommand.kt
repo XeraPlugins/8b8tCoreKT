@@ -15,6 +15,8 @@ import me.gb8.core.database.GeneralDatabase
 import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils
 import me.gb8.core.vote.VoteSection
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.text.minimessage.MiniMessage
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
@@ -36,6 +38,8 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
     companion object {
         private val VALID_STYLES = setOf("bold", "italic", "underlined", "strikethrough")
         private val VALID_ANIMATIONS = setOf("wave", "pulse", "smooth", "saturate", "bounce", "billboard", "sweep", "shimmer", "none")
+        private const val MAX_ITEM_NAME_LENGTH = 80
+        private const val MAX_ITEM_NAME_SERIALIZED_LENGTH = 512
     }
 
     private fun hasNickPermission(player: Player): Boolean {
@@ -454,27 +458,24 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
                 sendMessage(player, "&cYou must provide a color (e.g. #FF0000).")
                 return
             }
+            if (!colors.matches(Regex("^#[0-9A-Fa-f]{6}(:#[0-9A-Fa-f]{6})?$"))) {
+                sendMessage(player, "&cInvalid color. Use #RRGGBB or #RRGGBB:#RRGGBB.")
+                return
+            }
 
             val meta = item.itemMeta
             val name = getCleanItemName(item)
-            val escapedName = name.replace("<", "\\<").replace(">", "\\>")
-
-            val mm = buildString {
-                styles.forEach { style -> append("<$style>") }
-
-                val isGradient = colors.contains(":") && colors.indexOf('#') != colors.lastIndexOf('#')
-
-                val styledName = if (isGradient) {
-                    "<gradient:$colors>$escapedName</gradient>"
-                } else {
-                    "<color:${colors.split(":")[0]}>$escapedName</color>"
-                }
-
-                append(styledName)
-                styles.reversed().forEach { style -> append("</$style>") }
+            if (name.length > MAX_ITEM_NAME_LENGTH) {
+                sendMessage(player, "&cThat item name is too long to recolor.")
+                return
             }
 
-            meta.displayName(miniMessage.deserialize(mm).decoration(TextDecoration.ITALIC, false))
+            if (name.length + styles.sumOf { it.length } + colors.length > MAX_ITEM_NAME_SERIALIZED_LENGTH) {
+                sendMessage(player, "&cThat item name is too complex to recolor.")
+                return
+            }
+
+            meta.displayName(buildColoredItemName(name, colors, styles))
             item.itemMeta = meta
             val displayName = meta.displayName()
             if (displayName != null) {
@@ -485,11 +486,61 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
         }
     }
 
+    private fun buildColoredItemName(name: String, colors: String, styles: List<String>): Component {
+        val parts = colors.split(":")
+        var component = if (parts.size == 2) {
+            gradientComponent(name, parts[0], parts[1])
+        } else {
+            Component.text(name).color(TextColor.fromHexString(parts[0]))
+        }
+
+        component = component.decoration(TextDecoration.ITALIC, false)
+        for (style in styles) {
+            component = when (style) {
+                "bold" -> component.decoration(TextDecoration.BOLD, true)
+                "italic" -> component.decoration(TextDecoration.ITALIC, true)
+                "underlined" -> component.decoration(TextDecoration.UNDERLINED, true)
+                "strikethrough" -> component.decoration(TextDecoration.STRIKETHROUGH, true)
+                else -> component
+            }
+        }
+        return component
+    }
+
+    private fun gradientComponent(name: String, startHex: String, endHex: String): Component {
+        if (name.isEmpty()) return Component.empty()
+        val start = TextColor.fromHexString(startHex) ?: return Component.text(name)
+        val end = TextColor.fromHexString(endHex) ?: return Component.text(name)
+        val denominator = (name.length - 1).coerceAtLeast(1).toDouble()
+
+        var result = Component.empty()
+        for ((index, char) in name.withIndex()) {
+            val ratio = index / denominator
+            result = result.append(Component.text(char.toString()).color(interpolateColor(start, end, ratio)))
+        }
+        return result
+    }
+
+    private fun interpolateColor(start: TextColor, end: TextColor, ratio: Double): TextColor {
+        val sr = start.red()
+        val sg = start.green()
+        val sb = start.blue()
+        val er = end.red()
+        val eg = end.green()
+        val eb = end.blue()
+        return TextColor.color(
+            (sr + ((er - sr) * ratio)).toInt(),
+            (sg + ((eg - sg) * ratio)).toInt(),
+            (sb + ((eb - sb) * ratio)).toInt()
+        )
+    }
+
     
     private fun getCleanItemName(item: ItemStack): String {
         if (item.hasItemMeta() && item.itemMeta.hasDisplayName()) {
-            val displayName: String = item.itemMeta.displayName
-            return PlainTextComponentSerializer.plainText().serialize(net.kyori.adventure.text.Component.text(displayName))
+            item.itemMeta.displayName()?.let {
+                return PlainTextComponentSerializer.plainText().serialize(it)
+            }
         }
         return item.type.name.replace("_", " ").lowercase()
     }

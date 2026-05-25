@@ -12,7 +12,9 @@ import me.gb8.core.Main
 import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.bukkit.Material
+import org.bukkit.Nameable
 import org.bukkit.block.Beehive
 import org.bukkit.block.CreatureSpawner
 import org.bukkit.entity.Entity
@@ -92,6 +94,13 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     fun onChunkLoad(event: ChunkLoadEvent) {
         event.chunk.tileEntities.forEach { state ->
+            if (state is Nameable && hasIllegalBlockEntityName(state)) {
+                logger.warn("NBT Patch: Stripped oversized block entity CustomName at {} {} {} in chunk {},{}",
+                    state.x, state.y, state.z, event.chunk.x, event.chunk.z)
+                state.customName(null)
+                state.update(true, false)
+            }
+
             when (state) {
                 is CreatureSpawner -> {
                     if (state.spawnCount > 100 || state.requiredPlayerRange > 100) {
@@ -105,6 +114,14 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
                 }
             }
         }
+    }
+
+    private fun hasIllegalBlockEntityName(state: Nameable): Boolean {
+        val name = state.customName() ?: return false
+        val content = GlobalUtils.getStringContent(name)
+        if (content.length > MAX_BLOCK_ENTITY_NAME_PLAIN_LENGTH) return true
+        if (GlobalUtils.getComponentDepth(name) > MAX_BLOCK_ENTITY_NAME_DEPTH) return true
+        return GsonComponentSerializer.gson().serialize(name).length > MAX_BLOCK_ENTITY_NAME_JSON_LENGTH
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -188,4 +205,10 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
 
     private fun isBundle(type: Material): Boolean =
         type.name.endsWith("BUNDLE") || type.name.contains("SHULKER")
+
+    companion object {
+        private const val MAX_BLOCK_ENTITY_NAME_PLAIN_LENGTH = 1024
+        private const val MAX_BLOCK_ENTITY_NAME_JSON_LENGTH = 8192
+        private const val MAX_BLOCK_ENTITY_NAME_DEPTH = 32
+    }
 }

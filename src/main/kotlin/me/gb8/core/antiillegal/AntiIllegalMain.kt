@@ -19,7 +19,6 @@ import org.bukkit.Material
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.event.Cancellable
 import org.bukkit.event.block.BlockPlaceEvent
-import org.bukkit.event.inventory.InventoryOpenEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
 import io.papermc.paper.persistence.PersistentDataContainerView
@@ -87,11 +86,9 @@ class AntiIllegalMain(override val plugin: Main) : Section {
     fun checkFixItem(item: ItemStack?, cancellable: Cancellable?): Boolean {
         item?.takeIf { it.type != Material.AIR } ?: return false
 
-        val isInventoryOpen = cancellable is InventoryOpenEvent
         var wasIllegal = false
 
         for (check in checks) {
-            if (check is AntiPrefilledContainers && !isInventoryOpen) continue
             if (!check.shouldCheck(item) || !check.check(item)) continue
 
             wasIllegal = true
