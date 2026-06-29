@@ -16,7 +16,6 @@ import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.stream.Collectors
 import me.gb8.core.util.GlobalUtils.sendMessage
 
 class JoinDateCommand(private val plugin: Main) : BaseTabCommand(
@@ -99,8 +98,9 @@ class JoinDateCommand(private val plugin: Main) : BaseTabCommand(
 
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
         return if (args.size == 1) {
-            listOf("reload") + Bukkit.getOnlinePlayers().map { it.name }
-                .filter { it.lowercase().startsWith(args[0].lowercase()) }
+            val prefix = args[0]
+            (listOf("reload") + plugin.visibleOnlinePlayers(sender).map { it.name })
+                .filter { it.startsWith(prefix, ignoreCase = true) }
         } else {
             emptyList()
         }

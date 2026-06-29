@@ -24,6 +24,7 @@ commands:
   tpano:
     aliases: []
   tpacancel:
+  tpaignore:
   tpatoggle:
   home:
     aliases: []
@@ -62,6 +63,7 @@ commands:
   gmsp:
   gms:
   table:
+    permission: 8b8tcore.command.table
   jihad:
   joindate:
   kill:
@@ -75,6 +77,9 @@ commands:
     description: Disable phantom spawning for yourself
     permission: 8b8tcore.command.dps
 permissions:
+  8b8tcore.command.table:
+    description: Permission to use /table
+    default: false
   8b8tcore.viewdistance.default:
     description: Permission for the default view distance
     default: true
@@ -156,6 +161,9 @@ permissions:
   8b8tcore.command.toggleprefix:
     description: Permission to toggle prefix visibility
     default: true
+  8b8tcore.vanish.see:
+    description: Permission to see vanished players
+    default: op
   8b8tcore.command.jihad:
     description: Permission to use the jihad command
     default: true

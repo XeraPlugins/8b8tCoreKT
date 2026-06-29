@@ -41,15 +41,15 @@ class VanishCommand(private val main: Main) : BaseCommand(
             for (onlinePlayer in Bukkit.getOnlinePlayers()) {
                 onlinePlayer.showPlayer(main, sender)
             }
-            main.vanishedPlayers.remove(sender.uniqueId)
+            main.setVanished(sender.uniqueId, false)
             sendPrefixedLocalizedMessage(sender, "vanish_false")
         } else {
+            main.setVanished(sender.uniqueId, true)
             for (onlinePlayer in Bukkit.getOnlinePlayers()) {
-                if (!onlinePlayer.hasPermission("8b8tcore.command.vanish") || !onlinePlayer.isOp() || !onlinePlayer.hasPermission("*")) {
+                if (!main.canSeePlayer(onlinePlayer, sender)) {
                     onlinePlayer.hidePlayer(main, sender)
                 }
             }
-            main.vanishedPlayers.add(sender.uniqueId)
             sendPrefixedLocalizedMessage(sender, "vanish_true")
         }
     }

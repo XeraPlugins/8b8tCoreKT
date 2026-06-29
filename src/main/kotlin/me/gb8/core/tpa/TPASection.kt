@@ -14,7 +14,9 @@ import me.gb8.core.tpa.commands.*
 import me.gb8.core.util.FoliaCompat
 import org.bukkit.Bukkit
 import org.bukkit.configuration.ConfigurationSection
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
+import java.io.File
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -30,21 +32,28 @@ class TPASection(override val plugin: Main) : Section {
     private val blockedPlayers = ConcurrentHashMap<UUID, CopyOnWriteArrayList<UUID>>()
     
     private var config: ConfigurationSection? = null
+    private lateinit var ignoreFile: File
+    private lateinit var ignoreStorage: YamlConfiguration
     private var requestTimeoutMinutes = 5
 
     override fun enable() {
         config = plugin.getSectionConfig(this)
         requestTimeoutMinutes = config?.getInt("RequestTimeoutInMinutes", 5) ?: 5
+        ignoreFile = File(plugin.getSectionDataFolder(this), "tpa-ignore.yml")
+        ignoreStorage = YamlConfiguration.loadConfiguration(ignoreFile)
+        loadBlockedPlayers()
         plugin.register(LeaveListener(this))
         plugin.getCommand("tpa")?.setExecutor(TPACommands.TPACommand(this))
         plugin.getCommand("tpahere")?.setExecutor(TPACommands.TPAHereCommand(this))
         plugin.getCommand("tpayes")?.setExecutor(TPACommands.TPAAcceptCommand(this))
         plugin.getCommand("tpano")?.setExecutor(TPACommands.TPADenyCommand(this))
         plugin.getCommand("tpacancel")?.setExecutor(TPACommands.TPACancelCommand(this))
+        plugin.getCommand("tpaignore")?.setExecutor(TPACommands.TPAIgnoreCommand(this))
         plugin.getCommand("tpatoggle")?.setExecutor(TPACommands.TPAToggleCommand(this))
     }
 
     override fun disable() {
+        saveBlockedPlayers()
         lastRequest.clear()
         requests.clear()
         hereRequests.clear()
@@ -194,17 +203,60 @@ class TPASection(override val plugin: Main) : Section {
     fun addBlockedPlayer(requested: Player, requester: Player) {
         val blockedList = blockedPlayers.getOrPut(requested.uniqueId) { CopyOnWriteArrayList() }
         if (!blockedList.contains(requester.uniqueId)) blockedList.add(requester.uniqueId)
-        removeRequest(requester, requested)
-        removeHereRequest(requester, requested)
+        denyBlockedRequests(requested, requester)
+        saveBlockedPlayers()
     }
 
     fun removeBlockedPlayer(requested: Player, requester: Player) {
         val list = blockedPlayers[requested.uniqueId]
         list?.remove(requester.uniqueId)
+        if (list?.isEmpty() == true) blockedPlayers.remove(requested.uniqueId)
+        saveBlockedPlayers()
     }
 
     fun checkBlocked(requested: Player, requester: Player): Boolean {
         return blockedPlayers[requested.uniqueId]?.contains(requester.uniqueId) == true
+    }
+
+    private fun denyBlockedRequests(requested: Player, requester: Player) {
+        var denied = false
+        if (hasRequested(requester, requested)) {
+            removeRequest(requester, requested)
+            denied = true
+        }
+        if (hasHereRequested(requester, requested)) {
+            removeHereRequest(requester, requested)
+            denied = true
+        }
+        if (denied) {
+            sendPrefixedLocalizedMessage(requester, "tpa_request_denied_from", requested.name)
+            sendPrefixedLocalizedMessage(requested, "tpa_request_denied_to", requester.name)
+        }
+    }
+
+    private fun loadBlockedPlayers() {
+        blockedPlayers.clear()
+        val section = ignoreStorage.getConfigurationSection("ignored") ?: return
+        for (ownerKey in section.getKeys(false)) {
+            val ownerUuid = runCatching { UUID.fromString(ownerKey) }.getOrNull() ?: continue
+            val ignored = section.getStringList(ownerKey)
+                .mapNotNull { runCatching { UUID.fromString(it) }.getOrNull() }
+            if (ignored.isNotEmpty()) {
+                blockedPlayers[ownerUuid] = CopyOnWriteArrayList(ignored)
+            }
+        }
+    }
+
+    private fun saveBlockedPlayers() {
+        if (!::ignoreStorage.isInitialized || !::ignoreFile.isInitialized) return
+        ignoreStorage.set("ignored", null)
+        for ((ownerUuid, ignored) in blockedPlayers) {
+            if (ignored.isNotEmpty()) {
+                ignoreStorage.set("ignored.$ownerUuid", ignored.map(UUID::toString))
+            }
+        }
+        runCatching { ignoreStorage.save(ignoreFile) }
+            .onFailure { plugin.logger.warning("Failed to save TPA ignore list: ${it.message}") }
     }
 
     fun cleanupPlayer(uuid: UUID) {
@@ -212,9 +264,7 @@ class TPASection(override val plugin: Main) : Section {
         requests.remove(uuid)
         hereRequests.remove(uuid)
         toggledPlayers.remove(uuid)
-        blockedPlayers.remove(uuid)
         requests.values.forEach { it.remove(uuid) }
         hereRequests.values.forEach { it.remove(uuid) }
-        blockedPlayers.values.forEach { it.remove(uuid) }
     }
 }

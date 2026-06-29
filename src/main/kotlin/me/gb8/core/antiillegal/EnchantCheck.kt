@@ -8,14 +8,9 @@
 
 package me.gb8.core.antiillegal
 
-import me.gb8.core.antiillegal.AntiIllegalMain
-import me.gb8.core.antiillegal.Check
-import me.gb8.core.util.GlobalUtils
 import org.bukkit.Material
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
-import java.util.logging.Level
 
 class EnchantCheck : Check {
 
@@ -43,8 +38,6 @@ class EnchantCheck : Check {
 
     private fun isSpecialBlock(item: ItemStack): Boolean =
         isCarvedPumpkin(item) || isPumpkin(item) || isHead(item) || isSkull(item)
-
-    private val curseEnchantments = setOf("binding_curse", "vanishing_curse")
 
     override fun shouldCheck(item: ItemStack?): Boolean = true
 
@@ -184,4 +177,8 @@ class EnchantCheck : Check {
     }
     private fun isMace(item: ItemStack): Boolean = item.type.name == "MACE"
     private fun isSpear(item: ItemStack): Boolean = item.type.name.endsWith("_SPEAR")
+
+    private companion object {
+        val curseEnchantments = setOf("binding_curse", "vanishing_curse")
+    }
 }

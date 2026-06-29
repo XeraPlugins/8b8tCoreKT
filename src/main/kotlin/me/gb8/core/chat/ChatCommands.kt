@@ -93,7 +93,7 @@ class ChatCommands {
                 args.size < 2 -> sendPrefixedLocalizedMessage(player, "msg_command_syntax")
                 else -> {
                     val target = Bukkit.getPlayer(args[0])
-                    if (target != null && target.isOnline) {
+                    if (target != null && target.isOnline && manager.plugin.canSeePlayer(player, target)) {
                         val senderInfo = manager.getInfo(player) ?: return true
                         val targetInfo = manager.getInfo(target) ?: return true
                         val msg = args.drop(1).joinToString(" ")
@@ -116,7 +116,7 @@ class ChatCommands {
                 else -> {
                     val senderInfo = manager.getInfo(player) ?: return true
                     val replyTarget = senderInfo.replyTarget
-                    if (replyTarget != null && replyTarget.isOnline) {
+                    if (replyTarget != null && replyTarget.isOnline && manager.plugin.canSeePlayer(player, replyTarget)) {
                         val targetInfo = manager.getInfo(replyTarget) ?: return true
                         val msg = args.joinToString(" ")
                         sendWhisper(player, senderInfo, replyTarget, targetInfo, msg)

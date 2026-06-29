@@ -28,6 +28,7 @@ class EntitySpawnListener(private val main: PatchSection) : Listener {
     fun onEntityAddToWorld(event: EntityAddToWorldEvent) {
         val entity = event.entity
         val type = entity.type
+        if (type == EntityType.ITEM) return
         
         val entityPerChunk = main.getEntityPerChunk() ?: return
         val max = entityPerChunk[type] ?: return

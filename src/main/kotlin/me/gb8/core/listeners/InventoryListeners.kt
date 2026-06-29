@@ -30,10 +30,10 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
 
     private fun checkInventory(inv: Inventory, event: InventoryOpenEvent) {
         val openedShulker = inv.type.name.contains("SHULKER")
-        for (i in 0 until inv.size) {
-            inv.getItem(i)?.takeIf { !it.type.isAir }?.let { item ->
+        repeat(inv.size) { slot ->
+            inv.getItem(slot)?.takeUnless { it.type.isAir }?.let { item ->
                 main.checkFixItem(item, event)
-                inv.setItem(i, item)
+                inv.setItem(slot, item)
                 if (openedShulker && isContainer(item.type)) {
                     clearContainerContents(item)
                 }
@@ -44,7 +44,7 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     @EventHandler
     fun onInventoryClose(event: InventoryCloseEvent) {
         event.inventory.forEach { item ->
-            item?.let { main.checkFixItem(it, null) }
+            if (item != null) main.checkFixItem(item, null)
         }
     }
 
@@ -83,7 +83,7 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onTrade(event: TradeSelectEvent) {
         event.inventory.contents.forEach { item ->
-            item?.let { main.checkFixItem(it, event) }
+            if (item != null) main.checkFixItem(item, event)
         }
     }
 
@@ -103,10 +103,7 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     private fun clearContainerContents(container: ItemStack) {
         container.takeIf { it.hasData(DataComponentTypes.CONTAINER) }?.let { item ->
             val contents = item.getData(DataComponentTypes.CONTAINER) ?: return@let
-            val hasContents = contents.contents().any { content ->
-                content != null && !content.type.isAir
-            }
-            if (hasContents) {
+            if (contents.contents().any { it != null && !it.type.isAir }) {
                 item.unsetData(DataComponentTypes.CONTAINER)
             }
         }
@@ -123,19 +120,18 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
             var totalWeight = 0
 
             contents.contents().forEach { bundleItem ->
-                bundleItem?.takeIf { !it.type.isAir }?.let { item ->
-                    when {
-                        isBundle(item.type) || item.amount > item.type.maxStackSize -> {
-                            bundle.amount = 0
-                            return@forEach
-                        }
-                        main.checks.any { check -> check.shouldCheck(item) && check.check(item) } -> {
-                            bundle.amount = 0
-                            return@forEach
-                        }
-                        else -> {
-                            totalWeight += item.amount * (64 / item.type.maxStackSize)
-                        }
+                val contentItem = bundleItem?.takeUnless { it.type.isAir } ?: return@forEach
+                when {
+                    isBundle(contentItem.type) || contentItem.amount > contentItem.type.maxStackSize -> {
+                        bundle.amount = 0
+                        return@forEach
+                    }
+                    main.checks.any { check -> check.shouldCheck(contentItem) && check.check(contentItem) } -> {
+                        bundle.amount = 0
+                        return@forEach
+                    }
+                    else -> {
+                        totalWeight += contentItem.amount * (64 / contentItem.type.maxStackSize)
                     }
                 }
             }
@@ -163,10 +159,8 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
         if (depth >= 1) return true
 
         return try {
-            if (item.hasItemMeta() && item.itemMeta is org.bukkit.inventory.meta.BundleMeta) {
-                val bundleMeta = item.itemMeta as org.bukkit.inventory.meta.BundleMeta
-                bundleMeta.items.any { inner -> isBundle(inner.type) }
-            } else false
+            val bundleMeta = item.itemMeta as? org.bukkit.inventory.meta.BundleMeta ?: return false
+            bundleMeta.items.any { inner -> isBundle(inner.type) }
         } catch (e: Exception) {
             false
         }

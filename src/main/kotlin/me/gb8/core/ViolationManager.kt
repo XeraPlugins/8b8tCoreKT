@@ -19,7 +19,7 @@ open class ViolationManager @JvmOverloads constructor(
     private val map = ConcurrentHashMap<UUID, Int>()
 
     fun decrementAll() {
-        for (uuid in map.keys) {
+        map.keys.forEach { uuid ->
             map.computeIfPresent(uuid) { _, `val` ->
                 val newVal = `val` - removeAmount
                 if (newVal <= 0) null else newVal
@@ -31,11 +31,9 @@ open class ViolationManager @JvmOverloads constructor(
         map.compute(uuid) { _, `val` -> `val`?.let { it + addAmount } ?: addAmount }
     }
 
-    fun getVLS(uuid: UUID): Int {
-        return map.getOrDefault(uuid, 0)
-    }
+    fun getVLS(uuid: UUID): Int = map.getOrDefault(uuid, 0)
 
     fun remove(uuid: UUID) {
-        map.remove(uuid)
+        map -= uuid
     }
 }

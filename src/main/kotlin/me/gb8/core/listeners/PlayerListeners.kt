@@ -42,15 +42,15 @@ class PlayerListeners(private val main: AntiIllegalMain) : Listener {
         main.checkFixItem(inv.itemInMainHand, null)
         main.checkFixItem(inv.itemInOffHand, null)
 
-        for (armor in inv.armorContents) {
-            if (armor != null) main.checkFixItem(armor, null)
+        inv.armorContents.forEach { item ->
+            if (item != null) main.checkFixItem(item, null)
         }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onEnderChestOpen(event: InventoryOpenEvent) {
         if (event.inventory.type == InventoryType.ENDER_CHEST) {
-            for (item in event.inventory.contents) {
+            event.inventory.contents.forEach { item ->
                 if (item != null) main.checkFixItem(item, null)
             }
         }
@@ -79,7 +79,7 @@ class PlayerListeners(private val main: AntiIllegalMain) : Listener {
         val otherItem = if (event.hand == EquipmentSlot.OFF_HAND) inv.itemInMainHand else inv.itemInOffHand
 
         if (main.checkFixItem(usedItem, event)) {
-            if (usedItem?.type != org.bukkit.Material.ENDER_PEARL) {
+            if (usedItem.type != org.bukkit.Material.ENDER_PEARL) {
                 event.isCancelled = true
             }
         }
@@ -119,22 +119,17 @@ class PlayerListeners(private val main: AntiIllegalMain) : Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onProjectileLaunch(event: ProjectileLaunchEvent) {
         val potion = event.entity as? ThrownPotion ?: return
-        val shooter = potion.shooter
-        if (shooter is Player) {
-            main.checkFixItem(potion.item, event)
-        }
+        if (potion.shooter is Player) main.checkFixItem(potion.item, event)
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onDeath(event: PlayerDeathEvent) {
-        for (item in event.drops) {
-            main.checkFixItem(item, null)
-        }
+        event.drops.forEach { main.checkFixItem(it, null) }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     fun onWorldChange(event: PlayerChangedWorldEvent) {
-        for (item in event.player.inventory.contents) {
+        event.player.inventory.contents.forEach { item ->
             if (item != null) main.checkFixItem(item, null)
         }
     }

@@ -8,11 +8,8 @@
 
 package me.gb8.core.listeners
 
-import org.bukkit.Chunk
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.configuration.file.FileConfiguration
-import org.bukkit.entity.Entity
 import org.bukkit.entity.ItemFrame
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -29,8 +26,6 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.MapMeta
 import org.bukkit.plugin.java.JavaPlugin
 
-import javax.annotation.Nullable
-
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
 
 class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
@@ -38,9 +33,7 @@ class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
     private val restrictedMapIds = mutableSetOf<Int>()
 
     init {
-        val config = plugin.config
-        val restrictedIds = config.getIntegerList("RestrictedMapIDs")
-        restrictedMapIds.addAll(restrictedIds)
+        restrictedMapIds += plugin.config.getIntegerList("RestrictedMapIDs")
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -91,39 +84,33 @@ class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
 
         val chunk = event.chunk
 
-        for (entity in chunk.entities) {
-            if (entity is ItemFrame) {
-                val item = entity.item
-                if (isRestrictedMap(item)) {
+        chunk.entities.filterIsInstance<ItemFrame>().forEach { entity ->
+            val item = entity.item
+            if (isRestrictedMap(item)) {
                     entity.setItem(null)
 
                     val chunkCenter = Location(
-                            chunk.world,
-                            ((chunk.x shl 4) + 8).toDouble(),
-                            64.0,
-                            ((chunk.z shl 4) + 8).toDouble())
+                        chunk.world,
+                        ((chunk.x shl 4) + 8).toDouble(),
+                        64.0,
+                        ((chunk.z shl 4) + 8).toDouble()
+                    )
 
-                    for (player in chunk.world.getNearbyPlayers(chunkCenter, 16.0)) {
-                        if (player.location.chunk.equals(chunk)) {
-                            sendPrefixedLocalizedMessage(player, "mapart_deleted_frame")
-                        }
+                    chunk.world.getNearbyPlayers(chunkCenter, 16.0).forEach { player ->
+                        if (player.location.chunk == chunk) sendPrefixedLocalizedMessage(player, "mapart_deleted_frame")
                     }
-                }
             }
         }
     }
 
-    private fun removeRestrictedMaps(inventory: Inventory?, @Nullable player: Player?) {
+    private fun removeRestrictedMaps(inventory: Inventory?, player: Player?) {
         if (inventory == null) return
 
-        for (i in 0 until inventory.size) {
-            val item = inventory.getItem(i)
+        repeat(inventory.size) { slot ->
+            val item = inventory.getItem(slot)
             if (isRestrictedMap(item)) {
-                inventory.setItem(i, null)
-
-                if (player != null) {
-                    sendPrefixedLocalizedMessage(player, "mapart_deleted_inventory")
-                }
+                inventory.setItem(slot, null)
+                player?.let { sendPrefixedLocalizedMessage(it, "mapart_deleted_inventory") }
             }
         }
     }
@@ -131,13 +118,7 @@ class MapRemovalPatch(private val plugin: JavaPlugin) : Listener {
     private fun isRestrictedMap(item: ItemStack?): Boolean {
         if (item == null || item.type != Material.FILLED_MAP) return false
 
-        val meta = item.itemMeta
-        if (meta is MapMeta) {
-            if (!meta.hasMapId()) {
-                return false
-            }
-            return meta.mapId in restrictedMapIds
-        }
-        return false
+        val meta = item.itemMeta as? MapMeta ?: return false
+        return meta.hasMapId() && meta.mapId in restrictedMapIds
     }
 }

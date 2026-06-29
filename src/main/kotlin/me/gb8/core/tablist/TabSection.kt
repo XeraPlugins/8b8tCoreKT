@@ -43,13 +43,11 @@ class TabSection(override val plugin: Main) : Section {
                 tickCount++
                 if (tickCount % 4 == 0L) return@runAtFixedRate
 
-val chatSection = cachedChatSection ?: run {
+                cachedChatSection ?: run {
                     val section = plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
                     cachedChatSection = section
                     section
                 } ?: return@runAtFixedRate
-
-                chatSection
 
                 val updatePlaceholders = tickCount % 10 == 0L
                 val animTick = GradientAnimator.getAnimationTick()

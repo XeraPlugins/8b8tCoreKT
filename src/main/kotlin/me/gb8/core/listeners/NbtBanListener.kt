@@ -186,7 +186,7 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
 
     fun getItemName(itemStack: ItemStack?): String {
         return itemStack?.let { stack ->
-            stack.itemMeta?.displayName?.takeIf { it.isNotEmpty() } ?: stack.type.name
+            stack.itemMeta?.displayName()?.let(GlobalUtils::getStringContent)?.takeIf { it.isNotEmpty() } ?: stack.type.name
         } ?: "Unknown"
     }
 

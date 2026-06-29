@@ -12,9 +12,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Chunk
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.World
 import org.bukkit.block.Block
-import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockPlaceEvent
@@ -30,7 +28,6 @@ import org.bukkit.NamespacedKey
 import me.gb8.core.Reloadable
 import java.util.ArrayList
 import java.util.HashMap
-import java.util.Map
 
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
 

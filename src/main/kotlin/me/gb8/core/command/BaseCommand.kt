@@ -9,7 +9,6 @@
 package me.gb8.core.command
 
 import me.gb8.core.Main
-import me.gb8.core.util.GlobalUtils
 import me.gb8.core.util.GlobalUtils.sendMessage
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -41,13 +40,9 @@ abstract class BaseCommand(
         sendMessage(sender, "&c%s", message)
     }
 
-    fun getSenderAsPlayer(sender: CommandSender): Player? {
-        return sender as? Player
-    }
+    fun getSenderAsPlayer(sender: CommandSender): Player? = sender as? Player
 
-    fun getPermission(): String? {
-        return if (permissions.size > 1 || permissions.size == 1) permissions[0] else null
-    }
+    fun getPermission(): String? = permissions.firstOrNull()
 
     abstract fun execute(sender: CommandSender, args: Array<String>)
 }

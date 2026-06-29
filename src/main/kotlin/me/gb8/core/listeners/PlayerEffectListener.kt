@@ -69,8 +69,8 @@ class PlayerEffectListener(private val plugin: Plugin, private val main: AntiIll
             FoliaCompat.schedule(p, plugin) {
                 if (p.isOnline) {
                     val inv = p.inventory
-                    inv.itemInMainHand?.let { main.checkFixItem(it, null) }
-                    inv.itemInOffHand?.let { main.checkFixItem(it, null) }
+                    main.checkFixItem(inv.itemInMainHand, null)
+                    main.checkFixItem(inv.itemInOffHand, null)
                     inv.armorContents.forEach { it?.let { main.checkFixItem(it, null) } }
                     inv.contents.forEach { it?.let { main.checkFixItem(it, null) } }
                 }

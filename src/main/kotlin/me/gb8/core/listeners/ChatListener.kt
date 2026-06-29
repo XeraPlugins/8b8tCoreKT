@@ -86,7 +86,7 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
         FoliaCompat.schedule(sender, manager.plugin) {
             if (!sender.isOnline) return@schedule
 
-            val blocked = manager.isBlockedMessage(ogMessage)
+            val blocked = blockedCheck(ogMessage)
             val domainBlocked = domainCheck(ogMessage)
             if (blocked || ci.mutedUntil > Instant.now().epochSecond || domainBlocked) {
                 val senderComp = getSenderComponent(sender, ci)
@@ -162,6 +162,15 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
                 }
                 if (word in tlds) return true
             }
+        }
+        return false
+    }
+
+    private fun blockedCheck(message: String): Boolean {
+        val config = manager.config ?: return false
+        val blocked = config.getStringList("Blocked")
+        for (blockedWord in blocked) {
+            if (message.lowercase().contains(blockedWord.lowercase())) return true
         }
         return false
     }
@@ -245,7 +254,7 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
             .append(player.displayName())
             .append(Component.text("\n\n").color(NamedTextColor.GRAY))
             .append(Component.text("Lang: ").color(TextColor.fromHexString("#FFD700")))
-            .append(Component.text(player.locale.toString() + "\n").color(NamedTextColor.LIGHT_PURPLE))
+            .append(Component.text(player.locale().toString() + "\n").color(NamedTextColor.LIGHT_PURPLE))
             .append(Component.text("Experience: ").color(TextColor.fromHexString("#FFD700")))
             .append(Component.text(player.level.toString() + "\n").color(NamedTextColor.GREEN))
             .append(Component.text("Distance Walked: ").color(TextColor.fromHexString("#FFD700")))

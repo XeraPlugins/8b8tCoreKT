@@ -26,10 +26,8 @@ class VanishTabListener(private val main: Main) : Listener {
             val name = iterator.next()
             val target = main.server.getPlayerExact(name)
 
-            if (target != null && main.vanishedPlayers.contains(target.uniqueId)) {
-                if (!sender.hasPermission("*") && !sender.isOp) {
-                    iterator.remove()
-                }
+            if (target != null && !main.canSeePlayer(sender, target)) {
+                iterator.remove()
             }
         }
         event.completions = completions

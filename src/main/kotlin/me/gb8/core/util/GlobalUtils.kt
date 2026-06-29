@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 /*
  * 8b8tCore
  * Copyright (c) 2026 8b8tTeam

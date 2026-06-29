@@ -48,7 +48,7 @@ class MapCreationListener(private val plugin: Main) : Listener {
 
     @EventHandler
     fun onMapInitialize(event: MapInitializeEvent) {
-        val map = event.map ?: return
+        val map = event.map
         map.setTrackingPosition(true)
         map.setUnlimitedTracking(false)
     }

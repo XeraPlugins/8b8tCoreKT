@@ -13,6 +13,8 @@ import me.gb8.core.command.BaseCommand
 import me.gb8.core.util.FoliaCompat
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
+import org.bukkit.damage.DamageSource
+import org.bukkit.damage.DamageType
 import org.bukkit.entity.Player
 import me.gb8.core.util.GlobalUtils.sendMessage
 
@@ -40,7 +42,9 @@ class KillCommand(private val plugin: Main) : BaseCommand(
         }
 
         val targetName = args[0]
-        val target = Bukkit.getPlayer(targetName)
+        val target = Bukkit.getPlayer(targetName)?.takeIf {
+            sender !is Player || plugin.canSeePlayer(sender, it)
+        }
 
         if (target == null) {
             sendMessage(sender, "&cPlayer '&e$targetName&c' is not online!")
@@ -51,15 +55,30 @@ class KillCommand(private val plugin: Main) : BaseCommand(
     }
 
     private fun killPlayer(sender: CommandSender, target: Player) {
-        FoliaCompat.schedule(target, Main.instance) {
-            target.health = 0.0
+        FoliaCompat.schedule(target, plugin) {
+            val damageSource = DamageSource.builder(DamageType.GENERIC_KILL)
+                .withDamageLocation(target.location)
+                .build()
+            target.noDamageTicks = 0
+            target.damage(target.health.coerceAtLeast(1.0) + target.absorptionAmount, damageSource)
 
             if (sender == target) {
-                sendMessage(sender, "&6You have killed yourself!")
+                sendMessage(target, "&6You have killed yourself!")
             } else {
-                sendMessage(sender, "&6You have killed &e${target.name}&6!")
+                sendToCommandSender(sender, "&6You have killed &e${target.name}&6!")
                 sendMessage(target, "&cYou have been killed by &e${sender.name}&c!")
             }
+        }
+    }
+
+    private fun sendToCommandSender(sender: CommandSender, message: String) {
+        val senderPlayer = sender as? Player
+        if (senderPlayer == null) {
+            sendMessage(sender, message)
+            return
+        }
+        FoliaCompat.schedule(senderPlayer, plugin) {
+            sendMessage(senderPlayer, message)
         }
     }
 

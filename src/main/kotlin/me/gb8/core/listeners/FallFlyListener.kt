@@ -21,6 +21,8 @@ class FallFlyListener(main: Main) : ViolationManager(addAmount = 1, plugin = mai
     @EventHandler
     fun onGlide(event: EntityToggleGlideEvent) {
         val player = event.entity as? Player ?: return
+        if (!event.isGliding) return
+
         val vls = getVLS(player.uniqueId)
         increment(player.uniqueId)
         if (vls > 10) {

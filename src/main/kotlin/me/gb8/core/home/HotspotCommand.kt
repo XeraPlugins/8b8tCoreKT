@@ -301,6 +301,7 @@ class HotspotCommand(private val main: HomeManager) : TabExecutor, Listener {
         return when {
             args.size == 1 -> hotspotOptions.filter { it.startsWith(args[0].lowercase()) }
             args.size == 2 && args[0].lowercase().startsWith("teleport") -> playerBossBars.keys.mapNotNull { Bukkit.getPlayer(it) }
+                .filter { sender !is Player || Main.instance.canSeePlayer(sender, it) }
                 .map { it.name }
                 .filter { it.lowercase().startsWith(args[1].lowercase()) }
             else -> emptyList()

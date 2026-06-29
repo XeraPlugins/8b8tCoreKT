@@ -40,7 +40,6 @@ class PatchSection(override val plugin: Main) : Section, Listener {
         listOf(
             PhantomPatch(plugin),
             AntiLagChest(plugin),
-            FallFlyListener(plugin) as org.bukkit.event.Listener,
             MapCreationListener(plugin),
             MapRemovalPatch(plugin),
             EntitySwitchWorldListener(plugin),
@@ -49,6 +48,7 @@ class PatchSection(override val plugin: Main) : Section, Listener {
             NbtBanListener(plugin),
             ChestLimiter(plugin)
         ).forEach { plugin.register(it) }
+        plugin.register(FallFlyListener(plugin) as me.gb8.core.ViolationManager)
 
         cfg?.let { setupScheduledTasks(it) }
     }

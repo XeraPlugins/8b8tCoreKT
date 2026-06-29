@@ -9,49 +9,47 @@
 package me.gb8.core.command
 
 import me.gb8.core.command.commands.*
-import org.bukkit.Bukkit
 import org.bukkit.command.Command
 import org.bukkit.command.CommandSender
-import org.bukkit.command.PluginCommand
 import org.bukkit.command.TabExecutor
-import org.bukkit.entity.Player
 
 class CommandHandler(private val main: CommandSection) : TabExecutor {
     private val commands = mutableMapOf<String, BaseCommand>()
     val commandMap: Map<String, BaseCommand> get() = commands
 
     fun registerCommands() {
-        addCommand(BaseCmd(main))
-        addCommand(DiscordCommand(main))
-        addCommand(HelpCommand())
-        addCommand(OpenInv())
-        addCommand(SayCommand())
-        addCommand(SpawnCommand())
-        addCommand(SpeedCommand())
-        addCommand(UptimeCommand(main.plugin))
-        addCommand(WorldSwitcher(main.plugin))
-        addCommand(TpsinfoCommand(main.plugin))
-
-        addCommand(ToggleJoinMessagesCommand(main.plugin))
-        addCommand(TogglePrefixCommand(main.plugin))
-        addCommand(ToggleDeathMessageCommand(main.plugin))
-        addCommand(ToggleAnnouncementsCommand(main.plugin))
-        addCommand(ToggleAchievementsCommand())
-        addCommand(RenameCommand())
-        addCommand(SignCommand())
-        addCommand(ShadowMuteCommand(main.plugin))
-        addCommand(VanishCommand(main.plugin))
-        addCommand(ClearEntitiesCommand())
-        addCommand(GmCreativeCommand())
-        addCommand(GmSpectatorCommand())
-        addCommand(GmSurvivalCommand())
-        addCommand(TableCommand())
-        addCommand(JoinDateCommand(main.plugin))
-        addCommand(KillCommand(main.plugin))
-        addCommand(LastSeenCommand(main.plugin))
-        addCommand(ToggleLeaderboardCommand(main.plugin))
-        addCommand(DpsCommand())
-        addCommand(CosmeticsCommand(main.plugin))
+        listOf(
+            BaseCmd(main),
+            DiscordCommand(main),
+            HelpCommand(),
+            OpenInv(),
+            SayCommand(),
+            SpawnCommand(),
+            SpeedCommand(),
+            UptimeCommand(main.plugin),
+            WorldSwitcher(main.plugin),
+            TpsinfoCommand(main.plugin),
+            ToggleJoinMessagesCommand(main.plugin),
+            TogglePrefixCommand(main.plugin),
+            ToggleDeathMessageCommand(main.plugin),
+            ToggleAnnouncementsCommand(main.plugin),
+            ToggleAchievementsCommand(),
+            RenameCommand(),
+            SignCommand(),
+            ShadowMuteCommand(main.plugin),
+            VanishCommand(main.plugin),
+            ClearEntitiesCommand(),
+            GmCreativeCommand(),
+            GmSpectatorCommand(),
+            GmSurvivalCommand(),
+            TableCommand(),
+            JoinDateCommand(main.plugin),
+            KillCommand(main.plugin),
+            LastSeenCommand(main.plugin),
+            ToggleLeaderboardCommand(main.plugin),
+            DpsCommand(),
+            CosmeticsCommand(main.plugin)
+        ).forEach(::addCommand)
     }
 
     private fun addCommand(command: BaseCommand) {
@@ -59,9 +57,7 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
         main.plugin.getCommand(command.name)?.let { cmd ->
             cmd.setExecutor(this)
             cmd.setTabCompleter(this)
-            if (command.permissions.isNotEmpty()) {
-                cmd.setPermission(command.permissions[0])
-            }
+            command.permissions.firstOrNull()?.let(cmd::setPermission)
         }
     }
 
@@ -90,14 +86,16 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
         return when {
             command is BaseTabCommand -> command.onTab(sender, args)
             command.subCommands != null && args.size == 1 -> {
+                val prefix = args[0].lowercase()
                 command.subCommands.map { it.split("::")[0] }
-                    .filter { it.startsWith(args[0].lowercase()) }
+                    .filter { it.startsWith(prefix, ignoreCase = true) }
             }
             args.size > 1 -> {
-                Bukkit.getOnlinePlayers().map { it.name }
-                    .filter { it.lowercase().startsWith(args.last().lowercase()) }
+                val prefix = args.last()
+                main.plugin.visibleOnlinePlayers(sender).map { it.name }
+                    .filter { it.startsWith(prefix, ignoreCase = true) }
             }
-            else -> Bukkit.getOnlinePlayers().map { it.name }
+            else -> main.plugin.visibleOnlinePlayers(sender).map { it.name }
         }
     }
 }

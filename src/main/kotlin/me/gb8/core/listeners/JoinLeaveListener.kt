@@ -20,6 +20,12 @@ class JoinLeaveListener(private val manager: ChatSection) : Listener {
     @EventHandler
     fun onJoin(event: PlayerJoinEvent) {
         manager.registerPlayer(event.player)
+        val joined = event.player
+        for (onlinePlayer in manager.plugin.server.onlinePlayers) {
+            if (!manager.plugin.canSeePlayer(joined, onlinePlayer)) {
+                joined.hidePlayer(manager.plugin, onlinePlayer)
+            }
+        }
     }
 
     @EventHandler

@@ -34,7 +34,7 @@ class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
                     contents.contents().any { content -> hasIllegalContent(content, listOf(check)) }
                 }
                 failingCheck?.let {
-                    GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged shulker because of item flagged by %s", it.javaClass.simpleName)
+                    GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged container because of item flagged by %s", it.javaClass.simpleName)
                     item.editPersistentDataContainer { pdc ->
                         pdc.set(NamespacedKey(main.plugin, "last_failed_check"), PersistentDataType.STRING, it.javaClass.simpleName)
                     }
@@ -73,10 +73,10 @@ class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
     }
 
     private fun isApplicableCheck(check: Check): Boolean =
-        check != this && check !is AntiPrefilledContainers && check !is EnchantCheck && check !is IllegalDataCheck
+        check != this && check !is EnchantCheck && check !is IllegalDataCheck
 
     private fun isFixableCheck(check: Check): Boolean =
-        check is EnchantCheck || check is IllegalDataCheck
+        check is AntiPrefilledContainers || check is EnchantCheck || check is IllegalDataCheck
 
     private fun hasIllegalContent(content: ItemStack?, checks: List<Check>): Boolean {
         content ?: return false

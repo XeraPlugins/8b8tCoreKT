@@ -11,14 +11,10 @@ package me.gb8.core.command.commands
 import me.gb8.core.Main
 import me.gb8.core.command.BaseTabCommand
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.util.GlobalUtils.sendMessage
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
-import org.bukkit.entity.Player
-
 import java.time.Instant
-import java.util.stream.Collectors
-
-import me.gb8.core.util.GlobalUtils.sendMessage
 
 class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
     "shadowmute",
@@ -27,9 +23,8 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
     "Mute a player without their knowledge"
 ) {
     private val shadowmuteOptions = listOf("add", "remove")
-    private val database: GeneralDatabase = GeneralDatabase.getInstance()
+    private val database = GeneralDatabase.getInstance()
 
-    
     override fun execute(sender: CommandSender, args: Array<String>) {
         if (args.size < 2) {
             sendMessage(sender, "&cSyntax error: /shadowmute <add | remove> <player> [hours (default 72)]")
@@ -40,79 +35,67 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
         val playerName = args[1]
 
         database.isMutedAsync(playerName).thenAccept { isMuted ->
-            if (action == "add") {
-                if (isMuted) {
-                    sendMessage(sender, "&8${playerName} is already muted.")
-                    return@thenAccept
-                }
-
-                var hours = 72
-                if (args.size >= 3) {
-                    try {
-                        hours = args[2].toInt()
-                    } catch (e: NumberFormatException) {
-                        sendMessage(sender, "&cHours argument must be a numeric value.")
-                        return@thenAccept
-                    }
-                }
-
-                val currentTime = Instant.now().epochSecond
-                val finalMuteUntil = currentTime + (hours * 3600)
-                val finalHours = hours
-
-                database.mute(playerName, finalMuteUntil).thenRun {
-                    val target = Bukkit.getPlayer(playerName)
-                    if (target != null) {
-                        val pluginInstance = Main.instance
-                        val chatSection = pluginInstance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
-                        if (chatSection != null) {
-                            val info = chatSection.getInfo(target)
-                            if (info != null) info.mutedUntil = finalMuteUntil
-                        }
-                    }
-                    sendMessage(sender, "&8${playerName} has been shadowmuted for ${finalHours} hours.")
-                }
-            } else if (action == "remove") {
-                if (!isMuted) {
-                    sendMessage(sender, "&c${playerName} is not muted.")
-                    return@thenAccept
-                }
-
-                database.unmute(playerName).thenRun {
-                    val target = Bukkit.getPlayer(playerName)
-                    if (target != null) {
-                        val pluginInstance = Main.instance
-                        val chatSection = pluginInstance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
-                        if (chatSection != null) {
-                            val info = chatSection.getInfo(target)
-                            if (info != null) info.mutedUntil = 0
-                        }
-                    }
-                    sendMessage(sender, "&8${playerName} has been unmuted.")
-                }
-            } else {
-                sendMessage(sender, "&cInvalid Option: /shadowmute <add | remove> <player> [hours (default 72)]")
+            when (action) {
+                "add" -> addMute(sender, playerName, args, isMuted)
+                "remove" -> removeMute(sender, playerName, isMuted)
+                else -> sendMessage(sender, "&cInvalid Option: /shadowmute <add | remove> <player> [hours (default 72)]")
             }
         }
     }
 
-    
-    override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        return when (args.size) {
-            1 -> shadowmuteOptions.filter { it.lowercase().startsWith(args[0].lowercase()) }
-            2 -> {
-                val firstArg = args[0].lowercase()
-                if (firstArg == "add" || firstArg == "remove") {
-                    getOnlinePlayers().filter { it.lowercase().startsWith(args[1].lowercase()) }
-                } else {
-                    emptyList()
-                }
+    override fun onTab(sender: CommandSender, args: Array<String>): List<String> = when (args.size) {
+        1 -> shadowmuteOptions.filter { it.startsWith(args[0], ignoreCase = true) }
+        2 -> if (args[0].lowercase() in shadowmuteOptions) {
+            plugin.visibleOnlinePlayers(sender)
+                .map { it.name }
+                .filter { it.startsWith(args[1], ignoreCase = true) }
+        } else {
+            emptyList()
+        }
+        else -> emptyList()
+    }
+
+    private fun addMute(sender: CommandSender, playerName: String, args: Array<String>, isMuted: Boolean) {
+        if (isMuted) {
+            sendMessage(sender, "&8${playerName} is already muted.")
+            return
+        }
+
+        val hours = args.getOrNull(2)?.toIntOrNull() ?: run {
+            if (args.size >= 3) {
+                sendMessage(sender, "&cHours argument must be a numeric value.")
+                return
             }
-            else -> emptyList()
+            DEFAULT_MUTE_HOURS
+        }
+
+        val muteUntil = Instant.now().epochSecond + hours * SECONDS_PER_HOUR
+        database.mute(playerName, muteUntil).thenRun {
+            updateCachedMute(playerName, muteUntil)
+            sendMessage(sender, "&8${playerName} has been shadowmuted for $hours hours.")
         }
     }
 
-    private fun getOnlinePlayers(): List<String> {
-        return Bukkit.getOnlinePlayers().map { it.name }
+    private fun removeMute(sender: CommandSender, playerName: String, isMuted: Boolean) {
+        if (!isMuted) {
+            sendMessage(sender, "&c${playerName} is not muted.")
+            return
+        }
+
+        database.unmute(playerName).thenRun {
+            updateCachedMute(playerName, 0)
+            sendMessage(sender, "&8${playerName} has been unmuted.")
+        }
+    }
+
+    private fun updateCachedMute(playerName: String, mutedUntil: Long) {
+        val target = Bukkit.getPlayer(playerName) ?: return
+        val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection ?: return
+        chatSection.getInfo(target)?.mutedUntil = mutedUntil
+    }
+
+    private companion object {
+        const val DEFAULT_MUTE_HOURS = 72
+        const val SECONDS_PER_HOUR = 3_600
     }
 }

@@ -29,6 +29,7 @@ class KickListener(private val main: Main) : Listener {
         event.reason(Component.text(message))
     }
 
+    @Suppress("DEPRECATION")
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onAsyncPreLogin(event: AsyncPlayerPreLoginEvent) {
         if (!main.config.getBoolean("AnonymousKickMessages.Enabled", true)) return
@@ -38,7 +39,7 @@ class KickListener(private val main: Main) : Listener {
         @Suppress("UNCHECKED_CAST")
         val banList = main.server.getBanList(BanList.Type.PROFILE) as? BanList<com.destroystokyo.paper.profile.PlayerProfile>
         
-        if (banList != null && profile != null && banList.isBanned(profile)) {
+        if (banList != null && banList.isBanned(profile)) {
             val message = main.config.getString("AnonymousKickMessages.Message", "You have been disconnected from the server")
                 ?: "You have been disconnected from the server"
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, message)

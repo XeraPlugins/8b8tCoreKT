@@ -26,12 +26,16 @@ import me.gb8.core.patch.EndPortalBuilder
 import me.gb8.core.patch.EndPortalGateways
 import me.gb8.core.tablist.TabSection
 import me.gb8.core.tpa.TPASection
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils
 
 import me.gb8.core.vote.VoteSection
+import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.command.CommandSender
 import org.bukkit.configuration.ConfigurationSection
+import org.bukkit.configuration.file.YamlConfiguration
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -66,6 +70,30 @@ class Main : JavaPlugin(), Listener {
 
     val lastLocations = ConcurrentHashMap<UUID, Location>()
     val vanishedPlayers = ConcurrentHashMap.newKeySet<UUID>()
+    private lateinit var vanishedFile: File
+    private lateinit var vanishedStorage: YamlConfiguration
+
+    fun canSeePlayer(viewer: Player, target: Player): Boolean {
+        return viewer.uniqueId == target.uniqueId ||
+            !vanishedPlayers.contains(target.uniqueId) ||
+            viewer.isOp ||
+            viewer.hasPermission("8b8tcore.command.vanish") ||
+            viewer.hasPermission("8b8tcore.vanish.see")
+    }
+
+    fun visibleOnlinePlayers(sender: CommandSender): Collection<Player> {
+        val viewer = sender as? Player ?: return Bukkit.getOnlinePlayers()
+        return Bukkit.getOnlinePlayers().filter { canSeePlayer(viewer, it) }
+    }
+
+    fun setVanished(uuid: UUID, vanished: Boolean) {
+        if (vanished) {
+            vanishedPlayers.add(uuid)
+        } else {
+            vanishedPlayers.remove(uuid)
+        }
+        saveVanishedPlayers()
+    }
 
     override fun onEnable() {
         Bukkit.getConsoleSender().sendMessage("\u00A73   ___    _        \u00A73___    _      \u00A77____                       ")
@@ -84,6 +112,7 @@ class Main : JavaPlugin(), Listener {
         executorService = Executors.newScheduledThreadPool(4)
         startTime = System.currentTimeMillis()
         saveDefaultConfig()
+        loadVanishedPlayers()
         prefix = config.getString("prefix", "&8[&98b&78t&8]") ?: "&8[&98b&78t&8]"
         logger.addHandler(LoggerHandler())
         Localization.loadLocalizations(dataFolder)
@@ -93,6 +122,17 @@ class Main : JavaPlugin(), Listener {
 
         Bukkit.getAsyncScheduler().runAtFixedRate(this, { violationManagers.forEach { it.decrementAll() } }, 0L, 1L, TimeUnit.SECONDS)
         Bukkit.getAsyncScheduler().runAtFixedRate(this, { AnnouncementTask().run() }, 10L, config.getInt("AnnouncementInterval").toLong(), TimeUnit.SECONDS)
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, {
+            Bukkit.getOnlinePlayers()
+                .filter { it.uniqueId in vanishedPlayers }
+                .forEach { player ->
+                    FoliaCompat.schedule(player, this) {
+                        if (player.isOnline && player.uniqueId in vanishedPlayers) {
+                            player.sendActionBar(Component.text("You are currently in vanish"))
+                        }
+                    }
+                }
+        }, 20L, 40L)
 
         Bukkit.getGlobalRegionScheduler().runDelayed(this, {
             EndPortalBuilder(this).run()
@@ -136,7 +176,6 @@ class Main : JavaPlugin(), Listener {
     fun onQuit(event: PlayerQuitEvent) {
         val uuid = event.player.uniqueId
         lastLocations.remove(uuid)
-        vanishedPlayers.remove(uuid)
     }
 
     override fun onDisable() {
@@ -146,6 +185,7 @@ class Main : JavaPlugin(), Listener {
         sections.forEach { it.disable() }
         sections.clear()
         reloadables.clear()
+        saveVanishedPlayers()
 
         runCatching {
             GeneralDatabase.getInstance().close()
@@ -164,6 +204,25 @@ class Main : JavaPlugin(), Listener {
                 service.shutdownNow()
                 Thread.currentThread().interrupt()
             }
+        }
+    }
+
+    private fun loadVanishedPlayers() {
+        vanishedFile = File(dataFolder, "vanished.yml")
+        vanishedStorage = YamlConfiguration.loadConfiguration(vanishedFile)
+        vanishedPlayers.clear()
+        vanishedStorage.getStringList("players")
+            .mapNotNull { runCatching { UUID.fromString(it) }.getOrNull() }
+            .forEach(vanishedPlayers::add)
+    }
+
+    private fun saveVanishedPlayers() {
+        if (!::vanishedStorage.isInitialized) return
+        runCatching {
+            vanishedStorage.set("players", vanishedPlayers.map(UUID::toString).sorted())
+            vanishedStorage.save(vanishedFile)
+        }.onFailure {
+            logger.warning("Failed to save vanished players: ${it.message}")
         }
     }
 

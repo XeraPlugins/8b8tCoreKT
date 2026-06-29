@@ -24,7 +24,7 @@ class VanishVerifierListener(private val main: Main) : Listener {
 
         if (main.vanishedPlayers.contains(player.uniqueId)) {
             for (onlinePlayer in Bukkit.getOnlinePlayers()) {
-                if (!onlinePlayer.hasPermission("8b8tcore.command.vanish") || !onlinePlayer.isOp || !onlinePlayer.hasPermission("*")) {
+                if (!main.canSeePlayer(onlinePlayer, player)) {
                     onlinePlayer.hidePlayer(main, player)
                 }
             }
@@ -37,7 +37,7 @@ class VanishVerifierListener(private val main: Main) : Listener {
 
         for (onlinePlayer in Bukkit.getOnlinePlayers()) {
             if (main.vanishedPlayers.contains(onlinePlayer.uniqueId)) {
-                if (!player.hasPermission("8b8tcore.command.vanish") || !player.isOp || !player.hasPermission("*")) {
+                if (!main.canSeePlayer(player, onlinePlayer)) {
                     player.hidePlayer(main, onlinePlayer)
                 }
             }

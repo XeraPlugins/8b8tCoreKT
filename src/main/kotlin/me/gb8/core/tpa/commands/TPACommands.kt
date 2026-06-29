@@ -29,6 +29,10 @@ import me.gb8.core.util.GlobalUtils.sendPrefixedComponent
 class TPACommands {
 
     companion object {
+        fun canTargetForRequest(main: TPASection, viewer: Player, target: Player): Boolean {
+            return main.main.canSeePlayer(viewer, target)
+        }
+
         fun formatRequestMessage(target: Player, fromName: String, messageKey: String): TextComponent {
             val acceptButton = Component.text("ACCEPT").clickEvent(ClickEvent.runCommand("/tpayes $fromName"))
             val denyButton = Component.text("DENY").clickEvent(ClickEvent.runCommand("/tpano $fromName"))
@@ -55,6 +59,11 @@ class TPACommands {
             }
 
             val target = Bukkit.getPlayer(args[0]) ?: run {
+                sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
+                return true
+            }
+
+            if (!TPACommands.canTargetForRequest(main, from, target)) {
                 sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
                 return true
             }
@@ -142,13 +151,14 @@ class TPACommands {
                 if (requester != null) main.removeRequest(requester, requested)
                 return
             }
-            main.main.lastLocations[requester.uniqueId] = requester.location
-            val targetLoc = requested.location
-            targetLoc.world?.getChunkAtAsyncUrgently(targetLoc.block)?.thenAccept {
-                if (requester.isOnline) {
-                    requester.teleportAsync(targetLoc, PlayerTeleportEvent.TeleportCause.PLUGIN)
-                }
+            if (!main.main.canSeePlayer(requester, requested)) {
+                sendPrefixedLocalizedMessage(requested, "tpa_no_request_found")
+                main.removeRequest(requester, requested)
+                return
             }
+            main.main.lastLocations[requester.uniqueId] = requester.location.clone()
+            val targetLoc = requested.location.clone()
+            preloadAcceptedTeleport(requester, requested, targetLoc)
             sendPrefixedLocalizedMessage(requester, "tpa_teleporting")
             sendPrefixedLocalizedMessage(requested, "tpa_teleporting")
             main.removeRequest(requester, requested)
@@ -160,16 +170,27 @@ class TPACommands {
                 if (requester != null) main.removeHereRequest(requester, requested)
                 return
             }
-            main.main.lastLocations[requested.uniqueId] = requested.location
-            val targetLoc = requester.location
-            targetLoc.world?.getChunkAtAsyncUrgently(targetLoc.block)?.thenAccept {
-                if (requested.isOnline) {
-                    requested.teleportAsync(targetLoc, PlayerTeleportEvent.TeleportCause.PLUGIN)
-                }
+            if (!main.main.canSeePlayer(requested, requester)) {
+                sendPrefixedLocalizedMessage(requested, "tpa_no_request_found")
+                main.removeHereRequest(requester, requested)
+                return
             }
+            main.main.lastLocations[requested.uniqueId] = requested.location.clone()
+            val targetLoc = requester.location.clone()
+            preloadAcceptedTeleport(requested, requester, targetLoc)
             sendPrefixedLocalizedMessage(requester, "tpa_teleporting")
             sendPrefixedLocalizedMessage(requested, "tpa_teleporting")
             main.removeHereRequest(requester, requested)
+        }
+
+        private fun preloadAcceptedTeleport(moving: Player, anchor: Player, targetLoc: Location) {
+            val world = targetLoc.world ?: return
+            val safeTarget = targetLoc.clone()
+            world.getChunkAtAsyncUrgently(safeTarget.blockX shr 4, safeTarget.blockZ shr 4).thenAccept {
+                if (moving.isOnline && anchor.isOnline) {
+                    moving.teleportAsync(safeTarget, PlayerTeleportEvent.TeleportCause.PLUGIN)
+                }
+            }
         }
     }
 
@@ -259,6 +280,11 @@ class TPACommands {
             }
 
             val target = Bukkit.getPlayer(args[0]) ?: run {
+                sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
+                return true
+            }
+
+            if (!TPACommands.canTargetForRequest(main, from, target)) {
                 sendPrefixedLocalizedMessage(from, "tpa_player_not_online", args[0])
                 return true
             }

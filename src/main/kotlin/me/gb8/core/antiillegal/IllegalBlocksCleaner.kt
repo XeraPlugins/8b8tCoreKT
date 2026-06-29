@@ -23,6 +23,7 @@ import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.persistence.PersistentDataType
 import kotlin.math.absoluteValue
+import java.util.Arrays
 import java.util.EnumSet
 import java.util.function.Consumer
 
@@ -49,6 +50,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
     private val delayTicks: Long
     private val scanKey = org.bukkit.NamespacedKey(plugin, "clean_scan_hash")
     private val configHash: Int
+    private val airBlockData = Material.AIR.createBlockData()
 
     init {
         illegalMaterials = buildMaterialSet(config.getStringList("IllegalBlocks"))
@@ -113,7 +115,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
             val snap = chunkAccess.getChunkSnapshot(false, false, false)
             val env = world.environment
 
-            val toRemove = IntArray(256)
+            var toRemove = IntArray(256)
             var foundCount = 0
 
             val minSection = minY shr 4
@@ -136,7 +138,9 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
 
                             if (isLegitimateBlock(env, gx, y, gz, type, minY)) continue
 
-                            if (foundCount >= toRemove.size) continue
+                            if (foundCount >= toRemove.size) {
+                                toRemove = Arrays.copyOf(toRemove, toRemove.size * 2)
+                            }
                             toRemove[foundCount] = pack(lx, y, lz)
                             foundCount++
                         }
@@ -155,36 +159,50 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                 val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
 
                 Bukkit.getRegionScheduler().run(plugin, anchor) {
-                    processRemovalBatch(world, cx, cz, queue, total, 0, anchor)
+                    processRemovalBatch(world, cx, cz, queue, total, 0, anchor, 0)
                 }
             }
         }
     }
 
-    private fun processRemovalBatch(world: World, cx: Int, cz: Int, queue: IntArray, total: Int, index: Int, anchor: Location) {
+    private fun processRemovalBatch(
+        world: World,
+        cx: Int,
+        cz: Int,
+        queue: IntArray,
+        total: Int,
+        index: Int,
+        anchor: Location,
+        failedRemovals: Int
+    ) {
         if (!world.isChunkLoaded(cx, cz)) return
 
         var processedInThisTick = 0
-        val baseX = cx shl 4
-        val baseZ = cz shl 4
+        val chunk = world.getChunkAt(cx, cz)
         var idx = index
+        var failures = failedRemovals
 
         while (processedInThisTick < batchSize && idx < total) {
             val packed = queue[idx]
-            val x = baseX + unpackLX(packed)
-            val z = baseZ + unpackLZ(packed)
+            val lx = unpackLX(packed)
+            val lz = unpackLZ(packed)
             val y = unpackY(packed)
 
-            world.getBlockAt(x, y, z).takeIf { it.type in illegalMaterials }
-                ?.setType(Material.AIR, false)
+            val block = chunk.getBlock(lx, y, lz)
+            if (block.type in illegalMaterials) {
+                block.setBlockData(airBlockData, false)
+                if (block.type in illegalMaterials) failures++
+            }
             idx++
             processedInThisTick++
         }
 
         if (idx < total) {
             Bukkit.getRegionScheduler().runDelayed(plugin, anchor, Consumer { _ ->
-                processRemovalBatch(world, cx, cz, queue, total, idx, anchor)
+                processRemovalBatch(world, cx, cz, queue, total, idx, anchor, failures)
             }, delayTicks)
+        } else if (failures > 0) {
+            plugin.logger.warning("[AntiIllegal] Failed to remove $failures illegal blocks in chunk [$cx, $cz]. Chunk left unmarked for future scan.")
         } else {
             markChunkClean(world, cx, cz)
         }
@@ -219,6 +237,12 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                         y in EXIT_PORTAL_Y_MIN..EXIT_PORTAL_Y_MAX) return true
 
                     if (y in GATEWAY_RING_Y_MIN..GATEWAY_RING_Y_MAX) {
+                        val distSq = x.toLong() * x + z.toLong() * z
+                        return distSq >= GATEWAY_RING_INNER_RADIUS_SQ &&
+                               distSq <= GATEWAY_RING_OUTER_RADIUS_SQ
+                    }
+
+                    if (type == Material.BEDROCK && y in (GATEWAY_RING_Y_MIN - 1)..(GATEWAY_RING_Y_MAX + 1)) {
                         val distSq = x.toLong() * x + z.toLong() * z
                         return distSq >= GATEWAY_RING_INNER_RADIUS_SQ &&
                                distSq <= GATEWAY_RING_OUTER_RADIUS_SQ

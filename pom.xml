@@ -34,9 +34,7 @@
                     <sourceDirs>
                         <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                     </sourceDirs>
-                    <compilerOptions>
-                        <jvmTarget>21</jvmTarget>
-                    </compilerOptions>
+                    <jvmTarget>21</jvmTarget>
                 </configuration>
                 <executions>
                     <execution>

@@ -13,14 +13,12 @@ import me.gb8.core.Main
 import me.gb8.core.Reloadable
 import me.gb8.core.Section
 import me.gb8.core.home.commands.*
-import me.gb8.core.home.HomeJsonStorage
 import me.gb8.core.listeners.HomeJoinListener
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.entity.Player
 import java.io.File
-import java.util.Collections
 import java.util.UUID
 
 class HomeManager(override val plugin: Main) : Section {
@@ -30,31 +28,19 @@ class HomeManager(override val plugin: Main) : Section {
     override val name: String = "Home"
     val main: Main get() = plugin
 
-    fun getHomes(uuid: UUID): HomeData {
-        val existing = homes[uuid]
-        if (existing != null) return existing
-        val newData = HomeData()
-        homes[uuid] = newData
-        return newData
-    }
+    fun getHomes(uuid: UUID): HomeData = homes.getOrPut(uuid) { HomeData() }
 
     fun getMaxHomes(player: Player): Int {
         val maxL = player.effectivePermissions
             .map { it.permission }
             .filter { it.startsWith("8b8tcore.home.max.") }
-            .mapNotNull { s ->
-                try {
-                    s.substringAfterLast('.').toInt()
-                } catch (e: NumberFormatException) {
-                    null
-                }
-            }
-        return if (maxL.isNotEmpty()) maxL.maxOrNull()!! else config?.getInt("MaxHomes") ?: 1
+            .mapNotNull { it.substringAfterLast('.').toIntOrNull() }
+        return maxL.maxOrNull() ?: config?.getInt("MaxHomes") ?: 1
     }
 
     fun tabComplete(sender: CommandSender, args: Array<String>): List<String> {
         if (sender is Player) {
-            val homes = homes[sender.uniqueId] ?: return Collections.emptyList()
+            val homes = homes[sender.uniqueId] ?: return emptyList()
             val homeNames = homes.getHomes().map { it.name }.sortedWith(String.CASE_INSENSITIVE_ORDER)
             return if (args.isEmpty()) {
                 homeNames
@@ -62,7 +48,7 @@ class HomeManager(override val plugin: Main) : Section {
                 homeNames.filter { it.lowercase().startsWith(args[0].lowercase()) }
             }
         }
-        return Collections.emptyList()
+        return emptyList()
     }
 
     override fun enable() {
@@ -72,9 +58,7 @@ class HomeManager(override val plugin: Main) : Section {
         config = plugin.getSectionConfig(this)
         if (Bukkit.getOnlinePlayers().isNotEmpty()) {
             val homeStorage = storage ?: return
-            for (p in Bukkit.getOnlinePlayers()) {
-                homes[p.uniqueId] = homeStorage.load(p.uniqueId)
-            }
+            Bukkit.getOnlinePlayers().forEach { homes[it.uniqueId] = homeStorage.load(it.uniqueId) }
         }
         plugin.register(HomeJoinListener(this))
         plugin.getCommand("home")?.setExecutor(HomeCommand(this))

@@ -8,6 +8,7 @@
 
 package me.gb8.core.tablist
 
+import me.gb8.core.Main
 import me.gb8.core.util.GlobalUtils
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
@@ -29,7 +30,7 @@ object Utils {
         val placeholders = mapOf(
             "%tps%" to "${getTpsColor(tps)}${getTpsString(tps)}",
             "%mspt%" to "${getMsptColor(msptAdjusted)}${getMsptString(msptAdjusted)}",
-            "%players%" to Bukkit.getOnlinePlayers().size.toString(),
+            "%players%" to getVisiblePlayerCount(player).toString(),
             "%ping%" to player.ping.toString(),
             "%uptime%" to getFormattedInterval(System.currentTimeMillis() - startTime)
         )
@@ -41,6 +42,9 @@ object Utils {
 
         return GlobalUtils.translateChars(result)
     }
+
+    private fun getVisiblePlayerCount(viewer: Player): Int =
+        Bukkit.getOnlinePlayers().count { Main.instance.canSeePlayer(viewer, it) }
 
     private fun getTpsColor(tps: Double): String = when {
         tps >= 18.0 -> "<green>"

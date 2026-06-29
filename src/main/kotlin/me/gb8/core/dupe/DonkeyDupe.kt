@@ -11,7 +11,6 @@ package me.gb8.core.dupe
 import me.gb8.core.Main
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
-import org.bukkit.Location
 import org.bukkit.entity.ChestedHorse
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -20,11 +19,9 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.inventory.InventoryOpenEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.inventory.Inventory
 
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.function.Consumer
 
 class DonkeyDupe(private val plugin: Main) : Listener {
 
@@ -32,6 +29,7 @@ class DonkeyDupe(private val plugin: Main) : Listener {
 
     companion object {
         private const val MIN_DISTANCE = 6.0
+        private const val MAX_DISTANCE = 128.0
     }
 
     @EventHandler
@@ -52,7 +50,7 @@ class DonkeyDupe(private val plugin: Main) : Listener {
 
         val inv = event.inventory
 
-        Bukkit.getRegionScheduler().runDelayed(plugin, player.location, Consumer {
+        Bukkit.getRegionScheduler().runDelayed(plugin, player.location, {
             if (player.isOnline && trackedAnimals.containsKey(player.uniqueId)) {
                 if (holder.isValid) {
                     player.openInventory(inv)
@@ -87,7 +85,7 @@ class DonkeyDupe(private val plugin: Main) : Listener {
             val fakeInventory = Bukkit.createInventory(player, 18, title)
             fakeInventory.contents = holder.inventory.contents
 
-            Bukkit.getRegionScheduler().runDelayed(plugin, player.location, Consumer {
+            Bukkit.getRegionScheduler().runDelayed(plugin, player.location, {
                 if (player.isOnline) {
                     player.openInventory(fakeInventory)
                 }
@@ -102,12 +100,8 @@ class DonkeyDupe(private val plugin: Main) : Listener {
     fun onInventoryClick(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
 
-        val clickedInventory = event.clickedInventory
-
-        if (clickedInventory != null && clickedInventory.size == 18 && clickedInventory.holder is Player) {
+        event.clickedInventory?.takeIf { it.size == 18 && it.holder is Player }?.let {
             val animal = trackedAnimals[player.uniqueId] ?: return
-
-            val MAX_DISTANCE = 128.0
 
             val pLoc = player.location
             val aLoc = animal.location

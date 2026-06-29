@@ -57,7 +57,7 @@ class PlayerSettingsListener(private val main: Main) : Listener, Reloadable {
                     val p = Bukkit.getPlayer(onlineUUID)
                     val vanished = Bukkit.getPlayer(playerUUID)
                     if (p != null && p.isOnline && vanished != null && vanished.isOnline) {
-                        if (!p.hasPermission("8b8tcore.command.vanish") && !p.isOp) {
+                        if (!main.canSeePlayer(p, vanished)) {
                             p.hidePlayer(main, vanished)
                         }
                     }

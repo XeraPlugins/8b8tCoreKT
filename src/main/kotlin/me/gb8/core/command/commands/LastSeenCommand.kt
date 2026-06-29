@@ -11,7 +11,6 @@ package me.gb8.core.command.commands
 import me.gb8.core.Main
 import me.gb8.core.command.BaseTabCommand
 import org.bukkit.Bukkit
-import org.bukkit.OfflinePlayer
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -20,9 +19,7 @@ import org.bukkit.event.player.PlayerQuitEvent
 
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.stream.Collectors
 
 import me.gb8.core.util.GlobalUtils.sendMessage
 
@@ -53,7 +50,9 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
         
         val targetName = args[0]
         
-        val onlinePlayer = Bukkit.getPlayer(targetName)
+        val onlinePlayer = Bukkit.getPlayer(targetName)?.takeIf { target ->
+            sender !is Player || plugin.canSeePlayer(sender, target)
+        }
         if (onlinePlayer != null) {
             sendMessage(sender, "&e${onlinePlayer.name} &ais currently online!")
             return
@@ -93,10 +92,16 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
     
     override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
         return if (args.size == 1) {
+            val prefix = args[0]
             val suggestions = mutableListOf<String>()
-            suggestions.addAll(Bukkit.getOnlinePlayers().map { it.name })
-            suggestions.addAll(lastSeenCache.values.map { it.name })
-            suggestions.filter { it.lowercase().startsWith(args[0].lowercase()) }
+            suggestions.addAll(plugin.visibleOnlinePlayers(sender).map { it.name })
+            suggestions.addAll(lastSeenCache.values.mapNotNull { cached ->
+                val online = Bukkit.getPlayerExact(cached.name)
+                if (online == null || sender !is Player || plugin.canSeePlayer(sender, online)) cached.name else null
+            })
+            suggestions
+                .distinct()
+                .filter { it.startsWith(prefix, ignoreCase = true) }
         } else {
             emptyList()
         }

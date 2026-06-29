@@ -55,6 +55,7 @@ class AttackListener(private val plugin: Main) : Listener {
     }
 
     
+    @Suppress("DEPRECATION")
     @EventHandler(priority = EventPriority.MONITOR)
     fun onMove(event: PlayerMoveEvent) {
         val player = event.player
@@ -64,6 +65,7 @@ class AttackListener(private val plugin: Main) : Listener {
     }
 
     
+    @Suppress("DEPRECATION")
     @EventHandler
     fun onTeleport(event: PlayerTeleportEvent) {
         val player = event.player

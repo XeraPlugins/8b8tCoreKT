@@ -37,14 +37,15 @@ class TpsinfoCommand(private val plugin: Main) : BaseCommand("tpsinfo", "/tpsinf
         FoliaCompat.schedule(player, plugin) {
             val tps = GlobalUtils.getCurrentRegionTps()
             val mspt = GlobalUtils.getCurrentRegionMspt()
-            val onlinePlayerCount = Bukkit.getOnlinePlayers().size
+            val visiblePlayers = plugin.visibleOnlinePlayers(player)
+            val onlinePlayerCount = visiblePlayers.size
 
             val loc = Localization.getLocalization("en")
             val tpsMsg = loc.getStringList("TpsMessage").joinToString("\n")
             val strTps = formatTps(tps)
             val strMspt = String.format("%s%.2f", GlobalUtils.getMSPTColor(mspt), mspt)
 
-            getLowestRegionTPS().thenAccept { lowestTPS ->
+            getLowestRegionTPS(visiblePlayers).thenAccept { lowestTPS ->
                 FoliaCompat.schedule(player, plugin) l@{
                     if (!player.isOnline) return@l
                     val strLowest = formatTps(lowestTPS)
@@ -62,9 +63,9 @@ class TpsinfoCommand(private val plugin: Main) : BaseCommand("tpsinfo", "/tpsinf
         }
     }
 
-    private fun getLowestRegionTPS(): CompletableFuture<Double> {
+    private fun getLowestRegionTPS(players: Collection<Player>): CompletableFuture<Double> {
         val futures = mutableListOf<CompletableFuture<Double>>()
-        for (player in Bukkit.getOnlinePlayers()) {
+        for (player in players) {
             val uuid = player.uniqueId
 
             val future = CompletableFuture<Double>()

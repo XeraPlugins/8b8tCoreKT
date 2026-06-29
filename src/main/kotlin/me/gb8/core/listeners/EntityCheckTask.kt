@@ -14,12 +14,13 @@ import me.gb8.core.util.GlobalUtils.log
 import org.bukkit.Bukkit
 import org.bukkit.Chunk
 import org.bukkit.Location
-import org.bukkit.World
-import org.bukkit.entity.Entity
+import org.bukkit.entity.EntityType
+import org.bukkit.entity.Item
 import java.util.logging.Level
 
 @Suppress("UNUSED_VARIABLE", "LABEL_NAME_CLASH")
 class EntityCheckTask(private val main: PatchSection) : Runnable {
+    private val vanillaItemDespawnTicks = 6000
     
     override fun run() {
         try {
@@ -42,14 +43,25 @@ class EntityCheckTask(private val main: PatchSection) : Runnable {
                         if (chunkEntities.isEmpty()) return@scheduler
 
                         main.getEntityPerChunk()?.forEach { (entityType, maxAllowed) ->
-                            val filteredEntities = chunkEntities
+                            val matchingEntities = chunkEntities
                                 .filter { it.type == entityType && it.isValid }
-                                .toTypedArray()
 
-                            val excessCount = filteredEntities.size - maxAllowed
+                            val excessCount = matchingEntities.size - maxAllowed
                             if (excessCount > 0) {
-                                for (i in 0 until excessCount) {
-                                    val entityToRemove = filteredEntities[i]
+                                val removalCandidates = if (entityType == EntityType.ITEM) {
+                                    val minAgeTicks = main.getConfig()
+                                        ?.getInt("EntityPerChunk.DroppedItemMinAgeTicks", vanillaItemDespawnTicks)
+                                        ?: vanillaItemDespawnTicks
+
+                                    matchingEntities
+                                        .filterIsInstance<Item>()
+                                        .filter { it.ticksLived >= minAgeTicks }
+                                        .sortedByDescending { it.ticksLived }
+                                } else {
+                                    matchingEntities
+                                }
+
+                                for (entityToRemove in removalCandidates.take(excessCount)) {
                                     FoliaCompat.schedule(entityToRemove, mainPlugin) {
                                         if (entityToRemove.isValid) {
                                             entityToRemove.remove()

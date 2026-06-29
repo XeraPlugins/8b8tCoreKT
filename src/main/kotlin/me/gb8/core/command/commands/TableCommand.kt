@@ -9,14 +9,24 @@
 package me.gb8.core.command.commands
 
 import me.gb8.core.command.BaseTabCommand
-import org.bukkit.Bukkit
+import org.bukkit.inventory.InventoryView
+import org.bukkit.inventory.MenuType
+import org.bukkit.inventory.view.builder.LocationInventoryViewBuilder
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.event.inventory.InventoryType
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
 
 class TableCommand : BaseTabCommand("table", "/table <type>", "8b8tcore.command.table") {
-    private val tableTypes: List<String> = getTableTypes()
+    private val tableTypes = listOf(
+        "crafting",
+        "cartography",
+        "stonecutter",
+        "enchanting",
+        "anvil",
+        "grindstone",
+        "loom",
+        "smithing"
+    )
 
     override fun execute(sender: CommandSender, args: Array<String>) {
         val player = sender as? Player ?: run {
@@ -32,37 +42,30 @@ class TableCommand : BaseTabCommand("table", "/table <type>", "8b8tcore.command.
         val type = args[0].lowercase()
 
         when (type) {
-            "crafting", "crafting_table" -> player.openInventory(Bukkit.createInventory(player, InventoryType.WORKBENCH))
-            "cartography", "cartography_table" -> player.openInventory(Bukkit.createInventory(player, InventoryType.CARTOGRAPHY))
-            "stonecutter" -> player.openInventory(Bukkit.createInventory(player, InventoryType.STONECUTTER))
-            "enchanting", "enchanting_table" -> player.openInventory(Bukkit.createInventory(player, InventoryType.ENCHANTING))
-            "anvil" -> player.openInventory(Bukkit.createInventory(player, InventoryType.ANVIL))
-            "grindstone" -> player.openInventory(Bukkit.createInventory(player, InventoryType.GRINDSTONE))
-            "loom" -> player.openInventory(Bukkit.createInventory(player, InventoryType.LOOM))
-            "smithing", "smithing_table" -> player.openInventory(Bukkit.createInventory(player, InventoryType.SMITHING))
+            "crafting", "crafting_table" -> openMenu(player, MenuType.CRAFTING)
+            "cartography", "cartography_table" -> openMenu(player, MenuType.CARTOGRAPHY_TABLE)
+            "stonecutter" -> openMenu(player, MenuType.STONECUTTER)
+            "enchanting", "enchanting_table" -> openMenu(player, MenuType.ENCHANTMENT)
+            "anvil" -> openMenu(player, MenuType.ANVIL)
+            "grindstone" -> openMenu(player, MenuType.GRINDSTONE)
+            "loom" -> openMenu(player, MenuType.LOOM)
+            "smithing", "smithing_table" -> openMenu(player, MenuType.SMITHING)
             else -> {
                 sendPrefixedLocalizedMessage(player, "table_invalid_type")
             }
         }
     }
 
-    override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
-        if (args.size == 1) {
-            return tableTypes.filter { it.lowercase().startsWith(args[0].lowercase()) }
-        }
-        return mutableListOf()
+    @Suppress("UNCHECKED_CAST")
+    private fun openMenu(player: Player, menuType: MenuType.Typed<*, *>) {
+        val builder = menuType.builder() as LocationInventoryViewBuilder<InventoryView>
+        player.openInventory(builder.checkReachable(false).build(player))
     }
 
-    private fun getTableTypes(): List<String> {
-        return listOf(
-                "crafting",
-                "cartography",
-                "stonecutter",
-                "enchanting",
-                "anvil",
-                "grindstone",
-                "loom",
-                "smithing"
-        )
+    override fun onTab(sender: CommandSender, args: Array<String>): List<String> {
+        if (args.size == 1) {
+            return tableTypes.filter { it.startsWith(args[0], ignoreCase = true) }
+        }
+        return emptyList()
     }
 }

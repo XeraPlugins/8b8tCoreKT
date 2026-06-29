@@ -9,10 +9,8 @@
 package me.gb8.core.antiillegal
 
 import me.gb8.core.Main
-import me.gb8.core.util.GlobalUtils
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
-import java.util.logging.Level
 
 class IllegalItemCheck : Check {
     private val illegals: Set<Material>
@@ -45,14 +43,13 @@ class IllegalItemCheck : Check {
     }
 
     private fun parseConfig(): Set<Material> {
-        val materialNames = Material.entries.map { it.name }
         val strList = Main.instance.config.getStringList("AntiIllegal.IllegalItems")
 
         return strList.flatMap { raw ->
             val rawUpper = raw.uppercase()
             if (rawUpper.contains("*")) {
                 val pattern = rawUpper.replace("*", "")
-                materialNames.filter { it.contains(pattern) }
+                MATERIAL_NAMES.filter { it.contains(pattern) }
                     .mapNotNull { Material.getMaterial(it) }
             } else {
                 listOfNotNull(Material.getMaterial(rawUpper))
@@ -67,4 +64,8 @@ class IllegalItemCheck : Check {
 
     private fun isSpecialBlock(item: ItemStack): Boolean =
         isPumpkin(item) || isCarvedPumpkin(item) || isHead(item) || isSkull(item)
+
+    private companion object {
+        val MATERIAL_NAMES = Material.entries.map { it.name }
+    }
 }
