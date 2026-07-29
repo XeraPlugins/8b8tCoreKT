@@ -18,9 +18,13 @@ import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerQuitEvent
 
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.Date
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ThreadLocalRandom
 
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils.sendMessage
 
 class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
@@ -32,13 +36,10 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
 ), Listener {
 
     private val lastSeenCache = ConcurrentHashMap<String, PlayerLastSeenData>()
+    private val hiddenLastSeenCache = ConcurrentHashMap<String, HiddenLastSeenTimestamp>()
     
     init {
         Bukkit.getPluginManager().registerEvents(this, plugin)
-        
-        for (player in Bukkit.getOnlinePlayers()) {
-            updateLastSeen(player)
-        }
     }
     
     
@@ -50,9 +51,12 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
         
         val targetName = args[0]
         
-        val onlinePlayer = Bukkit.getPlayer(targetName)?.takeIf { target ->
-            sender !is Player || plugin.canSeePlayer(sender, target)
+        val onlinePlayer = Bukkit.getPlayerExact(targetName)
+        if (onlinePlayer != null && sender is Player && !plugin.canSeePlayer(sender, onlinePlayer)) {
+            sendLastSeenTimestamp(sender, onlinePlayer.name, hiddenLastSeenTimestamp(onlinePlayer))
+            return
         }
+
         if (onlinePlayer != null) {
             sendMessage(sender, "&e${onlinePlayer.name} &ais currently online!")
             return
@@ -62,30 +66,78 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
             val offlinePlayer = Bukkit.getOfflinePlayer(targetName)
             
             if (offlinePlayer.firstPlayed == 0L) {
-                sendMessage(sender, "&cPlayer '&e$targetName&c' has never joined the server!")
+                runForSender(sender) {
+                    sendMessage(sender, "&cPlayer '&e$targetName&c' has never joined the server!")
+                }
                 return@run
             }
             val playerId = offlinePlayer.uniqueId.toString()
             val cachedData = lastSeenCache[playerId]
             
             if (cachedData != null) {
-                val sdf = SimpleDateFormat(DATE_FORMAT)
-                val formattedDate = sdf.format(Date(cachedData.lastSeen))
-                sendMessage(sender, "&e${cachedData.name} &6was last seen on &b$formattedDate&6 in world '&e${cachedData.world}&6'")
-                
-                if (sender.hasPermission("8b8tcore.command.lastseen.location")) {
-                    sendMessage(sender, "&6Last location: [&e${cachedData.x}&6, &e${cachedData.y}&6, &e${cachedData.z}&6]")
+                runForSender(sender) {
+                    sendLastSeenData(sender, cachedData)
                 }
             } else {
                 val lastPlayed = offlinePlayer.lastSeen
                 if (lastPlayed > 0) {
-                    val sdf = SimpleDateFormat(DATE_FORMAT)
-                    val formattedDate = sdf.format(Date(lastPlayed))
-                    sendMessage(sender, "&e${offlinePlayer.name} &6was last seen on &b$formattedDate")
+                    runForSender(sender) {
+                        sendLastSeenTimestamp(sender, offlinePlayer.name ?: targetName, lastPlayed)
+                    }
                 } else {
-                    sendMessage(sender, "&cNo last seen data available for '&e$targetName&c'")
+                    runForSender(sender) {
+                        sendMessage(sender, "&cNo last seen data available for '&e$targetName&c'")
+                    }
                 }
             }
+        }
+    }
+
+    private fun sendLastSeenTimestamp(sender: CommandSender, name: String, timestamp: Long) {
+        val formattedDate = SimpleDateFormat(DATE_FORMAT).format(Date(timestamp))
+        sendMessage(sender, "&e$name &6was last seen on &b$formattedDate")
+    }
+
+    private fun sendLastSeenData(sender: CommandSender, data: PlayerLastSeenData) {
+        val sdf = SimpleDateFormat(DATE_FORMAT)
+        val formattedDate = sdf.format(Date(data.lastSeen))
+        sendMessage(sender, "&e${data.name} &6was last seen on &b$formattedDate&6 in world '&e${data.world}&6'")
+
+        if (sender.hasPermission("8b8tcore.command.lastseen.location")) {
+            sendMessage(sender, "&6Last location: [&e${data.x}&6, &e${data.y}&6, &e${data.z}&6]")
+        }
+    }
+
+    private fun hiddenLastSeenTimestamp(player: Player): Long {
+        val generatedForDate = LocalDate.now()
+        val playerId = player.uniqueId.toString()
+        return hiddenLastSeenCache.compute(playerId) { _, cached ->
+            if (cached != null && cached.generatedForDate == generatedForDate) {
+                cached
+            } else {
+                val random = ThreadLocalRandom.current()
+                val timestamp = generatedForDate
+                    .minusDays(1)
+                    .atTime(
+                        random.nextInt(24),
+                        random.nextInt(60),
+                        random.nextInt(60)
+                    )
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli()
+                HiddenLastSeenTimestamp(generatedForDate, timestamp)
+            }
+        }!!.timestamp
+    }
+
+    private fun runForSender(sender: CommandSender, action: Runnable) {
+        if (sender is Player) {
+            FoliaCompat.schedule(sender, plugin) {
+                if (sender.isOnline) action.run()
+            }
+        } else {
+            action.run()
         }
     }
     
@@ -109,6 +161,7 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
     
     @EventHandler
     fun onPlayerQuit(event: PlayerQuitEvent) {
+        hiddenLastSeenCache.remove(event.player.uniqueId.toString())
         updateLastSeen(event.player)
     }
     
@@ -138,5 +191,10 @@ class LastSeenCommand(private val plugin: Main) : BaseTabCommand(
         val y: Double,
         val z: Double,
         val world: String
+    )
+
+    private data class HiddenLastSeenTimestamp(
+        val generatedForDate: LocalDate,
+        val timestamp: Long
     )
 }
