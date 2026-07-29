@@ -22,7 +22,8 @@ abstract class BaseCommand(
 ) {
     protected val CONSOLE_ONLY = "This command is console only"
     protected val PLAYER_ONLY = "This command is player only"
-    protected val PREFIX = Main.prefix
+    protected val PREFIX: String
+        get() = Main.prefix
 
     constructor(name: String, usage: String, permission: String) : this(name, usage, arrayOf(permission), null, null)
 

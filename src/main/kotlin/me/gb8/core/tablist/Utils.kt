@@ -16,9 +16,19 @@ import org.bukkit.entity.Player
 
 object Utils {
 
-    fun parsePlaceHolders(input: String, player: Player, startTime: Long): Component {
-        if (input.isEmpty()) return Component.empty()
+    data class PlaceholderContext(
+        val tps: Double,
+        val mspt: Double,
+        val visiblePlayers: Int,
+        val ping: Int,
+        val uptime: String
+    )
 
+    fun parsePlaceHolders(input: String, player: Player, startTime: Long): Component {
+        return parsePlaceHolders(input, createPlaceholderContext(player, startTime))
+    }
+
+    fun createPlaceholderContext(player: Player, startTime: Long): PlaceholderContext {
         val tps = runCatching {
             val regionTpsArr = GlobalUtils.getTpsNearEntitySync(player)
             regionTpsArr.firstOrNull() ?: 20.0
@@ -26,20 +36,23 @@ object Utils {
 
         val mspt = runCatching { GlobalUtils.getCurrentRegionMspt() }.getOrDefault(0.0)
         val msptAdjusted = if (mspt <= 0.0 && tps > 0) 1000.0 / minOf(tps, 20.0) else mspt
-
-        val placeholders = mapOf(
-            "%tps%" to "${getTpsColor(tps)}${getTpsString(tps)}",
-            "%mspt%" to "${getMsptColor(msptAdjusted)}${getMsptString(msptAdjusted)}",
-            "%players%" to getVisiblePlayerCount(player).toString(),
-            "%ping%" to player.ping.toString(),
-            "%uptime%" to getFormattedInterval(System.currentTimeMillis() - startTime)
+        return PlaceholderContext(
+            tps = tps,
+            mspt = msptAdjusted,
+            visiblePlayers = getVisiblePlayerCount(player),
+            ping = player.ping,
+            uptime = getFormattedInterval(System.currentTimeMillis() - startTime)
         )
+    }
 
-        var result = input
-        for ((placeholder, value) in placeholders) {
-            result = result.replace(placeholder, value)
-        }
-
+    fun parsePlaceHolders(input: String, context: PlaceholderContext): Component {
+        if (input.isEmpty()) return Component.empty()
+        val result = input
+            .replace("%tps%", "${getTpsColor(context.tps)}${getTpsString(context.tps)}")
+            .replace("%mspt%", "${getMsptColor(context.mspt)}${getMsptString(context.mspt)}")
+            .replace("%players%", context.visiblePlayers.toString())
+            .replace("%ping%", context.ping.toString())
+            .replace("%uptime%", context.uptime)
         return GlobalUtils.translateChars(result)
     }
 

@@ -92,7 +92,9 @@ class PatchSection(override val plugin: Main) : Section, Listener {
 
         val defMax = cfg.getInt("EntityPerChunk.DefaultMax")
         if (defMax != -1) {
-            EntityType.entries.forEach { type -> buf.getOrPut(type) { defMax } }
+            EntityType.entries
+                .filter { it.isAlive && it != EntityType.PLAYER }
+                .forEach { type -> buf.getOrPut(type) { defMax } }
         }
         return buf
     }
@@ -101,7 +103,11 @@ class PatchSection(override val plugin: Main) : Section, Listener {
         val parts = entry.split("::")
         if (parts.size != 2) return null
         return try {
-            EntityType.valueOf(parts[0].uppercase()) to parts[1].toInt()
+            val type = when (val typeName = parts[0].uppercase()) {
+                "DROPPED_ITEM" -> EntityType.ITEM
+                else -> EntityType.valueOf(typeName)
+            }
+            type to parts[1].toInt()
         } catch (e: Exception) {
             when (e) {
                 is NumberFormatException -> log(Level.INFO, "%s is not a number", parts[1])

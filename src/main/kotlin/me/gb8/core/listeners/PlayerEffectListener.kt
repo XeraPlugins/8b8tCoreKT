@@ -24,55 +24,28 @@ class PlayerEffectListener(private val plugin: Plugin, private val main: AntiIll
     private val effectCheck = PlayerEffectCheck()
 
     init {
-        startEffectChecker()
-        startInventoryChecker()
+        startPlayerChecker()
     }
 
-    private fun startEffectChecker() {
+    private fun startPlayerChecker() {
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin as JavaPlugin, {
-            checkAllPlayersEffects()
+            Bukkit.getOnlinePlayers().forEach(::checkPlayer)
         }, 20L, 20L)
-    }
-
-    private fun startInventoryChecker() {
-        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin as JavaPlugin, {
-            checkAllPlayersInventories()
-        }, 20L, 20L)
-    }
-
-    private fun checkAllPlayersEffects() {
-        Bukkit.getOnlinePlayers().forEach { checkPlayerEffects(it) }
-    }
-
-    private fun checkAllPlayersInventories() {
-        Bukkit.getOnlinePlayers().forEach { checkPlayerInventory(it) }
     }
 
     @EventHandler
     fun onPlayerJoin(event: PlayerJoinEvent) {
-        checkPlayerEffects(event.player)
-        checkPlayerInventory(event.player)
+        checkPlayer(event.player)
     }
 
-    fun checkPlayerEffects(player: Player) {
+    private fun checkPlayer(player: Player) {
         player.takeIf { it.isValid && !it.isDead }?.let { p ->
             FoliaCompat.schedule(p, plugin) {
                 if (p.isOnline) {
                     effectCheck.fixPlayerEffects(p)
-                }
-            }
-        }
-    }
-
-    fun checkPlayerInventory(player: Player) {
-        player.takeIf { it.isValid && !it.isDead }?.let { p ->
-            FoliaCompat.schedule(p, plugin) {
-                if (p.isOnline) {
-                    val inv = p.inventory
-                    main.checkFixItem(inv.itemInMainHand, null)
-                    main.checkFixItem(inv.itemInOffHand, null)
-                    inv.armorContents.forEach { it?.let { main.checkFixItem(it, null) } }
-                    inv.contents.forEach { it?.let { main.checkFixItem(it, null) } }
+                    for (item in p.inventory.contents) {
+                        if (item != null && !item.type.isAir) main.checkFixItem(item, null)
+                    }
                 }
             }
         }

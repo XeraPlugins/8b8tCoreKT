@@ -48,7 +48,8 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
             LastSeenCommand(main.plugin),
             ToggleLeaderboardCommand(main.plugin),
             DpsCommand(),
-            CosmeticsCommand(main.plugin)
+            CosmeticsCommand(main.plugin),
+            ReloadConfigCommand(main.plugin)
         ).forEach(::addCommand)
     }
 

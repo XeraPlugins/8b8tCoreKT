@@ -8,7 +8,9 @@
 
 package me.gb8.core.player
 
+import me.gb8.core.Main
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GradientAnimator
 import org.bukkit.entity.Player
 import java.util.concurrent.CompletableFuture
@@ -17,26 +19,30 @@ class PrefixManager {
 
     private val database = GeneralDatabase.getInstance()
 
-    fun refreshPrefixDataAsync(info: me.gb8.core.chat.ChatInfo) {
+    fun refreshPrefixDataAsync(info: me.gb8.core.chat.ChatInfo): CompletableFuture<Void> {
         val username = info.player.name
 
-        database.getPlayerHidePrefixAsync(username).thenAccept { hidePrefix ->
-            info.hidePrefix = hidePrefix
-        }
-        database.getSelectedRankAsync(username).thenAccept { rank ->
-            info.selectedRank = rank
-        }
-        database.getPrefixGradientAsync(username).thenAccept { gradient ->
-            info.customGradient = gradient
-        }
-        database.getPrefixAnimationAsync(username).thenAccept { anim ->
-            info.prefixAnimation = anim
-        }
-        database.getPrefixSpeedAsync(username).thenAccept { speed ->
-            info.prefixSpeed = speed
-        }
-        database.getPrefixDecorationsAsync(username).thenAccept { dec ->
-            info.prefixDecorations = dec
+        val hidePrefixFuture = database.getPlayerHidePrefixAsync(username)
+        val selectedRankFuture = database.getSelectedRankAsync(username)
+        val gradientFuture = database.getPrefixGradientAsync(username)
+        val animationFuture = database.getPrefixAnimationAsync(username)
+        val speedFuture = database.getPrefixSpeedAsync(username)
+        val decorationsFuture = database.getPrefixDecorationsAsync(username)
+
+        return CompletableFuture.allOf(
+            hidePrefixFuture,
+            selectedRankFuture,
+            gradientFuture,
+            animationFuture,
+            speedFuture,
+            decorationsFuture
+        ).thenRun {
+            info.hidePrefix = hidePrefixFuture.join()
+            info.selectedRank = selectedRankFuture.join()
+            info.customGradient = gradientFuture.join()
+            info.prefixAnimation = animationFuture.join()
+            info.prefixSpeed = speedFuture.join()
+            info.prefixDecorations = decorationsFuture.join()
         }
     }
 
@@ -45,11 +51,9 @@ class PrefixManager {
     }
 
     fun getPrefix(player: Player): String {
-        return try {
-            getPrefixAsync(player).join()
-        } catch (e: Exception) {
-            ""
-        }
+        val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+        val info = chatSection?.getInfo(player) ?: return ""
+        return if (info.dataLoaded) getPrefix(info) else ""
     }
 
     fun getPrefix(info: me.gb8.core.chat.ChatInfo): String {
@@ -64,7 +68,7 @@ class PrefixManager {
         val customGradient = info.customGradient
         val animationType = info.prefixAnimation
         val speed = info.prefixSpeed
-        val decorationsStr = info.prefixDecorations
+        val decorations = info.prefixDecorationList
 
         var highestPermission = ""
         if (selectedRank != null && (player.hasPermission(selectedRank) || player.isOp)) {
@@ -110,8 +114,8 @@ class PrefixManager {
             }
 
             val result = StringBuilder()
-            if (!decorationsStr.isNullOrEmpty()) {
-                for (decoration in decorationsStr.split(",")) result.append("<").append(decoration.trim()).append(">")
+            if (decorations.isNotEmpty()) {
+                for (decoration in decorations) result.append("<").append(decoration).append(">")
             }
 
             var isGradient = finalGradient.contains(":") && finalGradient.indexOf('#') != finalGradient.lastIndexOf('#') && !finalGradient.lowercase().contains("tobias:")
@@ -128,8 +132,7 @@ class PrefixManager {
                 }
             }
 
-            if (!decorationsStr.isNullOrEmpty()) {
-                val decorations = decorationsStr.split(",")
+            if (decorations.isNotEmpty()) {
                 for (i in decorations.indices.reversed()) result.append("</").append(decorations[i].trim()).append(">")
             }
 
@@ -152,15 +155,21 @@ class PrefixManager {
         return CompletableFuture.allOf(
             hidePrefixFuture, selectedRankFuture, prefixGradientFuture,
             prefixAnimationFuture, prefixSpeedFuture, prefixDecorationsFuture
-        ).thenApply {
+        ).thenCompose {
+            onPlayerThread(player) prefix@{
             val hidePrefix = hidePrefixFuture.join()
-            if (hidePrefix) return@thenApply ""
+            if (hidePrefix) return@prefix ""
 
             val selectedRank = selectedRankFuture.join()
             val customGradient = prefixGradientFuture.join()
             val animationType = prefixAnimationFuture.join()
             val speed = prefixSpeedFuture.join()
             val decorationsStr = prefixDecorationsFuture.join()
+            val decorations = if (decorationsStr.isNullOrEmpty()) {
+                emptyList()
+            } else {
+                decorationsStr.split(',').map(String::trim)
+            }
 
             var highestPermission = ""
             if (selectedRank != null && (player.hasPermission(selectedRank) || player.isOp)) {
@@ -189,15 +198,15 @@ class PrefixManager {
                 }
             }
 
-            if (highestPermission.isEmpty()) return@thenApply ""
+            if (highestPermission.isEmpty()) return@prefix ""
 
-            val basePrefix = getBasePrefix(highestPermission) ?: return@thenApply ""
+            val basePrefix = getBasePrefix(highestPermission) ?: return@prefix ""
             val tick = GradientAnimator.getAnimationTick()
 
             if (!customGradient.isNullOrEmpty()) {
                 var finalGradient = GradientAnimator.applyAnimation(customGradient, animationType, speed, tick)
                 if (finalGradient == null) {
-                    return@thenApply getDefaultAnimatedPrefix(basePrefix, tick)
+                    return@prefix getDefaultAnimatedPrefix(basePrefix, tick)
                 }
 
                 var body = basePrefix
@@ -207,8 +216,8 @@ class PrefixManager {
                 }
 
                 val result = StringBuilder()
-                if (!decorationsStr.isNullOrEmpty()) {
-                    for (decoration in decorationsStr.split(",")) result.append("<").append(decoration.trim()).append(">")
+                if (decorations.isNotEmpty()) {
+                    for (decoration in decorations) result.append("<").append(decoration).append(">")
                 }
 
                 var isGradient = finalGradient.contains(":") && finalGradient.indexOf('#') != finalGradient.lastIndexOf('#') && !finalGradient.lowercase().contains("tobias:")
@@ -225,16 +234,30 @@ class PrefixManager {
                     }
                 }
 
-                if (!decorationsStr.isNullOrEmpty()) {
-                    val decorations = decorationsStr.split(",")
+                if (decorations.isNotEmpty()) {
                     for (i in decorations.indices.reversed()) result.append("</").append(decorations[i].trim()).append(">")
                 }
 
-                return@thenApply result.toString().replace("%s", "0.0").replace("%g", "") + " "
+                return@prefix result.toString().replace("%s", "0.0").replace("%g", "") + " "
             }
 
-            return@thenApply getDefaultAnimatedPrefix(basePrefix, tick)
+            getDefaultAnimatedPrefix(basePrefix, tick)
+            }
         }
+    }
+
+    private fun <T> onPlayerThread(player: Player, action: () -> T): CompletableFuture<T> {
+        val future = CompletableFuture<T>()
+        FoliaCompat.schedule(player, Main.instance) {
+            if (!player.isOnline) {
+                future.completeExceptionally(IllegalStateException("Player is no longer online"))
+                return@schedule
+            }
+            runCatching(action)
+                .onSuccess(future::complete)
+                .onFailure(future::completeExceptionally)
+        }
+        return future
     }
 
     fun getAvailableRanks(player: Player): List<String> {
@@ -247,11 +270,7 @@ class PrefixManager {
     }
 
     fun hasRank(player: Player): Boolean {
-        if (player.isOp) return true
-        for (permission in PREFIX_HIERARCHY) {
-            if (player.hasPermission(permission)) return true
-        }
-        return false
+        return hasRankPermission(player)
     }
 
     private fun getBasePrefix(permission: String): String? {
@@ -263,14 +282,36 @@ class PrefixManager {
     }
 
     private fun getDefaultAnimatedPrefix(basePrefix: String, tick: Long): String {
-        var t = (tick * 0.05) % 2.0
-        if (t > 1.0) t = 2.0 - t
-        val phase = t * t * (3 - 2 * t)
-        val phaseStr = "%.2f".format(phase)
+        val phaseStr = getDefaultPhaseString(tick)
         return basePrefix.replace("%s", phaseStr).replace("%g", "#FFFFFF:#AAAAAA:#FFFFFF") + " "
     }
 
+    private fun getDefaultPhaseString(tick: Long): String {
+        cachedDefaultPhase.takeIf { it.tick == tick }?.let { return it.value }
+        return calculateAndCacheDefaultPhase(tick)
+    }
+
+    private fun calculateAndCacheDefaultPhase(tick: Long): String {
+        return synchronized(DEFAULT_PHASE_LOCK) {
+            cachedDefaultPhase.takeIf { it.tick == tick }?.let { return@synchronized it.value }
+            var t = (tick * 0.05) % 2.0
+            if (t > 1.0) t = 2.0 - t
+            val phase = t * t * (3 - 2 * t)
+            val value = "%.2f".format(phase)
+            cachedDefaultPhase = CachedPhase(tick, value)
+            value
+        }
+    }
+
     companion object {
+        fun hasRankPermission(player: Player): Boolean {
+            if (player.isOp) return true
+            return PREFIX_HIERARCHY.any(player::hasPermission)
+        }
+
+        @Volatile private var cachedDefaultPhase = CachedPhase(Long.MIN_VALUE, "0.00")
+        private val DEFAULT_PHASE_LOCK = Any()
+        private data class CachedPhase(val tick: Long, val value: String)
         private val PREFIXES = mutableMapOf(
             "8b8tcore.prefix.owner" to "<gradient:#a860ff:#743ad5:#d0a2ff:%s>[OWNER<green>✔</green>]</gradient>",
             "8b8tcore.prefix.dev" to "<gradient:#00d2ff:#3a7bd5:#00d2ff:%s>[DEV<green>✔</green>]</gradient>",

@@ -10,11 +10,13 @@ package me.gb8.core.command.commands
 
 import me.gb8.core.Main
 import me.gb8.core.command.BaseTabCommand
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils.sendMessage
 import org.bukkit.Bukkit
-import org.bukkit.Location
+import org.bukkit.World
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.*
+import java.util.concurrent.atomic.AtomicInteger
 
 class ClearEntitiesCommand : BaseTabCommand(
     "clearentities",
@@ -62,48 +64,75 @@ class ClearEntitiesCommand : BaseTabCommand(
     }
 
     private fun clearUnnecessaryEntities(sender: CommandSender) {
-        var totalCount = 0
-
-        for (world in Bukkit.getWorlds()) {
-            for (chunk in world.loadedChunks) {
-                Bukkit.getRegionScheduler().execute(Main.instance, chunk.getBlock(0, 0, 0).location) {
-                    var count = 0
-                    for (entity in chunk.entities) {
-                        if (!isProtectedEntity(entity) && entity !is Player && entity.isValid) {
-                            entity.remove()
-                            count++
-                        }
-                    }
-                    totalCount += count
-                }
-            }
-        }
-
-        Bukkit.getGlobalRegionScheduler().execute(Main.instance) {
-            sendMessage(sender, "&aCleared $totalCount unnecessary entities.")
+        clearAcrossLoadedChunks(sender, "unnecessary") { entity ->
+            !isProtectedEntity(entity) && entity !is Player
         }
     }
 
     private fun clearHostileEntities(sender: CommandSender) {
-        var totalCount = 0
+        clearAcrossLoadedChunks(sender, "hostile") { entity ->
+            entity is Enemy || entity is Boss || entity is Monster
+        }
+    }
 
-        for (world in Bukkit.getWorlds()) {
-            for (chunk in world.loadedChunks) {
-                Bukkit.getRegionScheduler().execute(Main.instance, chunk.getBlock(0, 0, 0).location) {
-                    var count = 0
-                    for (entity in chunk.entities) {
-                        if ((entity is Enemy || entity is Boss || entity is Monster) && entity.isValid) {
-                            entity.remove()
-                            count++
+    private fun clearAcrossLoadedChunks(
+        sender: CommandSender,
+        description: String,
+        shouldRemove: (Entity) -> Boolean
+    ) {
+        Bukkit.getGlobalRegionScheduler().execute(Main.instance) {
+            val chunks = Bukkit.getWorlds().flatMap { world ->
+                world.loadedChunks.map { chunk -> ChunkPosition(world, chunk.x, chunk.z) }
+            }
+            if (chunks.isEmpty()) {
+                sendResult(sender, 0, description)
+                return@execute
+            }
+
+            val totalCount = AtomicInteger()
+            val remaining = AtomicInteger(chunks.size)
+            fun completeChunk() {
+                if (remaining.decrementAndGet() == 0) {
+                    sendResult(sender, totalCount.get(), description)
+                }
+            }
+
+            chunks.forEach { position ->
+                try {
+                    Bukkit.getRegionScheduler().execute(
+                        Main.instance,
+                        position.world,
+                        position.x,
+                        position.z
+                    ) {
+                        try {
+                            if (!position.world.isChunkLoaded(position.x, position.z)) return@execute
+                            val chunk = position.world.getChunkAt(position.x, position.z)
+                            var chunkCount = 0
+                            for (entity in chunk.entities) {
+                                if (entity.isValid && shouldRemove(entity)) {
+                                    entity.remove()
+                                    chunkCount++
+                                }
+                            }
+                            totalCount.addAndGet(chunkCount)
+                        } finally {
+                            completeChunk()
                         }
                     }
-                    totalCount += count
+                } catch (_: Throwable) {
+                    completeChunk()
                 }
             }
         }
+    }
 
-        Bukkit.getGlobalRegionScheduler().execute(Main.instance) {
-            sendMessage(sender, "&aCleared $totalCount hostile entities.")
+    private fun sendResult(sender: CommandSender, count: Int, description: String) {
+        val message = "&aCleared $count $description entities."
+        if (sender is Player) {
+            FoliaCompat.schedule(sender, Main.instance) { sendMessage(sender, message) }
+        } else {
+            Bukkit.getGlobalRegionScheduler().execute(Main.instance) { sendMessage(sender, message) }
         }
     }
 
@@ -120,4 +149,6 @@ class ClearEntitiesCommand : BaseTabCommand(
             emptyList()
         }
     }
+
+    private data class ChunkPosition(val world: World, val x: Int, val z: Int)
 }

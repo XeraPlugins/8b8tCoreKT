@@ -48,8 +48,10 @@ import java.util.Random
 
 object GlobalUtils {
     
-    private val PREFIX = Main.prefix
+    private val PREFIX: String
+        get() = Main.prefix
     private val miniMessage = MiniMessage.miniMessage()
+    private val plainTextSerializer = PlainTextComponentSerializer.plainText()
     private val componentCache = ConcurrentHashMap<String, TextComponent>()
     private val miniMessageFormatCache = ConcurrentHashMap<String, String>()
     private var database: GeneralDatabase? = null
@@ -440,10 +442,17 @@ object GlobalUtils {
         if (component == null) return ""
         try {
             if (getComponentDepth(component) > 50) return "Too many extra components"
-            val serializer = PlainTextComponentSerializer.plainText()
-            return serializer.serialize(component)
+            return plainTextSerializer.serialize(component)
         } catch (_: Throwable) {
             return "Error serializing component"
+        }
+    }
+
+    fun getStringContentAfterDepthCheck(component: Component): String {
+        return try {
+            plainTextSerializer.serialize(component)
+        } catch (_: Throwable) {
+            "Error serializing component"
         }
     }
 
@@ -696,6 +705,40 @@ object GlobalUtils {
     }
 
     fun parseDisplayName(playerName: String, nick: String?, customGradient: String?, anim: String?, speed: Int, decorationsStr: String?, tick: Long): Component {
+        return parseDisplayNameInternal(playerName, nick, customGradient, anim, speed, decorationsStr, tick, null)
+    }
+
+    fun parseDisplayNameWithResolvedGradient(
+        playerName: String,
+        nick: String?,
+        customGradient: String?,
+        anim: String?,
+        speed: Int,
+        decorationsStr: String?,
+        tick: Long,
+        resolvedGradient: String?
+    ): Component {
+        return parseDisplayNameInternal(playerName, nick, customGradient, anim, speed, decorationsStr, tick, resolvedGradient)
+    }
+
+    fun resolveDisplayNameGradient(customGradient: String?, anim: String?, speed: Int, tick: Long): String? {
+        if (customGradient.isNullOrEmpty()) return null
+        val workingGradient = normalizeDisplayNameGradient(customGradient)
+        if (workingGradient.lowercase().contains("tobias:")) return workingGradient
+        val isGradient = workingGradient.contains(":") && workingGradient.indexOf('#') != workingGradient.lastIndexOf('#')
+        return if (isGradient) GradientAnimator.applyAnimation(workingGradient, anim, speed, tick) else workingGradient
+    }
+
+    private fun parseDisplayNameInternal(
+        playerName: String,
+        nick: String?,
+        customGradient: String?,
+        anim: String?,
+        speed: Int,
+        decorationsStr: String?,
+        tick: Long,
+        resolvedGradient: String?
+    ): Component {
         val baseName: String
         if (nick.isNullOrEmpty() || nick == playerName) {
             baseName = playerName
@@ -712,12 +755,7 @@ object GlobalUtils {
             return renderSimpleName(baseName, decorationsStr)
         }
 
-        var workingGradient = customGradient.trim()
-        if (workingGradient.lowercase().startsWith("<gradient:") && workingGradient.endsWith(">")) {
-            workingGradient = workingGradient.substring(10, workingGradient.length - 1)
-        } else if (workingGradient.lowercase().startsWith("<color:") && workingGradient.endsWith(">")) {
-            workingGradient = workingGradient.substring(7, workingGradient.length - 1)
-        }
+        val workingGradient = normalizeDisplayNameGradient(customGradient)
 
         if (workingGradient.lowercase().contains("tobias:")) {
             try {
@@ -765,7 +803,7 @@ object GlobalUtils {
 
         val finalGradient: String?
         if (isGradient) {
-            finalGradient = GradientAnimator.applyAnimation(workingGradient, anim, speed, tick)
+            finalGradient = resolvedGradient ?: GradientAnimator.applyAnimation(workingGradient, anim, speed, tick)
         } else {
             finalGradient = workingGradient
         }
@@ -796,6 +834,16 @@ object GlobalUtils {
         }
 
         return miniMessage.deserialize(result.toString())
+    }
+
+    private fun normalizeDisplayNameGradient(customGradient: String): String {
+        var workingGradient = customGradient.trim()
+        if (workingGradient.lowercase().startsWith("<gradient:") && workingGradient.endsWith(">")) {
+            workingGradient = workingGradient.substring(10, workingGradient.length - 1)
+        } else if (workingGradient.lowercase().startsWith("<color:") && workingGradient.endsWith(">")) {
+            workingGradient = workingGradient.substring(7, workingGradient.length - 1)
+        }
+        return workingGradient
     }
 
     private fun renderSimpleName(name: String, decorationsStr: String?): Component {

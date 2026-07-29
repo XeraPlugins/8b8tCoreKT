@@ -82,8 +82,8 @@ class GeneralDatabase : Listener {
 
         val config = HikariConfig()
         config.jdbcUrl = "jdbc:sqlite:$databasePath"
-        config.maximumPoolSize = 10
-        config.minimumIdle = 2
+        config.maximumPoolSize = 4
+        config.minimumIdle = 1
         config.idleTimeout = 300000
         config.maxLifetime = 600000
         config.connectionTimeout = 30000
@@ -174,6 +174,7 @@ class GeneralDatabase : Listener {
                 }
             } catch (e: SQLException) {
                 LOGGER.log(Level.SEVERE, "Database operation failed", e)
+                throw CompletionException(e)
             }
         }, databaseExecutor)
     }
@@ -195,6 +196,7 @@ class GeneralDatabase : Listener {
                 }
             } catch (e: SQLException) {
                 LOGGER.log(Level.SEVERE, "Database operation failed", e)
+                throw CompletionException(e)
             }
             defaultValue
         }, databaseExecutor)
@@ -214,11 +216,11 @@ class GeneralDatabase : Listener {
 
     fun upsertPlayer(username: String, column: String, value: Any?): CompletableFuture<Void> {
         validateColumn(column)
-        cache[username]?.set(column, value)
-
         val sql = "INSERT INTO playerdata (username, displayname, $column) VALUES (?, ?, ?) " +
                      "ON CONFLICT(username) DO UPDATE SET $column = excluded.$column"
-        return executeUpdate(sql, username, username, value)
+        return executeUpdate(sql, username, username, value).thenRun {
+            cache[username]?.set(column, value)
+        }
     }
 
     fun loadPlayerDataCache(username: String): CompletableFuture<PlayerDataCache> {
@@ -242,7 +244,7 @@ class GeneralDatabase : Listener {
                 }
             } catch (e: SQLException) {
                 LOGGER.log(Level.SEVERE, "Database operation failed", e)
-                PlayerDataCache()
+                throw CompletionException(e)
             }
         }, databaseExecutor)
     }
@@ -257,11 +259,11 @@ class GeneralDatabase : Listener {
     }
 
     fun insertNickname(username: String, displayname: String): CompletableFuture<Void> {
-        val pd = cache[username]
-        pd?.set("displayname", displayname)
         val sql = "INSERT INTO playerdata (username, displayname) VALUES (?, ?) " +
                      "ON CONFLICT(username) DO UPDATE SET displayname = excluded.displayname"
-        return executeUpdate(sql, username, displayname)
+        return executeUpdate(sql, username, displayname).thenRun {
+            cache[username]?.set("displayname", displayname)
+        }
     }
 
     fun getNicknameAsync(username: String): CompletableFuture<String?> {
@@ -286,7 +288,10 @@ class GeneralDatabase : Listener {
         cache[username]?.let { return CompletableFuture.completedFuture(it.getBoolean(column, defaultValue)) }
         return executeQueryAsync(
                 "SELECT $column FROM playerdata WHERE username = ?",
-                { rs -> rs.getInt(column) == 1 },
+                { rs ->
+                    val value = rs.getInt(column)
+                    if (rs.wasNull()) defaultValue else value == 1
+                },
                 defaultValue,
                 username
         )
@@ -387,9 +392,10 @@ class GeneralDatabase : Listener {
     }
 
     fun unmute(username: String): CompletableFuture<Void> {
-        cache[username]?.set("muted", null)
         val sql = "UPDATE playerdata SET muted = NULL WHERE username = ?"
-        return executeUpdate(sql, username)
+        return executeUpdate(sql, username).thenRun {
+            cache[username]?.set("muted", null)
+        }
     }
 
     fun updateSelectedRank(username: String, rank: String): CompletableFuture<Void> {

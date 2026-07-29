@@ -109,7 +109,7 @@ class FoliaCompat {
             if (FOLIA_RUN != null && GET_SCHEDULER != null) {
                 runCatching {
                     val scheduler = GET_SCHEDULER?.invoke(entity)
-                    FOLIA_RUN?.invoke(scheduler, plugin, Runnable { task.run() }, null)
+                    FOLIA_RUN?.invoke(scheduler, plugin, Consumer<Any> { task.run() }, null)
                 }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia schedule failed, falling back: ${e.message}") }
                     .onSuccess { return }
             }
@@ -134,7 +134,7 @@ class FoliaCompat {
             if (FOLIA_RUN_DELAYED != null && GET_SCHEDULER != null) {
                 runCatching {
                     GET_SCHEDULER?.invoke(entity)?.let { scheduler ->
-                        FOLIA_RUN_DELAYED?.invoke(scheduler, plugin, Runnable { task.run() }, Runnable {}, delay)
+                        FOLIA_RUN_DELAYED?.invoke(scheduler, plugin, Consumer<Any> { task.run() }, Runnable {}, delay)
                     }
                 }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia scheduleDelayed failed, falling back: ${e.message}") }
                     .onSuccess { return }
@@ -160,25 +160,22 @@ class FoliaCompat {
             if (FOLIA_RUN_FIXED != null && GET_SCHEDULER != null) {
                 runCatching {
                     GET_SCHEDULER?.invoke(entity)?.let { scheduler ->
-                        FOLIA_RUN_FIXED?.invoke(scheduler, plugin, Runnable { task.run() }, null, initialDelay, period)
+                        FOLIA_RUN_FIXED?.invoke(scheduler, plugin, Consumer<Any> { task.run() }, null, initialDelay, period)
                     }
                 }.onFailure { e -> LOGGER?.log(Level.WARNING, "Folia scheduleAtFixedRate failed, falling back: ${e.message}") }
                     .onSuccess { return }
             }
-            val loc = entity.location
-            fun scheduleNext() {
+            fun scheduleNext(delay: Long) {
+                val loc = entity.location
                 Bukkit.getRegionScheduler().runDelayed(plugin, loc, {
-                    if (entity.isValid && Bukkit.isOwnedByCurrentRegion(entity)) {
+                    if (!entity.isValid) return@runDelayed
+                    if (Bukkit.isOwnedByCurrentRegion(entity)) {
                         task.run()
-                        scheduleNext()
                     }
-                }, period)
+                    scheduleNext(period)
+                }, delay)
             }
-            if (initialDelay > 0) {
-                Bukkit.getRegionScheduler().runDelayed(plugin, loc, { scheduleNext() }, initialDelay)
-            } else {
-                scheduleNext()
-            }
+            scheduleNext(if (initialDelay > 0) initialDelay else period)
         }
     }
 }

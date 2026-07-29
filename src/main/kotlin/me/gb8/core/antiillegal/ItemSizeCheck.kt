@@ -12,7 +12,14 @@ import me.gb8.core.util.GlobalUtils
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
-final class ItemSizeCheck(private val maxSize: Int) : Check {
+final class ItemSizeCheck(maxSize: Int) : Check {
+    @Volatile
+    private var maxSize = maxSize
+
+    fun updateMaxSize(maxSize: Int) {
+        this.maxSize = maxSize
+    }
+
     override fun check(item: ItemStack?): Boolean {
         item ?: return false
         return GlobalUtils.calculateItemSize(item) > maxSize

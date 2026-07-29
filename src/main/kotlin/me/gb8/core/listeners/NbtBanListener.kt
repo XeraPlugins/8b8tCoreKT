@@ -31,6 +31,7 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.meta.BundleMeta
 import org.bukkit.plugin.java.JavaPlugin
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
@@ -39,6 +40,7 @@ import org.apache.logging.log4j.LogManager
 class NbtBanListener(private val plugin: JavaPlugin) : Listener {
     private val maxItemSizeBytes = plugin.config.getInt("NbtBanItemChecker.maxItemSizeAllowed", 48000)
     private val logger = LogManager.getLogger()
+    private val gsonSerializer = GsonComponentSerializer.gson()
 
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onPlayerJoin(event: PlayerJoinEvent) {
@@ -71,7 +73,7 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
             else -> {
                 entity.customName()?.let { name ->
                     val depth = GlobalUtils.getComponentDepth(name)
-                    val content = GlobalUtils.getStringContent(name)
+                    val content = GlobalUtils.getStringContentAfterDepthCheck(name)
                     if (depth > 20 || content.length > 500) {
                         entity.customName(null)
                         FoliaCompat.schedule(entity, Main.instance) { entity.remove() }
@@ -86,14 +88,18 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
         val item = event.itemInHand
         if (isIllegalItem(item)) {
             event.isCancelled = true
-            event.player.inventory.setItemInMainHand(null)
+            if (event.hand == EquipmentSlot.OFF_HAND) {
+                event.player.inventory.setItemInOffHand(null)
+            } else {
+                event.player.inventory.setItemInMainHand(null)
+            }
             sendPrefixedLocalizedMessage(event.player, "nbtPatch_deleted_item", getItemName(item))
         }
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     fun onChunkLoad(event: ChunkLoadEvent) {
-        event.chunk.tileEntities.forEach { state ->
+        event.chunk.getTileEntities(false).forEach { state ->
             if (state is Nameable && hasIllegalBlockEntityName(state)) {
                 logger.warn("NBT Patch: Stripped oversized block entity CustomName at {} {} {} in chunk {},{}",
                     state.x, state.y, state.z, event.chunk.x, event.chunk.z)
@@ -118,10 +124,10 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
 
     private fun hasIllegalBlockEntityName(state: Nameable): Boolean {
         val name = state.customName() ?: return false
-        val content = GlobalUtils.getStringContent(name)
-        if (content.length > MAX_BLOCK_ENTITY_NAME_PLAIN_LENGTH) return true
         if (GlobalUtils.getComponentDepth(name) > MAX_BLOCK_ENTITY_NAME_DEPTH) return true
-        return GsonComponentSerializer.gson().serialize(name).length > MAX_BLOCK_ENTITY_NAME_JSON_LENGTH
+        val content = GlobalUtils.getStringContentAfterDepthCheck(name)
+        if (content.length > MAX_BLOCK_ENTITY_NAME_PLAIN_LENGTH) return true
+        return gsonSerializer.serialize(name).length > MAX_BLOCK_ENTITY_NAME_JSON_LENGTH
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -157,11 +163,12 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
 
         contents.forEachIndexed { index, item ->
             item?.takeIf { it.type != Material.AIR && it.hasItemMeta() }?.let { stack ->
+                val itemSize = calculateItemSize(stack)
                 when {
-                    calculateItemSize(stack) > maxItemSizeBytes -> {
+                    itemSize > maxItemSizeBytes -> {
                         val itemName = getItemName(stack)
                         logger.warn("NBT Patch: Prevented overloaded NBT item from {} | Size: {} bytes | Type: {}",
-                            player.name, calculateItemSize(stack), itemName)
+                            player.name, itemSize, itemName)
                         player.inventory.setItem(index, null)
                         sendPrefixedLocalizedMessage(player, "nbtPatch_deleted_item", itemName)
                         modified = true

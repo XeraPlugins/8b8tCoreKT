@@ -40,8 +40,11 @@ class BaseCmd(private val main: CommandSection) : BaseCommand(
     }
 
     private fun handleReload(sender: CommandSender) {
-        main.plugin.reloadConfig()
-        sendMessage(sender, "&aSuccessfully reloaded configuration and cleared internal caches.")
+        reloadConfigForSender(
+            main.plugin,
+            sender,
+            "&aSuccessfully reloaded configuration and cleared internal caches."
+        )
     }
 
     private fun handleHelp(sender: CommandSender) {

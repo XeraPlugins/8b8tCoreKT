@@ -14,6 +14,7 @@ import me.gb8.core.chat.ChatSection
 import me.gb8.core.listeners.VotifierListener
 import me.gb8.core.listeners.VoteJoinListener
 import me.gb8.core.util.GlobalUtils
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.Localization
 import org.bukkit.Bukkit
 import org.bukkit.configuration.ConfigurationSection
@@ -63,13 +64,6 @@ class VoteSection(override val plugin: Main) : Section {
         plugin.register(VoteJoinListener(this))
         plugin.logger.info("VoteSection: Listeners registered")
 
-        Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
-            sqliteStorage?.takeIf { toReward.isNotEmpty() }?.let { storage ->
-                plugin.logger.info("VoteSection: Auto-saving ${toReward.size} votes")
-                storage.save(toReward)
-            }
-        }, 5 * 60 * 20L, 5 * 60 * 20L)
-
         plugin.logger.info("VoteSection: Successfully enabled!")
     }
 
@@ -89,13 +83,16 @@ class VoteSection(override val plugin: Main) : Section {
 
         Bukkit.getGlobalRegionScheduler().runDelayed(plugin, {
             Bukkit.getOnlinePlayers().forEach { p ->
-                val info = chatSection?.getInfo(p)
-                if (info?.hideAnnouncements == true) return@forEach
+                FoliaCompat.schedule(p, plugin) {
+                    if (!p.isOnline) return@schedule
+                    val info = chatSection?.getInfo(p)
+                    if (info?.hideAnnouncements == true) return@schedule
 
-                val loc = Localization.getLocalization(p.locale().language)
-                val message = String.format(loc.getWithPlaceholders("vote_announcement", "%days%", votingDays.toString()), voterName)
-                val prefixedMessage = loc.getPrefix() + " &r&7>>&r " + message
-                p.sendMessage(GlobalUtils.translateChars(prefixedMessage))
+                    val loc = Localization.getLocalization(p.locale().language)
+                    val message = String.format(loc.getWithPlaceholders("vote_announcement", "%days%", votingDays.toString()), voterName)
+                    val prefixedMessage = loc.getPrefix() + " &r&7>>&r " + message
+                    p.sendMessage(GlobalUtils.translateChars(prefixedMessage))
+                }
             }
         }, 1L)
     }
@@ -129,9 +126,11 @@ class VoteSection(override val plugin: Main) : Section {
 
         executeRewards(player)
 
-        toReward[PlayerName(player.name.lowercase())]?.takeIf { it.count > 0 }?.let { entry ->
-            entry.decrementVote()
-            sqliteStorage?.save(toReward)
+        val key = PlayerName(player.name.lowercase())
+        toReward.computeIfPresent(key) { _, entry ->
+            val updated = entry.copy(count = (entry.count - 1).coerceAtLeast(0))
+            sqliteStorage?.upsert(key, updated)
+            updated
         }
     }
 
@@ -149,9 +148,12 @@ class VoteSection(override val plugin: Main) : Section {
 
         repeat(voteCount) { executeRewards(player) }
 
-        toReward[PlayerName(player.name.lowercase())]?.let { it.count = 0 }
-
-        sqliteStorage?.save(toReward)
+        val key = PlayerName(player.name.lowercase())
+        toReward.computeIfPresent(key) { _, entry ->
+            val updated = entry.copy(count = 0)
+            sqliteStorage?.upsert(key, updated)
+            updated
+        }
     }
 
     fun hasVoterRoleExpired(username: String): Boolean {
@@ -179,27 +181,31 @@ class VoteSection(override val plugin: Main) : Section {
         val expirationCommand = config?.getString("ExpirationCommand", "lp user %s group remove voter") ?: "lp user %s group remove voter"
         val commandToRun = String.format(expirationCommand, username)
 
-        runCatching {
-            plugin.server.dispatchCommand(plugin.server.consoleSender, commandToRun)
-        }.onFailure { e ->
-            plugin.logger.warning("Failed to execute expiration command for $username: ${e.message}")
+        Bukkit.getGlobalRegionScheduler().run(plugin) {
+            runCatching {
+                plugin.server.dispatchCommand(plugin.server.consoleSender, commandToRun)
+            }.onFailure { e ->
+                plugin.logger.warning("Failed to execute expiration command for $username: ${e.message}")
+            }
         }
     }
 
     fun hasVoterRoleAsync(username: String): CompletableFuture<Boolean> {
         val future = CompletableFuture<Boolean>()
-        runCatching {
-            val player = Bukkit.getPlayerExact(username)
-            if (player != null && player.isOnline) {
-                Bukkit.getRegionScheduler().run(plugin, player.location) {
-                    val hasRole = player.hasPermission("group.voter") || player.hasPermission("voter")
-                    future.complete(hasRole)
+        Bukkit.getGlobalRegionScheduler().run(plugin) {
+            runCatching {
+                val player = Bukkit.getPlayerExact(username)
+                if (player != null && player.isOnline) {
+                    FoliaCompat.schedule(player, plugin) {
+                        val hasRole = player.hasPermission("group.voter")
+                        future.complete(hasRole)
+                    }
+                } else {
+                    future.complete(false)
                 }
-            } else {
-                future.complete(false)
+            }.onFailure { e ->
+                future.completeExceptionally(e)
             }
-        }.onFailure { e ->
-            future.completeExceptionally(e)
         }
         return future
     }
@@ -219,21 +225,30 @@ class VoteSection(override val plugin: Main) : Section {
         }
     }
 
-    fun registerVote(username: String): Boolean {
+    fun registerVote(username: String): CompletableFuture<Boolean> {
         plugin.logger.info("VoteSection: Attempting to register vote for $username")
 
         val applyVote = {
             val key = PlayerName(username.lowercase())
-            val existingEntry = toReward[key]
-            if (existingEntry != null) {
-                extendVoterRole(username, existingEntry)
-            } else {
-                toReward[key] = VoteEntry(1)
+            var persistence: CompletableFuture<Void>? = null
+            val updated = toReward.compute(key) { _, existingEntry ->
+                val newEntry = if (existingEntry == null) {
+                    VoteEntry(1)
+                } else {
+                    extendedVoterEntry(username, existingEntry)
+                }
+                persistence = sqliteStorage?.upsert(key, newEntry)
+                newEntry
             }
 
             plugin.logger.info("VoteSection: Vote registered for $username. Total tracked votes: ${toReward.size}")
 
-            sqliteStorage?.save(toReward)
+            val persistenceFuture = persistence
+            when {
+                updated == null -> CompletableFuture.failedFuture(IllegalStateException("Vote map rejected update for $username"))
+                persistenceFuture == null -> CompletableFuture.failedFuture(IllegalStateException("Vote storage is unavailable"))
+                else -> persistenceFuture.thenApply { true }
+            }
         }
 
         val player = Bukkit.getPlayerExact(username)
@@ -241,7 +256,7 @@ class VoteSection(override val plugin: Main) : Section {
             config?.getBoolean("EnableLegacyPlayerMigration", true) == true &&
             !toReward.containsKey(PlayerName(username.lowercase()))) {
 
-            hasVoterRoleAsync(username).thenAccept { hasRole ->
+            return hasVoterRoleAsync(username).thenCompose { hasRole ->
                 if (hasRole) {
                     if (!toReward.containsKey(PlayerName(username.lowercase()))) {
                         val defaultDays = config?.getInt("LegacyPlayerDefaultDaysRemaining", 20) ?: 20
@@ -249,29 +264,33 @@ class VoteSection(override val plugin: Main) : Section {
                     }
                 }
                 applyVote()
-            }.exceptionally { ex ->
+            }.whenComplete { _, ex ->
+                if (ex == null) return@whenComplete
                 plugin.logger.warning("Error registering vote for $username: ${ex.message}")
-                null
             }
-
-        } else {
-            applyVote()
         }
 
-        return true
+        return applyVote()
     }
 
     fun extendVoterRole(username: String, existingEntry: VoteEntry) {
+        val key = PlayerName(username.lowercase())
+        toReward.compute(key) { _, current ->
+            val updated = extendedVoterEntry(username, current ?: existingEntry)
+            sqliteStorage?.upsert(key, updated)
+            updated
+        }
+    }
+
+    private fun extendedVoterEntry(username: String, existingEntry: VoteEntry): VoteEntry {
         val expirationDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
 
         val currentExpirationTime = existingEntry.timestamp + (expirationDays * 24L * 60L * 60L * 1000L)
         val baseTime = maxOf(currentExpirationTime, System.currentTimeMillis())
 
-        val newEntry = VoteEntry(existingEntry.count + 1, baseTime)
-        toReward[PlayerName(username.lowercase())] = newEntry
-
         val totalDaysRemaining = (baseTime + (expirationDays * 24L * 60L * 60L * 1000L) - System.currentTimeMillis()) / (24L * 60L * 60L * 1000L)
         plugin.logger.info("Extended voter role for $username by $expirationDays days. Total remaining: $totalDaysRemaining days")
+        return VoteEntry(existingEntry.count + 1, baseTime)
     }
 
     fun migrateLegacyPlayer(username: String, daysRemaining: Long) {
@@ -283,9 +302,11 @@ class VoteSection(override val plugin: Main) : Section {
         val timestamp = currentTime + daysRemainingMillis - totalExpirationMillis
 
         val entry = VoteEntry(0, timestamp)
-        toReward[PlayerName(username.lowercase())] = entry
-
-        sqliteStorage?.save(toReward)
+        val key = PlayerName(username.lowercase())
+        toReward.compute(key) { _, _ ->
+            sqliteStorage?.upsert(key, entry)
+            entry
+        }
 
         plugin.logger.info("Migrated legacy player $username to tracking system ($daysRemaining days remaining)")
     }
@@ -296,39 +317,59 @@ class VoteSection(override val plugin: Main) : Section {
     }
 
     fun markAsRewarded(username: String) {
-        toReward.remove(PlayerName(username.lowercase()))
+        val key = PlayerName(username.lowercase())
+        toReward.compute(key) { _, _ ->
+            sqliteStorage?.delete(key)
+            null
+        }
     }
 
     fun cleanupExpiredVotes() {
         val offlineExpirationDays = config?.getInt("OfflineVoteExpirationDays", 7) ?: 7
+        val voterRoleExpirationDays = config?.getInt("VoterRoleExpirationDays", 30) ?: 30
+        val now = System.currentTimeMillis()
 
         val iterator = toReward.entries.iterator()
         var removedCount = 0
         var rolesRemovedCount = 0
 
+        fun removeIfUnchanged(key: PlayerName, expected: VoteEntry): Boolean {
+            var removed = false
+            toReward.compute(key) { _, current ->
+                if (current === expected) {
+                    sqliteStorage?.delete(key)
+                    removed = true
+                    null
+                } else {
+                    current
+                }
+            }
+            return removed
+        }
+
         while (iterator.hasNext()) {
             val entry = iterator.next()
             val username = entry.key.value
             val voteEntry = entry.value
+            val roleExpired = voterRoleExpirationDays > 0 &&
+                now > voteEntry.timestamp + (voterRoleExpirationDays * 24L * 60L * 60L * 1000L)
 
-            if (hasVoterRoleExpired(username)) {
-                removeVoterRole(username)
-                rolesRemovedCount++
-                iterator.remove()
-                removedCount++
-                plugin.logger.info("Removed $username from voting database after role expiration")
+            if (roleExpired) {
+                if (removeIfUnchanged(entry.key, voteEntry)) {
+                    removeVoterRole(username)
+                    rolesRemovedCount++
+                    removedCount++
+                    plugin.logger.info("Removed $username from voting database after role expiration")
+                }
             } else if (offlineExpirationDays > 0 && voteEntry.count > 0 && voteEntry.isExpired(offlineExpirationDays)) {
-                iterator.remove()
-                removedCount++
+                if (removeIfUnchanged(entry.key, voteEntry)) {
+                    removedCount++
+                }
             }
         }
 
         if (removedCount > 0) {
             plugin.logger.info("Cleaned up $removedCount expired vote entries")
-        }
-
-        if (removedCount > 0 && sqliteStorage != null) {
-            sqliteStorage?.save(toReward)
         }
     }
 }

@@ -21,8 +21,10 @@ import org.bukkit.entity.Explosive
 import org.bukkit.entity.Fireball
 import org.bukkit.entity.LivingEntity
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityPotionEffectEvent
+import org.bukkit.event.entity.EntitySpawnEvent
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.plugin.Plugin
 import org.bukkit.plugin.java.JavaPlugin
@@ -31,6 +33,7 @@ import java.util.function.Consumer
 class EntityEffectListener(private val plugin: Plugin) : Listener {
 
     private val effectCheck = PlayerEffectCheck()
+    private val gsonSerializer = GsonComponentSerializer.gson()
 
     init {
         startEntityEffectChecker()
@@ -44,7 +47,8 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
 
     private fun checkAllEntities() {
         Bukkit.getWorlds().forEach { world ->
-            world.entities.filter { shouldFullCheck(it) }.forEach { entity ->
+            for (entity in world.entities) {
+                if (!shouldFullCheck(entity)) continue
                 FoliaCompat.schedule(entity, plugin) {
                     if (entity.isValid) performChecks(entity)
                 }
@@ -61,12 +65,12 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
     private fun performChecks(entity: Entity) {
         if (!entity.isValid) return
 
+        if (isIllegalDragon(entity)) {
+            entity.remove()
+            return
+        }
+
         if (entity.type == org.bukkit.entity.EntityType.ENDER_DRAGON) {
-            val world = entity.world
-            if (world.environment != World.Environment.THE_END) {
-                entity.remove()
-                return
-            }
             val x = entity.x
             val z = entity.z
             if ((x * x + z * z) > 1000000.0) {
@@ -96,15 +100,26 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    fun onEntitySpawn(event: EntitySpawnEvent) {
+        if (isIllegalDragon(event.entity)) {
+            event.isCancelled = true
+        }
+    }
+
+    private fun isIllegalDragon(entity: Entity): Boolean =
+        entity.type == org.bukkit.entity.EntityType.ENDER_DRAGON &&
+            entity.world.environment != World.Environment.THE_END
+
     private fun checkAndFixEntityName(entity: Entity) {
         entity.customName()?.let { name ->
             val isIllegal = run {
                 GlobalUtils.getComponentDepth(name) > MAX_ENTITY_NAME_DEPTH ||
                 run {
-                    val json = GsonComponentSerializer.gson().serialize(name)
+                    val json = gsonSerializer.serialize(name)
                     json.length > MAX_ENTITY_NAME_JSON_LENGTH ||
                     run {
-                        val plainText = GlobalUtils.getStringContent(name)
+                        val plainText = GlobalUtils.getStringContentAfterDepthCheck(name)
                         plainText.length > MAX_ENTITY_NAME_PLAIN_LENGTH ||
                         countNestingDepth(json) > MAX_ENTITY_NAME_NESTING
                     }
@@ -119,20 +134,15 @@ class EntityEffectListener(private val plugin: Plugin) : Listener {
     }
 
     private fun countNestingDepth(json: String): Int {
-        var maxDepth = 0
-        var currentDepth = 0
+        var matches = 0
         var index = 0
 
-        while (index < json.length - 6) {
-            if (json.startsWith("\"extra\"", index, ignoreCase = false)) {
-                currentDepth++
-                maxDepth = maxOf(maxDepth, currentDepth)
-                index += 7
-            } else {
-                index++
-            }
+        while (true) {
+            index = json.indexOf("\"extra\"", index)
+            if (index < 0) return matches
+            matches++
+            index += 7
         }
-        return maxDepth
     }
 
     @EventHandler

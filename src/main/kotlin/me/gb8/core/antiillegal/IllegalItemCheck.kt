@@ -8,15 +8,15 @@
 
 package me.gb8.core.antiillegal
 
-import me.gb8.core.Main
 import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
-class IllegalItemCheck : Check {
-    private val illegals: Set<Material>
+class IllegalItemCheck(illegalItems: List<String>) : Check {
+    @Volatile
+    private var illegals: Set<Material> = parseConfig(illegalItems)
 
-    init {
-        illegals = parseConfig()
+    fun updateIllegalItems(illegalItems: List<String>) {
+        illegals = parseConfig(illegalItems)
     }
 
     override fun check(item: ItemStack?): Boolean {
@@ -42,10 +42,8 @@ class IllegalItemCheck : Check {
         item?.amount = 0
     }
 
-    private fun parseConfig(): Set<Material> {
-        val strList = Main.instance.config.getStringList("AntiIllegal.IllegalItems")
-
-        return strList.flatMap { raw ->
+    private fun parseConfig(illegalItems: List<String>): Set<Material> {
+        return illegalItems.flatMap { raw ->
             val rawUpper = raw.uppercase()
             if (rawUpper.contains("*")) {
                 val pattern = rawUpper.replace("*", "")

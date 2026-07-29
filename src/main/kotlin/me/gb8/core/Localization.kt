@@ -22,15 +22,17 @@ class Localization(private val config: Configuration) {
     private val rawCache = ConcurrentHashMap<String, String>()
 
     companion object {
-        private val localizationMap = ConcurrentHashMap<String, Localization>()
-        private val localeCache = ConcurrentHashMap<String, Localization>()
+        private data class LocalizationState(
+            val localizations: Map<String, Localization>,
+            val localeCache: ConcurrentHashMap<String, Localization> = ConcurrentHashMap()
+        )
+
+        @Volatile
+        private var state = LocalizationState(emptyMap())
 
         private val DEFAULT_PREFIX = "&8[&98b&78t&8]"
 
         fun loadLocalizations(dataFolder: File) {
-            localizationMap.clear()
-            localeCache.clear()
-
             val localeDir = File(dataFolder, "Localization")
             if (!localeDir.exists() && !localeDir.mkdirs()) {
                 GlobalUtils.log(Level.SEVERE, "Could not create localization directory: %s", localeDir.absolutePath)
@@ -42,26 +44,30 @@ class Localization(private val config: Configuration) {
                 GlobalUtils.unpackResource("Localization/$locale.yml", file)
             }
 
+            val loaded = HashMap<String, Localization>()
             localeDir.listFiles { f -> f.isFile && f.name.endsWith(".yml") }?.forEach { ymlFile ->
                 runCatching {
                     val cfg = YamlConfiguration.loadConfiguration(ymlFile)
                     val key = ymlFile.nameWithoutExtension
-                    localizationMap[key] = Localization(cfg)
+                    loaded[key] = Localization(cfg)
                 }.onFailure { e ->
                     GlobalUtils.log(Level.SEVERE, "Failed to load localization file %s: %s", ymlFile.name, e.message)
                     e.printStackTrace()
                 }
             }
+            state = LocalizationState(loaded.toMap())
         }
 
         fun getLocalization(locale: String): Localization {
-            return localeCache.getOrPut(locale) {
-                if (localizationMap.isEmpty()) {
+            val snapshot = state
+            return snapshot.localeCache.getOrPut(locale) {
+                if (snapshot.localizations.isEmpty()) {
                     Localization(YamlConfiguration.loadConfiguration(File("")))
                 } else {
-                    localizationMap[locale] ?: run {
+                    snapshot.localizations[locale] ?: run {
                         val base = locale.split("[_-]".toRegex()).first()
-                        localizationMap[base] ?: localizationMap["en"] ?: Localization(YamlConfiguration.loadConfiguration(File("")))
+                        snapshot.localizations[base] ?: snapshot.localizations["en"]
+                        ?: Localization(YamlConfiguration.loadConfiguration(File("")))
                     }
                 }
             }

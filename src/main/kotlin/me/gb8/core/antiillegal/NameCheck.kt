@@ -16,11 +16,16 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer
 import org.bukkit.Material
 import org.bukkit.Registry
-import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.inventory.ItemStack
 import java.util.logging.Level
 
-class NameCheck(private val config: ConfigurationSection) : Check {
+class NameCheck(maxNameLength: Int) : Check {
+    @Volatile
+    private var maxNameLength = maxNameLength.coerceAtLeast(1)
+
+    fun updateMaxNameLength(maxNameLength: Int) {
+        this.maxNameLength = maxNameLength.coerceAtLeast(1)
+    }
 
     override fun check(item: ItemStack?): Boolean {
         item?.takeIf { it.type != Material.AIR } ?: return false
@@ -63,7 +68,7 @@ class NameCheck(private val config: ConfigurationSection) : Check {
         component ?: return false
 
         val content = GlobalUtils.getStringContent(component)
-        if (content.length > STRICT_MAX_LENGTH) return true
+        if (content.length > maxNameLength) return true
 
         if (content.any { c ->
             val cp = c.code
@@ -75,7 +80,6 @@ class NameCheck(private val config: ConfigurationSection) : Check {
     }
 
     companion object {
-        private const val STRICT_MAX_LENGTH = 255
         private const val MAX_JSON_LENGTH = 8192
 
         private val ENTITY_DATA =

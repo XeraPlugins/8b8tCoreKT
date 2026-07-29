@@ -13,7 +13,6 @@ import me.gb8.core.Main
 import me.gb8.core.chat.ChatInfo
 import me.gb8.core.chat.ChatSection
 import me.gb8.core.player.PrefixManager
-import me.gb8.core.database.GeneralDatabase
 import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils
 import me.gb8.core.util.GlobalUtils.getStringContent
@@ -28,44 +27,45 @@ import org.bukkit.Statistic
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerQuitEvent
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.logging.Level
 import kotlin.math.abs
 
 class ChatListener(private val manager: ChatSection, private val tlds: Set<String>) : Listener {
-    private var service: ScheduledExecutorService? = null
     private val prefixManager = PrefixManager()
     private val miniMessage = MiniMessage.miniMessage()
-    private val database = GeneralDatabase.getInstance()
     private val playerMessages = ConcurrentHashMap<UUID, MutableList<String>>()
     private val prefixCache = ConcurrentHashMap<String, Component>()
 
     @EventHandler
     fun onChat(event: AsyncChatEvent) {
-        if (service == null) service = Main.executorService
         event.isCancelled = true
 
         val sender = event.player
+        val message = GlobalUtils.getStringContent(event.message())
+        FoliaCompat.schedule(sender, manager.plugin) {
+            if (sender.isOnline) processChat(sender, message)
+        }
+    }
+
+    private fun processChat(sender: Player, ogMessage: String) {
         val senderUUID = sender.uniqueId
         val senderName = sender.name
-        val ci = manager.getInfo(sender)
-
-        if (ci == null) return
+        val ci = manager.getInfo(sender) ?: return
 
         val cooldown = manager.config?.getInt("Cooldown") ?: 5
         if (ci.chatLock && !sender.isOp && !sender.hasPermission("*")) {
-            FoliaCompat.schedule(sender, manager.plugin) { sendPrefixedLocalizedMessage(sender, "chat_cooldown", cooldown) }
+            sendPrefixedLocalizedMessage(sender, "chat_cooldown", cooldown)
             return
         }
 
         ci.chatLock = true
-        service?.schedule({ ci.chatLock = false }, cooldown.toLong(), TimeUnit.SECONDS)
+        Main.executorService.schedule({ ci.chatLock = false }, cooldown.toLong(), TimeUnit.SECONDS)
 
-        val ogMessage = GlobalUtils.getStringContent(event.message())
         val filteredMessage = filterLongWords(ogMessage)
 
         val messages = playerMessages.computeIfAbsent(senderUUID) { mutableListOf() }
@@ -74,7 +74,7 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
                 for (oldMessage in messages) {
                     if (ogMessage.length < 20) continue
                     if (isSimilar(filterLongWords(oldMessage), filteredMessage)) {
-                        FoliaCompat.schedule(sender, manager.plugin) { sendPrefixedLocalizedMessage(sender, "spam_alert") }
+                        sendPrefixedLocalizedMessage(sender, "spam_alert")
                         return
                     }
                 }
@@ -82,36 +82,43 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
             if (messages.size >= MESSAGE_HISTORY) messages.removeAt(0)
             messages.add(ogMessage)
         }
+        val messageWords = tokenize(ogMessage)
 
-        FoliaCompat.schedule(sender, manager.plugin) {
-            if (!sender.isOnline) return@schedule
+        val blocked = blockedCheck(ogMessage)
+        val domain = domainCheck(ogMessage)
+        val muted = ci.mutedUntil > Instant.now().epochSecond
+        if (blocked || muted || domain) {
+            val senderComp = getSenderComponent(sender, ci)
+            sender.sendMessage(senderComp.append(formatBody(messageWords, sender.name, setOf(sender.name.lowercase()))))
+            if (!blocked && !domain) return
+            log(Level.INFO, "&3Prevented&r&a %s&r&3 from sending a message (banned words/link)", senderName)
+            return
+        }
 
-            val blocked = blockedCheck(ogMessage)
-            val domainBlocked = domainCheck(ogMessage)
-            if (blocked || ci.mutedUntil > Instant.now().epochSecond || domainBlocked) {
-                val senderComp = getSenderComponent(sender, ci)
-                sender.sendMessage(senderComp.append(Component.text(ogMessage).color(messageColor(ogMessage))))
-                if (!blocked && !domainBlocked) return@schedule
-                log(Level.INFO, "&3Prevented&r&a %s&r&3 from sending a message (banned words/link)", senderName)
-                return@schedule
-            }
+        val senderComponent = getSenderComponent(sender, ci)
 
-            val senderComponent = getSenderComponent(sender, ci)
+        Bukkit.getLogger().info("$senderName: $ogMessage")
 
-            Bukkit.getLogger().info("$senderName: $ogMessage")
+        Bukkit.getGlobalRegionScheduler().run(manager.plugin) {
+            val onlineNames = Bukkit.getOnlinePlayers().mapTo(mutableSetOf()) { it.name.lowercase() }
 
-            Bukkit.getGlobalRegionScheduler().run(manager.plugin) {
-                val onlineNames = Bukkit.getOnlinePlayers().mapTo(mutableSetOf()) { it.name.lowercase() }
-
-                for (recipient in Bukkit.getOnlinePlayers()) {
+            for (recipient in Bukkit.getOnlinePlayers()) {
+                FoliaCompat.schedule(recipient, manager.plugin) {
+                    if (!recipient.isOnline) return@schedule
                     val recipientInfo = manager.getInfo(recipient)
-                    if (recipientInfo == null || recipientInfo.isIgnoring(senderUUID) || recipientInfo.isToggledChat) continue
-
-                    val body = formatBody(ogMessage, recipient.name, onlineNames)
+                    if (recipientInfo == null || recipientInfo.isIgnoring(senderUUID) || recipientInfo.isToggledChat) {
+                        return@schedule
+                    }
+                    val body = formatBody(messageWords, recipient.name, onlineNames)
                     recipient.sendMessage(senderComponent.append(body))
                 }
             }
         }
+    }
+
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        playerMessages.remove(event.player.uniqueId)
     }
 
     private fun isSimilar(m1: String, m2: String): Boolean {
@@ -125,22 +132,27 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
         return if (message.startsWith(">")) NamedTextColor.GREEN else NamedTextColor.WHITE
     }
 
-    private fun formatBody(message: String, recipientName: String, onlineNames: Set<String>): Component {
-        val baseColor = messageColor(message)
+    private fun tokenize(message: String): MessageWords = MessageWords(
+        messageColor(message),
+        message.split(" ").map { word -> MessageWord(word, word.lowercase()) }
+    )
+
+    private fun formatBody(message: MessageWords, recipientName: String, onlineNames: Set<String>): Component {
+        val baseColor = message.color
+        val recipientNameLowercase = recipientName.lowercase()
         var body = Component.empty()
-        val words = message.split(" ")
+        val words = message.words
         for (i in words.indices) {
             val word = words[i]
-            val wordLower = word.lowercase()
             var color = baseColor
 
-            if (wordLower.equals(recipientName.lowercase()) || wordLower in KEYWORDS) {
+            if (word.lowercase == recipientNameLowercase || word.lowercase in KEYWORDS) {
                 color = NamedTextColor.YELLOW
-            } else if (wordLower in onlineNames) {
+            } else if (word.lowercase in onlineNames) {
                 color = baseColor
             }
 
-            body = body.append(Component.text(word + (if (i == words.size - 1) "" else " ").toString()).color(color))
+            body = body.append(Component.text(word.original + if (i == words.size - 1) "" else " ").color(color))
         }
         return body
     }
@@ -167,10 +179,9 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
     }
 
     private fun blockedCheck(message: String): Boolean {
-        val config = manager.config ?: return false
-        val blocked = config.getStringList("Blocked")
-        for (blockedWord in blocked) {
-            if (message.lowercase().contains(blockedWord.lowercase())) return true
+        val messageLowercase = message.lowercase()
+        for (blockedWord in manager.blockedWordsLowercase) {
+            if (messageLowercase.contains(blockedWord)) return true
         }
         return false
     }
@@ -201,6 +212,9 @@ class ChatListener(private val manager: ChatSection, private val tlds: Set<Strin
         private const val MESSAGE_HISTORY = 3
         private val KEYWORDS = setOf("@here", "@everyone", "here", "everyone")
     }
+
+    private data class MessageWord(val original: String, val lowercase: String)
+    private data class MessageWords(val color: TextColor, val words: List<MessageWord>)
 
     private fun levenshteinDistance(str1: String, str2: String): Int {
         var n = str1.length

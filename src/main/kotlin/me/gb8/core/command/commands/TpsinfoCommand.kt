@@ -18,6 +18,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
+
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
 import me.gb8.core.util.GlobalUtils.translateChars
 
@@ -64,34 +65,33 @@ class TpsinfoCommand(private val plugin: Main) : BaseCommand("tpsinfo", "/tpsinf
     }
 
     private fun getLowestRegionTPS(players: Collection<Player>): CompletableFuture<Double> {
-        val futures = mutableListOf<CompletableFuture<Double>>()
-        for (player in players) {
-            val uuid = player.uniqueId
+        val futures = players.map(::scheduleRegionTpsLookup)
+        return CompletableFuture.allOf(*futures.toTypedArray())
+                .thenApply { lowestTpsFrom(futures) }
+    }
 
-            val future = CompletableFuture<Double>()
-            FoliaCompat.schedule(player, plugin) {
-                val p = Bukkit.getPlayer(uuid)
-                if (p != null && p.isOnline) {
-                    GlobalUtils.getRegionTps(p.location).thenAccept(future::complete)
-                } else {
-                    future.complete(-1.0)
-                }
+    private fun scheduleRegionTpsLookup(player: Player): CompletableFuture<Double> {
+        val uuid = player.uniqueId
+        val future = CompletableFuture<Double>()
+        FoliaCompat.schedule(player, plugin) {
+            val p = Bukkit.getPlayer(uuid)
+            if (p != null && p.isOnline) {
+                GlobalUtils.getRegionTps(p.location).thenAccept { future.complete(it) }
+            } else {
+                future.complete(-1.0)
             }
-
-            futures.add(future)
         }
+        return future
+    }
 
-        val allFutures = futures.toTypedArray()
-        return CompletableFuture.allOf(*allFutures)
-                .thenApply {
-                    var lowestTPS = Double.MAX_VALUE
-                    for (future in futures) {
-                        val regionTPS = future.getNow(-1.0)
-                        if (regionTPS > 0 && regionTPS < lowestTPS) {
-                            lowestTPS = regionTPS
-                        }
-                    }
-                    if (lowestTPS == Double.MAX_VALUE) 20.0 else lowestTPS
-                }
+    private fun lowestTpsFrom(futures: List<CompletableFuture<Double>>): Double {
+        var lowestTPS = Double.MAX_VALUE
+        for (future in futures) {
+            val regionTPS = future.getNow(-1.0)
+            if (regionTPS > 0 && regionTPS < lowestTPS) {
+                lowestTPS = regionTPS
+            }
+        }
+        return if (lowestTPS == Double.MAX_VALUE) 20.0 else lowestTPS
     }
 }

@@ -21,7 +21,9 @@ class AntiPrefilledContainers : Check {
         if (item == null || item.type.isAir || !shouldCheck(item)) return false
 
         item.getData(DataComponentTypes.CONTAINER)?.let { contents ->
-            return contents.contents().any { content ->
+            @Suppress("UNCHECKED_CAST")
+            val containerItems = contents.contents() as List<ItemStack?>
+            return containerItems.any { content ->
                 content != null && !content.type.isAir
             }
         }

@@ -8,65 +8,50 @@
 
 package me.gb8.core.listeners
 
-import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
-import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import me.gb8.core.patch.PatchSection
-import me.gb8.core.util.FoliaCompat
-import org.bukkit.entity.EntityType
+import org.bukkit.entity.Entity
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
-
-import java.util.HashMap
-import java.util.concurrent.ConcurrentHashMap
+import org.bukkit.event.entity.EntityPlaceEvent
+import org.bukkit.event.entity.EntitySpawnEvent
+import org.bukkit.event.hanging.HangingPlaceEvent
+import org.bukkit.event.vehicle.VehicleCreateEvent
 
 class EntitySpawnListener(private val main: PatchSection) : Listener {
-    
-    private val cache: MutableMap<Long, MutableMap<EntityType, Int>> = ConcurrentHashMap()
-
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    fun onEntityAddToWorld(event: EntityAddToWorldEvent) {
-        val entity = event.entity
-        val type = entity.type
-        if (type == EntityType.ITEM) return
-        
-        val entityPerChunk = main.getEntityPerChunk() ?: return
-        val max = entityPerChunk[type] ?: return
-
-        val chunkKey = entity.location.chunk.chunkKey
-        
-        val chunkMap = cache.getOrPut(chunkKey) { HashMap() }
-        val currentCount = chunkMap.getOrDefault(type, 0) + 1
-        chunkMap[type] = currentCount
-
-        if (currentCount > max) {
-            chunkMap[type] = currentCount - 1
-            
-            FoliaCompat.schedule(entity, main.plugin) {
-                if (entity.isValid) {
-                    if (entity is org.bukkit.entity.Player) {
-                        entity.kick(net.kyori.adventure.text.Component.text("Entity limit exceeded"))
-                    } else {
-                        entity.remove()
-                    }
-                }
-            }
-        }
+    fun onEntitySpawn(event: EntitySpawnEvent) {
+        if (exceedsLimit(event.entity)) event.isCancelled = true
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    fun onEntityRemove(event: EntityRemoveFromWorldEvent) {
-        val type = event.entity.type
-        val entityPerChunk = main.getEntityPerChunk()
-        if (entityPerChunk == null || !entityPerChunk.containsKey(type)) return
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onEntityPlace(event: EntityPlaceEvent) {
+        if (exceedsLimit(event.entity)) event.isCancelled = true
+    }
 
-        val chunkKey = event.entity.location.chunk.chunkKey
-        val chunkMap = cache[chunkKey]
-        
-        chunkMap?.computeIfPresent(type) { _, count -> if (count > 1) count - 1 else null }
-        
-        if (chunkMap.isNullOrEmpty()) {
-            cache.remove(chunkKey)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onHangingPlace(event: HangingPlaceEvent) {
+        if (exceedsLimit(event.entity)) event.isCancelled = true
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onVehicleCreate(event: VehicleCreateEvent) {
+        if (exceedsLimit(event.vehicle)) event.isCancelled = true
+    }
+
+    private fun exceedsLimit(entity: Entity): Boolean {
+        if (entity.isExemptFromEntityLimit()) return false
+
+        val type = entity.type
+        val entityPerChunk = main.getEntityPerChunk() ?: return false
+        val max = entityPerChunk[type] ?: return false
+
+        val currentCount = 1 + entity.location.chunk.entities.count {
+            it.uniqueId != entity.uniqueId &&
+                it.type == type &&
+                !it.isExemptFromEntityLimit()
         }
+
+        return currentCount > max
     }
 }

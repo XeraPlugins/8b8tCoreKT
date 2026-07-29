@@ -35,6 +35,9 @@
                         <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                     </sourceDirs>
                     <jvmTarget>21</jvmTarget>
+                    <args>
+                        <arg>-Xlambdas=indy</arg>
+                    </args>
                 </configuration>
                 <executions>
                     <execution>

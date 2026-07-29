@@ -9,6 +9,7 @@
 package me.gb8.core.antiillegal
 
 import me.gb8.core.Main
+import me.gb8.core.Reloadable
 import org.bukkit.Bukkit
 import org.bukkit.Chunk
 import org.bukkit.Location
@@ -27,7 +28,7 @@ import java.util.Arrays
 import java.util.EnumSet
 import java.util.function.Consumer
 
-class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSection) : Listener {
+class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSection) : Listener, Reloadable {
     companion object {
         const val EXIT_PORTAL_X = 0
         const val EXIT_PORTAL_Z = 0
@@ -41,26 +42,43 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
         const val OUTER_ISLAND_VOID_GAP_SQ = 562500
         const val OUTER_ISLAND_Y_MAX = 80
         const val STRONGHOLD_SAFE_ZONE_SQ = 1638400
+        const val HASH_REVISION = 2
 
         private val Int.blockCoord get() = this shl 4
     }
 
-    private val illegalMaterials: EnumSet<Material>
-    private val batchSize: Int
-    private val delayTicks: Long
+    private data class Settings(
+        val enabled: Boolean,
+        val illegalMaterials: EnumSet<Material>,
+        val batchSize: Int,
+        val delayTicks: Long,
+        val configHash: Int,
+        val version: Int
+    )
+
+    @Volatile
+    private var settings = readSettings(config)
     private val scanKey = org.bukkit.NamespacedKey(plugin, "clean_scan_hash")
-    private val configHash: Int
     private val airBlockData = Material.AIR.createBlockData()
 
     init {
-        illegalMaterials = buildMaterialSet(config.getStringList("IllegalBlocks"))
-        batchSize = config.getInt("IllegalBlocksCleaner.Batch", 128).coerceAtLeast(1)
-        delayTicks = config.getLong("IllegalBlocksCleaner.DelayTicks", 5L).coerceAtLeast(1L)
+        plugin.logger.info("[AntiIllegal] System initialized. Version: ${settings.version}")
+        if (settings.enabled) scanLoadedChunks(force = false)
+    }
 
-        val version = config.getInt("IllegalBlocksCleaner.Version", 1)
-        configHash = illegalMaterials.hashCode() xor (version * 31)
+    override fun reloadConfig() {
+        val config = plugin.config.getConfigurationSection("AntiIllegal") ?: return
+        val oldSettings = settings
+        val newSettings = readSettings(config)
+        settings = newSettings
 
-        plugin.logger.info("[AntiIllegal] System initialized. Version: $version")
+        if (newSettings.enabled && (!oldSettings.enabled || oldSettings.configHash != newSettings.configHash)) {
+            // Blocks may have changed while the cleaner was disabled so we need to recheck here.
+            scanLoadedChunks(force = !oldSettings.enabled)
+        }
+    }
+
+    private fun scanLoadedChunks(force: Boolean) {
         Bukkit.getAsyncScheduler().runNow(plugin) {
             for (world in Bukkit.getWorlds()) {
                 for (chunk in world.loadedChunks) {
@@ -69,7 +87,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                     val loc = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
                     Bukkit.getRegionScheduler().run(plugin, loc) {
                         if (world.isChunkLoaded(cx, cz)) {
-                            checkAndScan(world.getChunkAt(cx, cz))
+                            checkAndScan(world.getChunkAt(cx, cz), force)
                         }
                     }
                 }
@@ -79,6 +97,10 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onChunkLoad(event: ChunkLoadEvent) {
+        if (!settings.enabled) {
+            invalidateChunk(event.chunk)
+            return
+        }
         checkAndScan(event.chunk)
     }
 
@@ -96,12 +118,14 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
         chunk.persistentDataContainer.remove(scanKey)
     }
 
-    private fun checkAndScan(chunk: Chunk) {
+    private fun checkAndScan(chunk: Chunk, force: Boolean = false) {
+        val scanSettings = settings
+        if (!scanSettings.enabled) return
         val savedHash = chunk.persistentDataContainer.get(scanKey, PersistentDataType.INTEGER)
-        if (savedHash != configHash) performDeepScan(chunk)
+        if (force || savedHash != scanSettings.configHash) performDeepScan(chunk, scanSettings)
     }
 
-    private fun performDeepScan(chunk: Chunk) {
+    private fun performDeepScan(chunk: Chunk, scanSettings: Settings) {
         val world = chunk.world
         val cx = chunk.x
         val cz = chunk.z
@@ -131,7 +155,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                     for (lx in 0..15) {
                         for (lz in 0..15) {
                             val type = snap.getBlockType(lx, y, lz)
-                            if (type !in illegalMaterials) continue
+                            if (type !in scanSettings.illegalMaterials) continue
 
                             val gx = cx.blockCoord + lx
                             val gz = cz.blockCoord + lz
@@ -148,9 +172,14 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                 }
             }
 
-            if (foundCount == 0) {
+            if (settings != scanSettings) {
                 val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
-                Bukkit.getRegionScheduler().run(plugin, anchor) { markChunkClean(world, cx, cz) }
+                Bukkit.getRegionScheduler().run(plugin, anchor) {
+                    if (world.isChunkLoaded(cx, cz)) checkAndScan(world.getChunkAt(cx, cz))
+                }
+            } else if (foundCount == 0) {
+                val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
+                Bukkit.getRegionScheduler().run(plugin, anchor) { markChunkClean(world, cx, cz, scanSettings) }
             } else {
                 plugin.logger.info("[AntiIllegal] Detected $foundCount illegal blocks in chunk [$cx, $cz]. Liquidating...")
 
@@ -159,7 +188,7 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                 val anchor = Location(world, cx.blockCoord + 8.0, 64.0, cz.blockCoord + 8.0)
 
                 Bukkit.getRegionScheduler().run(plugin, anchor) {
-                    processRemovalBatch(world, cx, cz, queue, total, 0, anchor, 0)
+                    processRemovalBatch(world, cx, cz, queue, total, 0, anchor, 0, scanSettings)
                 }
             }
         }
@@ -173,25 +202,30 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
         total: Int,
         index: Int,
         anchor: Location,
-        failedRemovals: Int
+        failedRemovals: Int,
+        scanSettings: Settings
     ) {
         if (!world.isChunkLoaded(cx, cz)) return
+        if (settings != scanSettings) {
+            if (settings.enabled) checkAndScan(world.getChunkAt(cx, cz))
+            return
+        }
 
         var processedInThisTick = 0
         val chunk = world.getChunkAt(cx, cz)
         var idx = index
         var failures = failedRemovals
 
-        while (processedInThisTick < batchSize && idx < total) {
+        while (processedInThisTick < scanSettings.batchSize && idx < total) {
             val packed = queue[idx]
             val lx = unpackLX(packed)
             val lz = unpackLZ(packed)
             val y = unpackY(packed)
 
             val block = chunk.getBlock(lx, y, lz)
-            if (block.type in illegalMaterials) {
+            if (block.type in scanSettings.illegalMaterials) {
                 block.setBlockData(airBlockData, false)
-                if (block.type in illegalMaterials) failures++
+                if (block.type in scanSettings.illegalMaterials) failures++
             }
             idx++
             processedInThisTick++
@@ -199,18 +233,23 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
 
         if (idx < total) {
             Bukkit.getRegionScheduler().runDelayed(plugin, anchor, Consumer { _ ->
-                processRemovalBatch(world, cx, cz, queue, total, idx, anchor, failures)
-            }, delayTicks)
+                processRemovalBatch(world, cx, cz, queue, total, idx, anchor, failures, scanSettings)
+            }, scanSettings.delayTicks)
         } else if (failures > 0) {
             plugin.logger.warning("[AntiIllegal] Failed to remove $failures illegal blocks in chunk [$cx, $cz]. Chunk left unmarked for future scan.")
         } else {
-            markChunkClean(world, cx, cz)
+            markChunkClean(world, cx, cz, scanSettings)
         }
     }
 
-    private fun markChunkClean(world: World, cx: Int, cz: Int) {
+    private fun markChunkClean(world: World, cx: Int, cz: Int, scanSettings: Settings) {
+        if (!world.isChunkLoaded(cx, cz)) return
+        if (settings != scanSettings) {
+            if (settings.enabled) checkAndScan(world.getChunkAt(cx, cz))
+            return
+        }
         val c = world.getChunkAt(cx, cz)
-        c.persistentDataContainer.set(scanKey, PersistentDataType.INTEGER, configHash)
+        c.persistentDataContainer.set(scanKey, PersistentDataType.INTEGER, scanSettings.configHash)
     }
 
     private fun pack(lx: Int, y: Int, lz: Int): Int = (y shl 8) or (lx shl 4) or lz
@@ -277,4 +316,17 @@ class IllegalBlocksCleaner(private val plugin: Main, config: ConfigurationSectio
                 Material.entries.filter { regex.matches(it.name) }
             }.getOrElse { emptyList() }
         }.toCollection(EnumSet.noneOf(Material::class.java))
+
+    private fun readSettings(config: ConfigurationSection): Settings {
+        val illegalMaterials = buildMaterialSet(config.getStringList("IllegalBlocks"))
+        val version = config.getInt("IllegalBlocksCleaner.Version", 1)
+        return Settings(
+            enabled = config.getBoolean("EnableIllegalBlocksCleaner", true),
+            illegalMaterials = illegalMaterials,
+            batchSize = config.getInt("IllegalBlocksCleaner.Batch", 128).coerceAtLeast(1),
+            delayTicks = config.getLong("IllegalBlocksCleaner.DelayTicks", 5L).coerceAtLeast(1L),
+            configHash = illegalMaterials.hashCode() xor (version * 31) xor HASH_REVISION,
+            version = version
+        )
+    }
 }

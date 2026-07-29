@@ -12,70 +12,71 @@ import me.gb8.core.patch.PatchSection
 import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils.log
 import org.bukkit.Bukkit
-import org.bukkit.Chunk
-import org.bukkit.Location
 import org.bukkit.entity.EntityType
-import org.bukkit.entity.Item
+import java.util.EnumMap
 import java.util.logging.Level
 
 @Suppress("UNUSED_VARIABLE", "LABEL_NAME_CLASH")
 class EntityCheckTask(private val main: PatchSection) : Runnable {
-    private val vanillaItemDespawnTicks = 6000
-    
     override fun run() {
         try {
+            val limits = main.getEntityPerChunk()?.toMap() ?: return
+            if (limits.isEmpty()) return
+            var scheduledChunks = 0
+
             for (world in Bukkit.getWorlds()) {
                 val loadedChunks = world.loadedChunks
                 
                 for (chunk in loadedChunks) {
+                    if (!chunk.isEntitiesLoaded) continue
+
                     val chunkX = chunk.x
                     val chunkZ = chunk.z
-                    
-                    val chunkLoc = Location(world, (chunkX shl 4).toDouble(), 64.0, (chunkZ shl 4).toDouble())
                     val mainPlugin = main.plugin
                     val currentWorld = world
-                    
-                    mainPlugin.server.regionScheduler.run(mainPlugin, chunkLoc) scheduler@{
-                        if (!currentWorld.isChunkLoaded(chunkX, chunkZ)) return@scheduler
-                        val currentChunk = currentWorld.getChunkAt(chunkX, chunkZ)
-                        
-                        val chunkEntities = currentChunk.entities
-                        if (chunkEntities.isEmpty()) return@scheduler
+                    val delayTicks = 1L + scheduledChunks / CHUNKS_PER_TICK
+                    scheduledChunks++
 
-                        main.getEntityPerChunk()?.forEach { (entityType, maxAllowed) ->
-                            val matchingEntities = chunkEntities
-                                .filter { it.type == entityType && it.isValid }
+                    mainPlugin.server.regionScheduler.runDelayed(
+                        mainPlugin,
+                        currentWorld,
+                        chunkX,
+                        chunkZ,
+                        scheduler@{
+                            if (!currentWorld.isChunkLoaded(chunkX, chunkZ)) return@scheduler
+                            val currentChunk = currentWorld.getChunkAt(chunkX, chunkZ)
 
-                            val excessCount = matchingEntities.size - maxAllowed
-                            if (excessCount > 0) {
-                                val removalCandidates = if (entityType == EntityType.ITEM) {
-                                    val minAgeTicks = main.getConfig()
-                                        ?.getInt("EntityPerChunk.DroppedItemMinAgeTicks", vanillaItemDespawnTicks)
-                                        ?: vanillaItemDespawnTicks
+                            val chunkEntities = currentChunk.entities
+                            if (chunkEntities.isEmpty()) return@scheduler
 
-                                    matchingEntities
-                                        .filterIsInstance<Item>()
-                                        .filter { it.ticksLived >= minAgeTicks }
-                                        .sortedByDescending { it.ticksLived }
-                                } else {
-                                    matchingEntities
-                                }
+                            val counts = EnumMap<EntityType, Int>(EntityType::class.java)
+                            for (entity in chunkEntities) {
+                                if (!entity.isValid || !entity.isSubjectToEntityCleanup()) continue
 
-                                for (entityToRemove in removalCandidates.take(excessCount)) {
-                                    FoliaCompat.schedule(entityToRemove, mainPlugin) {
-                                        if (entityToRemove.isValid) {
-                                            entityToRemove.remove()
+                                val type = entity.type
+                                val maxAllowed = limits[type] ?: continue
+                                val count = counts.getOrDefault(type, 0)
+
+                                if (count >= maxAllowed) {
+                                    FoliaCompat.schedule(entity, mainPlugin) {
+                                        if (entity.isValid) {
+                                            entity.remove()
                                         }
                                     }
+                                } else {
+                                    counts[type] = count + 1
                                 }
                             }
-                        }
-                    }
+                        }, delayTicks)
                 }
             }
         } catch (ex: Exception) {
             log(Level.SEVERE, "An error occurred while checking entities: %s", ex.message)
             ex.printStackTrace()
         }
+    }
+
+    companion object {
+        private const val CHUNKS_PER_TICK = 128
     }
 }

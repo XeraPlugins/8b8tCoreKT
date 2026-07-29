@@ -23,6 +23,7 @@ import org.bukkit.Bukkit
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.entity.Player
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class TabSection(override val plugin: Main) : Section {
     val main: Main get() = plugin
@@ -32,11 +33,13 @@ class TabSection(override val plugin: Main) : Section {
 
     private var cachedChatSection: me.gb8.core.chat.ChatSection? = null
     private val tagCache = ConcurrentHashMap<String, Component>()
+    private val tagCacheOrder = ConcurrentLinkedQueue<CachedTag>()
     private val localeCache = ConcurrentHashMap<String, Localization>()
+    private val templateCache = ConcurrentHashMap<String, TabTemplates>()
 
     override fun enable() {
         val cfg = plugin.getSectionConfig(this).also { config = it }
-        cfg?.getInt("UpdateInterval", 1)
+        val updateInterval = (cfg?.getLong("UpdateInterval", 1L) ?: 1L).coerceAtLeast(1L)
 
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, {
             try {
@@ -53,13 +56,15 @@ class TabSection(override val plugin: Main) : Section {
                 val animTick = GradientAnimator.getAnimationTick()
 
                 Bukkit.getOnlinePlayers().forEach { player ->
-                    setTab(player, updatePlaceholders, animTick)
+                    FoliaCompat.schedule(player, plugin) {
+                        if (player.isOnline) setTab(player, updatePlaceholders, animTick)
+                    }
                 }
             } catch (t: Throwable) {
                 t.printStackTrace()
                 plugin.logger.warning("Error in TabList update task: ${t.message}")
             }
-        }, 1L, 1L)
+        }, updateInterval, updateInterval)
         plugin.register(TablistPlayerJoinListener(this))
     }
 
@@ -68,7 +73,9 @@ class TabSection(override val plugin: Main) : Section {
     override fun reloadConfig() {
         config = plugin.getSectionConfig(this)
         tagCache.clear()
+        tagCacheOrder.clear()
         localeCache.clear()
+        templateCache.clear()
     }
 
     override val name: String = "TabList"
@@ -89,44 +96,45 @@ class TabSection(override val plugin: Main) : Section {
                 sendPlayerListFooter(Component.empty())
                 playerListName(null)
             }
+            info.lastSentTabName = null
             return
         }
 
         var displayNameComponent = info.getDisplayNameComponent(animTick)
 
         prefixManager.getPrefix(info, animTick).takeIf { it.isNotEmpty() }?.let { tag ->
-            val tagComponent = tagCache.computeIfAbsent(tag) {
-                val converted = GlobalUtils.convertToMiniMessageFormat(tag) ?: tag
-                MiniMessage.miniMessage().deserialize(converted)
-            }
+            val tagComponent = getCachedTag(tag)
             displayNameComponent = tagComponent.append(displayNameComponent)
         }
 
-        player.playerListName(displayNameComponent)
+        if (displayNameComponent != info.lastSentTabName) {
+            player.playerListName(displayNameComponent)
+            info.lastSentTabName = displayNameComponent
+        }
 
         if (updatePlaceholders) {
             @Suppress("DEPRECATION")
             val locale = player.locale()
             val lang = locale.language
             val loc = localeCache.computeIfAbsent(lang) { Localization.getLocalization(lang) }
+            val templates = templateCache.computeIfAbsent(lang) {
+                TabTemplates(
+                    loc.getStringList("TabList.Header").joinToString("\n"),
+                    loc.getStringList("TabList.Footer").joinToString("\n")
+                )
+            }
+            val placeholderContext = Utils.createPlaceholderContext(player, plugin.startTime)
 
             val header = Utils.parsePlaceHolders(
-                loc.getStringList("TabList.Header").joinToString("\n"),
-                player,
-                plugin.startTime
+                templates.header,
+                placeholderContext
             )
             val footer = Utils.parsePlaceHolders(
-                loc.getStringList("TabList.Footer").joinToString("\n"),
-                player,
-                plugin.startTime
+                templates.footer,
+                placeholderContext
             )
 
-            FoliaCompat.schedule(player, plugin) {
-                if (player.isOnline) {
-                    player.sendPlayerListHeader(header)
-                    player.sendPlayerListFooter(footer)
-                }
-            }
+            player.sendPlayerListHeaderAndFooter(header, footer)
         }
     }
 
@@ -136,5 +144,28 @@ class TabSection(override val plugin: Main) : Section {
 
     fun setTab(player: Player) {
         setTab(player, true, GradientAnimator.getAnimationTick())
+    }
+
+    private fun getCachedTag(tag: String): Component {
+        tagCache[tag]?.let { return it }
+
+        val converted = GlobalUtils.convertToMiniMessageFormat(tag) ?: tag
+        val parsed = MiniMessage.miniMessage().deserialize(converted)
+        val existing = tagCache.putIfAbsent(tag, parsed)
+        if (existing != null) return existing
+
+        tagCacheOrder.offer(CachedTag(tag, parsed))
+        while (tagCache.size > MAX_TAG_CACHE_SIZE) {
+            val oldest = tagCacheOrder.poll() ?: break
+            tagCache.remove(oldest.key, oldest.component)
+        }
+        return parsed
+    }
+
+    private data class TabTemplates(val header: String, val footer: String)
+    private data class CachedTag(val key: String, val component: Component)
+
+    private companion object {
+        const val MAX_TAG_CACHE_SIZE = 512
     }
 }

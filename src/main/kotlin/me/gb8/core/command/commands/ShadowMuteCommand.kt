@@ -11,6 +11,7 @@ package me.gb8.core.command.commands
 import me.gb8.core.Main
 import me.gb8.core.command.BaseTabCommand
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.util.FoliaCompat
 import me.gb8.core.util.GlobalUtils.sendMessage
 import org.bukkit.Bukkit
 import org.bukkit.command.CommandSender
@@ -34,11 +35,17 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
         val action = args[0].lowercase()
         val playerName = args[1]
 
-        database.isMutedAsync(playerName).thenAccept { isMuted ->
-            when (action) {
-                "add" -> addMute(sender, playerName, args, isMuted)
-                "remove" -> removeMute(sender, playerName, isMuted)
-                else -> sendMessage(sender, "&cInvalid Option: /shadowmute <add | remove> <player> [hours (default 72)]")
+        database.isMutedAsync(playerName).whenComplete { isMuted, error ->
+            runForSender(sender) {
+                if (error != null) {
+                    sendMessage(sender, "&cUnable to read mute status because the database operation failed.")
+                    return@runForSender
+                }
+                when (action) {
+                    "add" -> addMute(sender, playerName, args, isMuted)
+                    "remove" -> removeMute(sender, playerName, isMuted)
+                    else -> sendMessage(sender, "&cInvalid Option: /shadowmute <add | remove> <player> [hours (default 72)]")
+                }
             }
         }
     }
@@ -70,9 +77,15 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
         }
 
         val muteUntil = Instant.now().epochSecond + hours * SECONDS_PER_HOUR
-        database.mute(playerName, muteUntil).thenRun {
-            updateCachedMute(playerName, muteUntil)
-            sendMessage(sender, "&8${playerName} has been shadowmuted for $hours hours.")
+        database.mute(playerName, muteUntil).whenComplete { _, error ->
+            runForSender(sender) {
+                if (error != null) {
+                    sendMessage(sender, "&cFailed to shadowmute $playerName because the database update failed.")
+                } else {
+                    updateCachedMute(playerName, muteUntil)
+                    sendMessage(sender, "&8${playerName} has been shadowmuted for $hours hours.")
+                }
+            }
         }
     }
 
@@ -82,16 +95,34 @@ class ShadowMuteCommand(private val plugin: Main) : BaseTabCommand(
             return
         }
 
-        database.unmute(playerName).thenRun {
-            updateCachedMute(playerName, 0)
-            sendMessage(sender, "&8${playerName} has been unmuted.")
+        database.unmute(playerName).whenComplete { _, error ->
+            runForSender(sender) {
+                if (error != null) {
+                    sendMessage(sender, "&cFailed to unmute $playerName because the database update failed.")
+                } else {
+                    updateCachedMute(playerName, 0)
+                    sendMessage(sender, "&8${playerName} has been unmuted.")
+                }
+            }
         }
     }
 
     private fun updateCachedMute(playerName: String, mutedUntil: Long) {
-        val target = Bukkit.getPlayer(playerName) ?: return
-        val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection ?: return
-        chatSection.getInfo(target)?.mutedUntil = mutedUntil
+        Bukkit.getGlobalRegionScheduler().run(plugin) {
+            val target = Bukkit.getPlayerExact(playerName) ?: return@run
+            FoliaCompat.schedule(target, plugin) {
+                val chatSection = plugin.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection ?: return@schedule
+                chatSection.getInfo(target)?.mutedUntil = mutedUntil
+            }
+        }
+    }
+
+    private fun runForSender(sender: CommandSender, action: () -> Unit) {
+        if (sender is org.bukkit.entity.Player) {
+            FoliaCompat.schedule(sender, plugin, Runnable { action() })
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin) { action() }
+        }
     }
 
     private companion object {

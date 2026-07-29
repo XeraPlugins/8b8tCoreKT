@@ -22,7 +22,6 @@ import me.gb8.core.listeners.ChatListener
 import me.gb8.core.listeners.CommandWhitelist
 import me.gb8.core.listeners.JoinLeaveListener
 import me.gb8.core.listeners.VanishTabListener
-import me.gb8.core.player.PrefixManager
 import me.gb8.core.database.GeneralDatabase
 import me.gb8.core.util.GlobalUtils
 import org.bukkit.Bukkit
@@ -38,6 +37,8 @@ import java.util.logging.Level
 class ChatSection(override val plugin: Main) : Section {
     private val map = ConcurrentHashMap<UUID, ChatInfo>()
     var config: ConfigurationSection? = null
+    @Volatile var blockedWordsLowercase: List<String> = emptyList()
+        private set
     lateinit var chatInfoStore: IStorage<ChatInfo, Player>
 
     override fun enable() {
@@ -49,6 +50,7 @@ class ChatSection(override val plugin: Main) : Section {
         chatInfoStore = ChatFileIO(ignoresFolder, this)
         if (!ignoresFolder.exists()) ignoresFolder.mkdir()
         config = plugin.getSectionConfig(this)
+        refreshNormalizedConfig()
         plugin.server.pluginManager.registerEvents(JoinLeaveListener(this), plugin)
         plugin.server.pluginManager.registerEvents(CommandWhitelist(this), plugin)
         plugin.server.pluginManager.registerEvents(ChatListener(this, parseTLDS(tldFile)), plugin)
@@ -84,6 +86,11 @@ class ChatSection(override val plugin: Main) : Section {
 
     override fun reloadConfig() {
         config = plugin.getSectionConfig(this)
+        refreshNormalizedConfig()
+    }
+
+    private fun refreshNormalizedConfig() {
+        blockedWordsLowercase = config?.getStringList("Blocked")?.map(String::lowercase) ?: emptyList()
     }
 
     override val name: String = "ChatControl"
@@ -97,7 +104,6 @@ class ChatSection(override val plugin: Main) : Section {
     fun loadAllDataAsync(info: ChatInfo) {
         val username = info.player.name
         val db = GeneralDatabase.getInstance()
-        val pm = PrefixManager()
 
         db.loadPlayerDataCache(username).thenAccept { pd ->
             info.mutedUntil = pd.getLong("muted", 0L)
@@ -109,8 +115,11 @@ class ChatSection(override val plugin: Main) : Section {
             info.nameDecorations = pd.getString("nameDecorations")
             info.hideAnnouncements = pd.getBoolean("hideAnnouncements", false)
             info.hidePrefix = pd.getBoolean("hidePrefix", false)
-
-            pm.refreshPrefixDataAsync(info)
+            info.selectedRank = pd.getString("selectedRank")
+            info.customGradient = pd.getString("prefixGradient")
+            info.prefixAnimation = pd.getString("prefix_animation")
+            info.prefixSpeed = pd.getInt("prefix_speed", 5)
+            info.prefixDecorations = pd.getString("prefixDecorations")
             info.dataLoaded = true
         }.exceptionally { e ->
             e.printStackTrace()

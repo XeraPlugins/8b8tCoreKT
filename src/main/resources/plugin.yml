@@ -76,6 +76,10 @@ commands:
     aliases: []
     description: Disable phantom spawning for yourself
     permission: 8b8tcore.command.dps
+  reloadconfig:
+    aliases: [reloadcfg, rc]
+    description: Hot reload config.yml without restarting the server
+    permission: 8b8tcore.command.reloadconfig
 permissions:
   8b8tcore.command.table:
     description: Permission to use /table
@@ -140,6 +144,8 @@ permissions:
   8b8tcore.prefix.donator6:
     description: Nametag Prefix for DONATOR 6
     default: false
+    children:
+      8b8tcore.command.table: true
   8b8tcore.prefix.dev:
     description: Nametag Prefix for DEV
     default: false
@@ -203,6 +209,9 @@ permissions:
   8b8tcore.command.dps:
     description: Permission to use the dps command
     default: true
+  8b8tcore.command.reloadconfig:
+    description: Permission to hot reload config.yml
+    default: op
   8b8tcore.command.title:
     description: Permission to switch between earned titles
     default: true

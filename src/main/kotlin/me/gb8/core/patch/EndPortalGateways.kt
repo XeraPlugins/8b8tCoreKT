@@ -10,7 +10,6 @@ package me.gb8.core.patch
 
 import org.bukkit.Bukkit
 import org.bukkit.Chunk
-import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.block.EndGateway
@@ -73,10 +72,15 @@ class EndPortalGateways {
             }
 
             val gatewayBlock = world.getBlockAt(x, y, z)
-            gatewayBlock.type = Material.END_GATEWAY
+            if (gatewayBlock.type != Material.END_GATEWAY) {
+                gatewayBlock.type = Material.END_GATEWAY
+            }
             val state = gatewayBlock.state
             if (state is EndGateway) {
-                state.exitLocation = Location(world, 0.0, 64.0, 0.0)
+                val exit = state.exitLocation
+                if (exit != null && exit.x * exit.x + exit.z * exit.z <= CENTRAL_EXIT_RADIUS_SQ) {
+                    state.exitLocation = null
+                }
                 state.isExactTeleport = false
                 state.update(true, false)
             }
@@ -104,11 +108,12 @@ class EndPortalGateways {
 
         companion object {
             private const val GATEWAY_Y = 75
+            private const val CENTRAL_EXIT_RADIUS_SQ = 256.0
             private val EXIT_GATEWAY_POSITIONS = listOf(
                 listOf(96, 0), listOf(91, 30), listOf(77, 57), listOf(57, 77), listOf(30, 91),
                 listOf(0, 96), listOf(-30, 91), listOf(-57, 77), listOf(-77, 57), listOf(-91, 30),
                 listOf(-96, 0), listOf(-91, -30), listOf(-77, -57), listOf(-57, -77), listOf(-30, -91),
-                listOf(0, -96), listOf(30, -91), listOf(57, -77), listOf(77, -57), listOf(-91, -30)
+                listOf(0, -96), listOf(30, -91), listOf(57, -77), listOf(77, -57), listOf(91, -30)
             )
         }
     }

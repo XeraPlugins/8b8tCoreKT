@@ -103,7 +103,9 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
     private fun clearContainerContents(container: ItemStack) {
         container.takeIf { it.hasData(DataComponentTypes.CONTAINER) }?.let { item ->
             val contents = item.getData(DataComponentTypes.CONTAINER) ?: return@let
-            if (contents.contents().any { it != null && !it.type.isAir }) {
+            @Suppress("UNCHECKED_CAST")
+            val containerItems = contents.contents() as List<ItemStack?>
+            if (containerItems.any { it != null && !it.type.isAir }) {
                 item.unsetData(DataComponentTypes.CONTAINER)
             }
         }

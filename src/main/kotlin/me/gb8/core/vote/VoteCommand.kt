@@ -16,6 +16,8 @@ import org.bukkit.entity.Player
 import org.jetbrains.annotations.NotNull
 import me.gb8.core.util.GlobalUtils.sendMessage
 import me.gb8.core.util.GlobalUtils.sendPrefixedLocalizedMessage
+import me.gb8.core.util.FoliaCompat
+import java.util.concurrent.CompletableFuture
 
 sealed class VoteCommand {
     data object Test : VoteCommand()
@@ -39,22 +41,30 @@ class VoteCommandExecutor(private val voteSection: VoteSection) : CommandExecuto
                         return true
                     }
                     val targetPlayer = args[1]
-                    val target = Bukkit.getPlayerExact(targetPlayer)
-                    
-                    val voteAccepted = voteSection.registerVote(targetPlayer)
-                    
-                    if (!voteAccepted) {
-                        val remainingDays = voteSection.getRemainingVoterDays(targetPlayer)
-                        sendMessage(sender, "&c$targetPlayer still has voter role for $remainingDays more days")
-                        return true
-                    }
-                    
-                    if (target != null && target.isOnline) {
-                        voteSection.rewardPlayer(target)
-                        sendMessage(sender, "&aTest vote given to online player: $targetPlayer (voter role granted for 30 days)")
-                    } else {
-                        voteSection.announceVote(targetPlayer)
-                        sendMessage(sender, "&aTest offline vote registered for: $targetPlayer (voter role granted for 30 days)")
+                    Bukkit.getGlobalRegionScheduler().run(voteSection.plugin) {
+                        val target = Bukkit.getPlayerExact(targetPlayer)
+                        voteSection.registerVote(targetPlayer).whenComplete { voteAccepted, error ->
+                            if (error != null) {
+                                sendForSender(sender, "&cFailed to register test vote: ${error.cause?.message ?: error.message}")
+                                return@whenComplete
+                            }
+
+                            if (!voteAccepted) {
+                                val remainingDays = voteSection.getRemainingVoterDays(targetPlayer)
+                                sendForSender(sender, "&c$targetPlayer still has voter role for $remainingDays more days")
+                                return@whenComplete
+                            }
+
+                            if (target != null && target.isOnline) {
+                                FoliaCompat.schedule(target, voteSection.plugin) {
+                                    if (target.isOnline) voteSection.rewardPlayer(target) else voteSection.announceVote(targetPlayer)
+                                }
+                                sendForSender(sender, "&aTest vote given to online player: $targetPlayer (voter role granted for 30 days)")
+                            } else {
+                                voteSection.announceVote(targetPlayer)
+                                sendForSender(sender, "&aTest offline vote registered for: $targetPlayer (voter role granted for 30 days)")
+                            }
+                        }
                     }
                     return true
                 }
@@ -93,8 +103,18 @@ class VoteCommandExecutor(private val voteSection: VoteSection) : CommandExecuto
                 }
                 
                 "save" -> {
-                    voteSection.sqliteStorage?.save(voteSection.toReward)
-                    sendMessage(sender, "&aManually saved offline votes to SQLite")
+                    val storage = voteSection.sqliteStorage
+                    if (storage == null) {
+                        sendMessage(sender, "&cVote storage is unavailable")
+                    } else {
+                        storage.save(voteSection.toReward).whenComplete { _, error ->
+                            if (error == null) {
+                                sendForSender(sender, "&aManually saved offline votes to SQLite")
+                            } else {
+                                sendForSender(sender, "&cFailed to save offline votes: ${error.cause?.message ?: error.message}")
+                            }
+                        }
+                    }
                     return true
                 }
                 
@@ -132,16 +152,29 @@ class VoteCommandExecutor(private val voteSection: VoteSection) : CommandExecuto
                 }
                 
                 "scanlegacy" -> {
-                    var migratedCount = 0
-                    Bukkit.getOnlinePlayers().forEach { player ->
-                        val name = player.name.lowercase()
-                        if (!voteSection.toReward.containsKey(PlayerName(name)) && voteSection.hasVoterRoleAsync(name).get()) {
+                    Bukkit.getGlobalRegionScheduler().run(voteSection.plugin) {
+                        val candidates = Bukkit.getOnlinePlayers()
+                            .map { it.name.lowercase() }
+                            .filterNot { voteSection.toReward.containsKey(PlayerName(it)) }
+                        val checks = candidates.associateWith(voteSection::hasVoterRoleAsync)
+
+                        CompletableFuture.allOf(*checks.values.toTypedArray()).whenComplete { _, error ->
+                            if (error != null) {
+                                sendForSender(sender, "&cLegacy scan failed: ${error.cause?.message ?: error.message}")
+                                return@whenComplete
+                            }
+
                             val defaultDaysRemaining = voteSection.config?.getInt("LegacyPlayerDefaultDaysRemaining", 20) ?: 20
-                            voteSection.migrateLegacyPlayer(name, defaultDaysRemaining.toLong())
-                            migratedCount++
+                            var migratedCount = 0
+                            checks.forEach { (name, future) ->
+                                if (future.join()) {
+                                    voteSection.migrateLegacyPlayer(name, defaultDaysRemaining.toLong())
+                                    migratedCount++
+                                }
+                            }
+                            sendForSender(sender, "&aMigrated $migratedCount legacy players who are currently online")
                         }
                     }
-                    sendMessage(sender, "&aMigrated $migratedCount legacy players who are currently online")
                     return true
                 }
             }
@@ -153,5 +186,13 @@ class VoteCommandExecutor(private val voteSection: VoteSection) : CommandExecuto
             sendMessage(sender, "&cThis command is player only")
         }
         return true
+    }
+
+    private fun sendForSender(sender: CommandSender, message: String) {
+        if (sender is Player) {
+            FoliaCompat.schedule(sender, voteSection.plugin) { sendMessage(sender, message) }
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(voteSection.plugin) { sendMessage(sender, message) }
+        }
     }
 }

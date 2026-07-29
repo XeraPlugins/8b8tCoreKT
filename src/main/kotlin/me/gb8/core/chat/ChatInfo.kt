@@ -30,7 +30,17 @@ class ChatInfo @JvmOverloads constructor(
     var customGradient: String? = null
     var prefixAnimation: String? = null
     var prefixSpeed: Int = 0
-    var prefixDecorations: String? = null
+    @Volatile var prefixDecorations: String? = null
+        set(value) {
+            field = value
+            prefixDecorationList = if (value.isNullOrEmpty()) {
+                emptyList()
+            } else {
+                value.split(',').map(String::trim)
+            }
+        }
+    @Volatile var prefixDecorationList: List<String> = emptyList()
+        private set
     var nickname: String? = null
     var useVanillaLeaderboard: Boolean = false
     var nameGradient: String? = null
@@ -62,6 +72,7 @@ class ChatInfo @JvmOverloads constructor(
     }
 
     @Volatile var cachedDisplayName: net.kyori.adventure.text.Component? = null
+    @Volatile var lastSentTabName: net.kyori.adventure.text.Component? = null
     @Volatile private var lastAnimTick: Long = -1
     private val animatedNameCache = ConcurrentHashMap<String, net.kyori.adventure.text.Component>()
     @Volatile private var lastCacheKey: String? = null
@@ -75,7 +86,7 @@ class ChatInfo @JvmOverloads constructor(
         val cached = cachedDisplayName
         if (animTick == lastAnimTick && cached != null) return cached
 
-        val currentGradient = me.gb8.core.util.GradientAnimator.applyAnimation(nameGradient, nameAnimation, nameSpeed, animTick)
+        val currentGradient = me.gb8.core.util.GlobalUtils.resolveDisplayNameGradient(nameGradient, nameAnimation, nameSpeed, animTick)
         val cacheKey = "$nickname|$currentGradient|$nameDecorations"
 
         if (cacheKey == lastCacheKey && cached != null) {
@@ -83,9 +94,18 @@ class ChatInfo @JvmOverloads constructor(
             return cached
         }
 
+        if (animatedNameCache.size > 120) animatedNameCache.clear()
         val displayName = animatedNameCache.computeIfAbsent(cacheKey) {
-            if (animatedNameCache.size > 120) animatedNameCache.clear()
-            me.gb8.core.util.GlobalUtils.parseDisplayName(player.name, nickname, nameGradient, nameAnimation, nameSpeed, nameDecorations, animTick)
+            me.gb8.core.util.GlobalUtils.parseDisplayNameWithResolvedGradient(
+                player.name,
+                nickname,
+                nameGradient,
+                nameAnimation,
+                nameSpeed,
+                nameDecorations,
+                animTick,
+                currentGradient
+            )
         }
 
         cachedDisplayName = displayName

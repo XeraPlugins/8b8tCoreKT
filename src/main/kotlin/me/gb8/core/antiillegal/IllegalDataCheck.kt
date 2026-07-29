@@ -41,7 +41,7 @@ class IllegalDataCheck : Check {
             hasIllegalToolComponent(item)
         }.getOrDefault(false)
 
-        return !metaIssues && dataIssues
+        return metaIssues || dataIssues
     }
 
     private fun Material.isContainer(): Boolean =
@@ -69,9 +69,17 @@ class IllegalDataCheck : Check {
         item ?: return
         if (item.type.isAir || item.type.isContainer()) return
 
-        item.itemMeta?.apply {
-            if (hasIllegalName(this)) customName(null)
-            if (isGlider && item.type != Material.ELYTRA) isGlider = false
+        item.itemMeta?.let { meta ->
+            var changed = false
+            if (hasIllegalName(meta)) {
+                meta.customName(null)
+                changed = true
+            }
+            if (meta.isGlider && item.type != Material.ELYTRA) {
+                meta.isGlider = false
+                changed = true
+            }
+            if (changed) item.itemMeta = meta
         }
 
         fixWaterloggedState(item)

@@ -27,13 +27,19 @@ class EnchantCheck : Check {
             return meta.hasEnchants()
         }
         val enchants = meta.enchants
+        val allowedKeys = allowedKeysFor(item)
         val hasIllegalEnchant = enchants.entries.any { (ench, lvl) ->
-            lvl > ench.maxLevel || !ench.canEnchantItem(item) || keyOf(ench) !in allowedKeysFor(item)
+            lvl > ench.maxLevel || !ench.canEnchantItem(item) || keyOf(ench) !in allowedKeys
         }
         if (hasIllegalEnchant) return true
 
         val keys = enchants.keys.toList()
-        return keys.any { a -> keys.any { b -> a != b && a.conflictsWith(b) } }
+        for (first in keys.indices) {
+            for (second in first + 1 until keys.size) {
+                if (keys[first].conflictsWith(keys[second])) return true
+            }
+        }
+        return false
     }
 
     private fun isSpecialBlock(item: ItemStack): Boolean =
@@ -103,50 +109,24 @@ class EnchantCheck : Check {
     private fun isHead(item: ItemStack): Boolean = item.type.name.endsWith("_HEAD")
     private fun isSkull(item: ItemStack): Boolean = item.type.name.endsWith("_SKULL")
 
-    private fun baseKeys(vararg keys: String): Set<String> = keys.toSet()
-
     private fun allowedKeysFor(item: ItemStack): Set<String> {
-        if (isHelmet(item)) return baseKeys(
-            "mending", "unbreaking", "thorns", "respiration", "aqua_affinity", "binding_curse", "vanishing_curse",
-            "protection", "projectile_protection", "fire_protection", "blast_protection")
-        if (isChest(item)) return baseKeys(
-            "mending", "unbreaking", "thorns", "binding_curse", "vanishing_curse",
-            "protection", "projectile_protection", "fire_protection", "blast_protection")
-        if (isLeggings(item)) return baseKeys(
-            "mending", "unbreaking", "thorns", "swift_sneak", "binding_curse", "vanishing_curse",
-            "protection", "projectile_protection", "fire_protection", "blast_protection")
-        if (isBoots(item)) return baseKeys(
-            "mending", "unbreaking", "thorns", "feather_falling", "soul_speed", "binding_curse", "vanishing_curse",
-            "protection", "projectile_protection", "fire_protection", "blast_protection",
-            "depth_strider", "frost_walker")
-        if (isSword(item)) return baseKeys(
-            "mending", "unbreaking", "fire_aspect", "looting", "knockback", "sweeping_edge", "vanishing_curse",
-            "sharpness", "smite", "bane_of_arthropods")
-        if (isAxe(item)) return baseKeys(
-            "mending", "unbreaking", "efficiency", "vanishing_curse", "fortune", "silk_touch",
-            "sharpness", "smite", "bane_of_arthropods", "cleaving")
-        if (isMiningTool(item)) return baseKeys(
-            "mending", "unbreaking", "efficiency", "vanishing_curse", "fortune", "silk_touch")
-        if (isBow(item)) return baseKeys(
-            "unbreaking", "power", "punch", "flame", "vanishing_curse", "infinity", "mending")
-        if (isCrossbow(item)) return baseKeys(
-            "mending", "unbreaking", "quick_charge", "vanishing_curse", "piercing", "multishot")
-        if (isTrident(item)) return baseKeys(
-            "mending", "unbreaking", "impaling", "vanishing_curse", "channeling", "loyalty", "riptide")
-        if (isFishingRod(item)) return baseKeys(
-            "mending", "unbreaking", "lure", "luck_of_the_sea", "vanishing_curse")
-        if (isShears(item)) return baseKeys(
-            "mending", "unbreaking", "efficiency", "vanishing_curse")
-        if (isElytra(item)) return baseKeys(
-            "mending", "unbreaking", "binding_curse", "vanishing_curse")
-        if (isShield(item) || isFlint(item) || isCarrotRod(item) || isWarpedRod(item) || isBrush(item)) return baseKeys(
-            "mending", "unbreaking", "vanishing_curse")
-        if (isCompass(item)) return baseKeys("vanishing_curse")
-        if (isMace(item)) return baseKeys(
-            "mending", "unbreaking", "fire_aspect", "wind_burst", "vanishing_curse",
-            "smite", "bane_of_arthropods", "density", "breach")
-        if (isSpear(item)) return baseKeys(
-            "mending", "unbreaking", "vanishing_curse", "sharpness", "lunge")
+        if (isHelmet(item)) return HELMET_ENCHANTS
+        if (isChest(item)) return CHESTPLATE_ENCHANTS
+        if (isLeggings(item)) return LEGGINGS_ENCHANTS
+        if (isBoots(item)) return BOOTS_ENCHANTS
+        if (isSword(item)) return SWORD_ENCHANTS
+        if (isAxe(item)) return AXE_ENCHANTS
+        if (isMiningTool(item)) return MINING_TOOL_ENCHANTS
+        if (isBow(item)) return BOW_ENCHANTS
+        if (isCrossbow(item)) return CROSSBOW_ENCHANTS
+        if (isTrident(item)) return TRIDENT_ENCHANTS
+        if (isFishingRod(item)) return FISHING_ROD_ENCHANTS
+        if (isShears(item)) return SHEARS_ENCHANTS
+        if (isElytra(item)) return ELYTRA_ENCHANTS
+        if (isShield(item) || isFlint(item) || isCarrotRod(item) || isWarpedRod(item) || isBrush(item)) return BREAKABLE_ENCHANTS
+        if (isCompass(item)) return COMPASS_ENCHANTS
+        if (isMace(item)) return MACE_ENCHANTS
+        if (isSpear(item)) return SPEAR_ENCHANTS
         return emptySet()
     }
 
@@ -180,5 +160,22 @@ class EnchantCheck : Check {
 
     private companion object {
         val curseEnchantments = setOf("binding_curse", "vanishing_curse")
+        val HELMET_ENCHANTS = setOf("mending", "unbreaking", "thorns", "respiration", "aqua_affinity", "binding_curse", "vanishing_curse", "protection", "projectile_protection", "fire_protection", "blast_protection")
+        val CHESTPLATE_ENCHANTS = setOf("mending", "unbreaking", "thorns", "binding_curse", "vanishing_curse", "protection", "projectile_protection", "fire_protection", "blast_protection")
+        val LEGGINGS_ENCHANTS = setOf("mending", "unbreaking", "thorns", "swift_sneak", "binding_curse", "vanishing_curse", "protection", "projectile_protection", "fire_protection", "blast_protection")
+        val BOOTS_ENCHANTS = setOf("mending", "unbreaking", "thorns", "feather_falling", "soul_speed", "binding_curse", "vanishing_curse", "protection", "projectile_protection", "fire_protection", "blast_protection", "depth_strider", "frost_walker")
+        val SWORD_ENCHANTS = setOf("mending", "unbreaking", "fire_aspect", "looting", "knockback", "sweeping_edge", "vanishing_curse", "sharpness", "smite", "bane_of_arthropods")
+        val AXE_ENCHANTS = setOf("mending", "unbreaking", "efficiency", "vanishing_curse", "fortune", "silk_touch", "sharpness", "smite", "bane_of_arthropods", "cleaving")
+        val MINING_TOOL_ENCHANTS = setOf("mending", "unbreaking", "efficiency", "vanishing_curse", "fortune", "silk_touch")
+        val BOW_ENCHANTS = setOf("unbreaking", "power", "punch", "flame", "vanishing_curse", "infinity", "mending")
+        val CROSSBOW_ENCHANTS = setOf("mending", "unbreaking", "quick_charge", "vanishing_curse", "piercing", "multishot")
+        val TRIDENT_ENCHANTS = setOf("mending", "unbreaking", "impaling", "vanishing_curse", "channeling", "loyalty", "riptide")
+        val FISHING_ROD_ENCHANTS = setOf("mending", "unbreaking", "lure", "luck_of_the_sea", "vanishing_curse")
+        val SHEARS_ENCHANTS = setOf("mending", "unbreaking", "efficiency", "vanishing_curse")
+        val ELYTRA_ENCHANTS = setOf("mending", "unbreaking", "binding_curse", "vanishing_curse")
+        val BREAKABLE_ENCHANTS = setOf("mending", "unbreaking", "vanishing_curse")
+        val COMPASS_ENCHANTS = setOf("vanishing_curse")
+        val MACE_ENCHANTS = setOf("mending", "unbreaking", "fire_aspect", "wind_burst", "vanishing_curse", "smite", "bane_of_arthropods", "density", "breach")
+        val SPEAR_ENCHANTS = setOf("mending", "unbreaking", "vanishing_curse", "sharpness", "lunge")
     }
 }

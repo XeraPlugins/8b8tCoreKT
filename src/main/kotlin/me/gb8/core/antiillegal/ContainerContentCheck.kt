@@ -19,52 +19,66 @@ import org.bukkit.persistence.PersistentDataType
 import java.util.logging.Level
 
 class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
+    private val applicableChecks: Array<Check> by lazy {
+        main.checks.filter(::isApplicableCheck).toTypedArray()
+    }
 
     override fun check(item: ItemStack?): Boolean {
-        if (item == null || !item.hasData(DataComponentTypes.CONTAINER)) return false
+        if (!shouldCheck(item)) return false
+        item ?: return false
         val contents = item.getData(DataComponentTypes.CONTAINER) ?: return false
+        @Suppress("UNCHECKED_CAST")
+        val containerItems = contents.contents() as List<ItemStack?>
 
-        val applicableChecks = main.checks.filter { isApplicableCheck(it) }
-
-        return contents.contents().any { content ->
-            hasIllegalContent(content, applicableChecks)
-        }.also { hasIllegal ->
-            if (hasIllegal && AntiIllegalMain.debug) {
-                val failingCheck = applicableChecks.firstOrNull { check ->
-                    contents.contents().any { content -> hasIllegalContent(content, listOf(check)) }
-                }
-                failingCheck?.let {
-                    GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged container because of item flagged by %s", it.javaClass.simpleName)
-                    item.editPersistentDataContainer { pdc ->
-                        pdc.set(NamespacedKey(main.plugin, "last_failed_check"), PersistentDataType.STRING, it.javaClass.simpleName)
-                    }
+        var failingCheck: Check? = null
+        scan@ for (content in containerItems) {
+            if (content == null || content.type.isAir) continue
+            for (check in applicableChecks) {
+                if (check.shouldCheck(content) && check.check(content)) {
+                    failingCheck = check
+                    break@scan
                 }
             }
         }
+
+        if (failingCheck != null && AntiIllegalMain.debug) {
+            GlobalUtils.log(Level.INFO, "&cContainerContentCheck flagged container because of item flagged by %s", failingCheck.javaClass.simpleName)
+            item.editPersistentDataContainer { pdc ->
+                pdc.set(NamespacedKey(main.plugin, "last_failed_check"), PersistentDataType.STRING, failingCheck.javaClass.simpleName)
+            }
+        }
+        return failingCheck != null
     }
 
     override fun shouldCheck(item: ItemStack?): Boolean {
-        return item != null && item.hasData(DataComponentTypes.CONTAINER)
+        // Do not edit to check chests we only check
+		// When the shulker is acutally open. As we
+		// do not want to delete players illegal items
+		// in chests which people have collected for years.
+        return item != null &&
+            !item.type.name.endsWith("SHULKER_BOX") &&
+            item.hasData(DataComponentTypes.CONTAINER)
     }
 
     override fun fix(item: ItemStack?) {
-        if (item == null || !item.hasData(DataComponentTypes.CONTAINER)) return
+        if (!shouldCheck(item)) return
+        item ?: return
         val contents = item.getData(DataComponentTypes.CONTAINER) ?: return
 
-        val fixableChecks = main.checks.filter { isFixableCheck(it) }
         var changed = false
 
-        val newContents = contents.contents().map { content ->
-            content?.let { item ->
-                if (item.type.isAir) return@let item
-                fixableChecks.forEach { check ->
-                    if (check.shouldCheck(item) && check.check(item)) {
-                        check.fix(item)
-                        changed = true
-                    }
+        @Suppress("UNCHECKED_CAST")
+        val containerItems = contents.contents() as List<ItemStack?>
+        val newContents = containerItems.mapNotNull { content ->
+            val nestedItem = content?.takeUnless { it.type.isAir } ?: return@mapNotNull null
+            for (check in applicableChecks) {
+                if (check.shouldCheck(nestedItem) && check.check(nestedItem)) {
+                    check.fix(nestedItem)
+                    changed = true
+                    if (nestedItem.type.isAir || nestedItem.amount <= 0) break
                 }
-                item
             }
+            nestedItem.takeUnless { it.type.isAir || it.amount <= 0 }
         }
 
         if (changed) {
@@ -75,12 +89,4 @@ class ContainerContentCheck(private val main: AntiIllegalMain) : Check {
     private fun isApplicableCheck(check: Check): Boolean =
         check != this && check !is EnchantCheck && check !is IllegalDataCheck
 
-    private fun isFixableCheck(check: Check): Boolean =
-        check is AntiPrefilledContainers || check is EnchantCheck || check is IllegalDataCheck
-
-    private fun hasIllegalContent(content: ItemStack?, checks: List<Check>): Boolean {
-        content ?: return false
-        if (content.type.isAir) return false
-        return checks.any { check -> check.shouldCheck(content) && check.check(content) }
-    }
 }

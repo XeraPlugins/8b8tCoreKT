@@ -43,9 +43,12 @@ import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.logging.Level
 import java.util.UUID
 
@@ -55,6 +58,7 @@ class Main : JavaPlugin(), Listener {
         @get:JvmName("retrieveMainInstance")
         lateinit var instance: Main
             private set
+        @Volatile
         var prefix: String = ""
             private set
         lateinit var executorService: ScheduledExecutorService
@@ -63,6 +67,9 @@ class Main : JavaPlugin(), Listener {
 
     internal val sections = mutableListOf<Section>()
     private val reloadables = mutableListOf<Reloadable>()
+    private val configReloadLock = Any()
+    @Volatile
+    private var activeConfigReload: CompletableFuture<Void>? = null
     internal val violationManagers = mutableListOf<ViolationManager>()
 
     var startTime: Long = 0L
@@ -179,8 +186,6 @@ class Main : JavaPlugin(), Listener {
     }
 
     override fun onDisable() {
-        server.pluginManager.disablePlugin(this)
-
         violationManagers.clear()
         sections.forEach { it.disable() }
         sections.clear()
@@ -226,13 +231,41 @@ class Main : JavaPlugin(), Listener {
         }
     }
 
+    @Synchronized
     override fun reloadConfig() {
         super.reloadConfig()
+        prefix = config.getString("prefix", "&8[&98b&78t&8]") ?: "&8[&98b&78t&8]"
+        Localization.loadLocalizations(dataFolder)
+        val reloaded = Collections.newSetFromMap(IdentityHashMap<Reloadable, Boolean>())
         sections.forEach { section ->
             val sectionConfig = config.getConfigurationSection(section.name)
-            if (sectionConfig != null) section.reloadConfig()
+            if (sectionConfig != null && reloaded.add(section)) section.reloadConfig()
         }
-        reloadables.forEach { it.reloadConfig() }
+        reloadables.forEach { reloadable ->
+            if (reloaded.add(reloadable)) reloadable.reloadConfig()
+        }
+    }
+
+    fun reloadConfigOnGlobalScheduler(): CompletableFuture<Void> {
+        synchronized(configReloadLock) {
+            activeConfigReload?.takeUnless { it.isDone }?.let { return it }
+
+            val future = CompletableFuture<Void>()
+            activeConfigReload = future
+            Bukkit.getGlobalRegionScheduler().run(this) {
+                try {
+                    reloadConfig()
+                    future.complete(null)
+                } catch (error: Throwable) {
+                    future.completeExceptionally(error)
+                } finally {
+                    synchronized(configReloadLock) {
+                        if (activeConfigReload === future) activeConfigReload = null
+                    }
+                }
+            }
+            return future
+        }
     }
 
     fun register(vararg listeners: Listener) {

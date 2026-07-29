@@ -41,8 +41,7 @@ class JoinDateCommand(private val plugin: Main) : BaseTabCommand(
                 sendNoPermission(sender)
                 return
             }
-            plugin.reloadConfig()
-            sendMessage(sender, "&aJoin date configuration reloaded successfully!")
+            reloadConfigForSender(plugin, sender, "&aJoin date configuration reloaded successfully!")
             return
         }
 

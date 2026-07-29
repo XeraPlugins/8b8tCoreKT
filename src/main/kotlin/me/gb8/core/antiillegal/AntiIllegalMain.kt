@@ -31,6 +31,9 @@ class AntiIllegalMain(override val plugin: Main) : Section {
     private var config: ConfigurationSection? = null
     val checks = mutableListOf<Check>()
     val effectCheck = PlayerEffectCheck()
+    private lateinit var itemSizeCheck: ItemSizeCheck
+    private lateinit var illegalItemCheck: IllegalItemCheck
+    private lateinit var nameCheck: NameCheck
 
     companion object {
         var debug = false
@@ -41,6 +44,9 @@ class AntiIllegalMain(override val plugin: Main) : Section {
         val cfg = config ?: return
 
         if (checks.isEmpty()) {
+            itemSizeCheck = ItemSizeCheck(plugin.config.getInt("NbtBanItemChecker.maxItemSizeAllowed", 48000))
+            illegalItemCheck = IllegalItemCheck(cfg.getStringList("IllegalItems"))
+            nameCheck = NameCheck(cfg.getInt("MaxItemNameLength", 255))
             checks.addAll(listOf(
                 OverStackCheck(),
                 DurabilityCheck(),
@@ -48,17 +54,16 @@ class AntiIllegalMain(override val plugin: Main) : Section {
                 EnchantCheck(),
                 PotionCheck(),
                 BookCheck(),
-                ItemSizeCheck(plugin.config.getInt("NbtBanItemChecker.maxItemSizeAllowed", 48000)),
+                itemSizeCheck,
                 LegacyTextCheck(),
-                IllegalItemCheck(),
+                illegalItemCheck,
                 IllegalDataCheck(),
                 AntiPrefilledContainers(),
                 ContainerContentCheck(this),
-                effectCheck
+                effectCheck,
+                nameCheck
             ))
         }
-
-        checks.add(NameCheck(cfg))
 
         listOf(
             PlayerListeners(this),
@@ -69,15 +74,23 @@ class AntiIllegalMain(override val plugin: Main) : Section {
             EntityEffectListener(plugin)
         ).forEach { plugin.register(it) }
 
-        if (cfg.getBoolean("EnableIllegalBlocksCleaner", true)) {
-            plugin.register(IllegalBlocksCleaner(plugin, cfg))
-        }
+        plugin.register(IllegalBlocksCleaner(plugin, cfg))
     }
 
     override fun disable() {}
 
     override fun reloadConfig() {
         config = plugin.getSectionConfig(this)
+        val cfg = config ?: return
+        if (::itemSizeCheck.isInitialized) {
+            itemSizeCheck.updateMaxSize(plugin.config.getInt("NbtBanItemChecker.maxItemSizeAllowed", 48000))
+        }
+        if (::illegalItemCheck.isInitialized) {
+            illegalItemCheck.updateIllegalItems(cfg.getStringList("IllegalItems"))
+        }
+        if (::nameCheck.isInitialized) {
+            nameCheck.updateMaxNameLength(cfg.getInt("MaxItemNameLength", 255))
+        }
     }
 
     override val name: String = "AntiIllegal"
@@ -97,10 +110,13 @@ class AntiIllegalMain(override val plugin: Main) : Section {
 
             if (item.type == Material.AIR || item.amount <= 0) {
                 (cancellable as? BlockPreDispenseEvent)?.isCancelled = true
+                break
             }
         }
 
-        item.takeIf { it.hasItemMeta() }?.let { it.itemMeta = it.itemMeta }
+        if (wasIllegal && item.amount > 0 && item.hasItemMeta()) {
+            item.itemMeta = item.itemMeta
+        }
 
         return wasIllegal
     }
