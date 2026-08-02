@@ -2,7 +2,7 @@
 
 תוסף Folia ב-Kotlin עבור שרתי 8b8t ו-Anarchy.
 
-נבנה עם JDK 21 ו-Kotlin 1.9.24.
+נבנה עם JDK 25, Kotlin 2.4.10, וה-API של Folia 26.2.
 
 ## תכונות
 
@@ -97,7 +97,7 @@
 - /dps - ביטול יצירת פאנטומים
 
 **הצבעה**
-- אינטגרציית VotifierPlus
+- אינטגרציית NuVotifier/Votifier
 - תגמולי הצבעה
 - ניהול תפקיד מצביעים
 - מעבר שחקנים מורשת
@@ -117,10 +117,11 @@
 ## בנייה
 
 ```bash
-mvn clean package
+git submodule update --init --recursive
+./build.sh clean package
 ```
 
-פלט: `target/8b8tCore-1.0.0.jar`
+פלט: `target/8b8tCore-1.0.1.jar`
 
 ## קונפיגורציה
 

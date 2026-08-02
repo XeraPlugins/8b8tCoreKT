@@ -2,7 +2,7 @@
 
 Kotlin Folia plugin for 8b8t and anarchy servers.
 
-Built with JDK 21 and Kotlin 1.9.24.
+Built with JDK 25, Kotlin 2.4.10, and the Folia 26.2 API.
 
 ## Features
 
@@ -97,7 +97,7 @@ Built with JDK 21 and Kotlin 1.9.24.
 - /dps - Disable phantom spawning
 
 **Voting**
-- VotifierPlus integration
+- NuVotifier/Votifier integration
 - Vote rewards
 - Voter role management
 - Legacy player migration
@@ -117,10 +117,11 @@ Security vulnerabilities: contact@8b8t.me
 ## Build
 
 ```bash
-mvn clean package
+git submodule update --init --recursive
+./build.sh clean package
 ```
 
-Output: `target/8b8tCore-1.0.0.jar`
+Output: `target/8b8tCore-1.0.1.jar`
 
 ## Config
 
