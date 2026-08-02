@@ -37,11 +37,11 @@ internal fun reloadConfigForSender(plugin: Main, sender: CommandSender, successM
         val reply = Runnable {
             if (error == null) {
                 sendMessage(sender, successMessage)
-                log(Level.INFO, "%s reloaded config.yml", sender.name)
+                log(Level.INFO, "%s reloaded config.yml, localization files, and reloadable sections", sender.name)
             } else {
                 val cause = error.cause ?: error
                 sendMessage(sender, "&cFailed to reload config: %s", cause.message ?: "unknown error")
-                log(Level.SEVERE, "Failed to reload config.yml requested by %s", sender.name)
+                log(Level.SEVERE, "Failed to reload plugin configuration requested by %s", sender.name)
                 cause.printStackTrace()
             }
         }

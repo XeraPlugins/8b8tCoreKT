@@ -20,6 +20,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import me.gb8.core.util.GlobalUtils.sendMessage
 
 class JihadCommand(private val plugin: Main) : BaseCommand(
@@ -28,7 +29,7 @@ class JihadCommand(private val plugin: Main) : BaseCommand(
     "8b8tcore.command.jihad",
     "Gives TNT and flint & steel for explosive fun"
 ) {
-    private val cooldowns = HashMap<UUID, Long>()
+    private val cooldowns = ConcurrentHashMap<UUID, Long>()
     
     init {
         // No-op init

@@ -3,9 +3,11 @@ main: me.gb8.core.Main
 version: 1.0.1
 author: 8b8tTeam
 description: 8b8tCore Kotlin Edition
-api-version: 1.21
+api-version: '26.2'
 folia-supported: true
 softdepend:
+  - packetevents
+  - Votifier
   - VotifierPlus
 commands:
   msg:
@@ -36,6 +38,14 @@ commands:
   lef:
   discord:
   help:
+  settings:
+    aliases: [prefs, preferences]
+    description: Open the player settings and commands menu
+    permission: 8b8tcore.command.settings
+  coordinatespoof:
+    aliases: [spoofcoordinates]
+    description: Toggle your coordinate offset
+    permission: 8b8tcore.command.coordinatespoof
   open:
   say:
   spawn:
@@ -81,6 +91,12 @@ commands:
     description: Hot reload config.yml without restarting the server
     permission: 8b8tcore.command.reloadconfig
 permissions:
+  8b8tcore.command.coordinatespoof:
+    description: Permission to toggle coordinate spoofing
+    default: true
+  8b8tcore.command.settings:
+    description: Permission to open the player settings menu
+    default: true
   8b8tcore.command.table:
     description: Permission to use /table
     default: false
@@ -96,8 +112,26 @@ permissions:
   8b8tcore.viewdistance.8:
     description: Permission to set a view distance of 8 chunks
     default: false
+  8b8tcore.viewdistance.9:
+    description: Permission to set a view distance of 9 chunks
+    default: false
+  8b8tcore.viewdistance.11:
+    description: Permission to set a view distance of 11 chunks
+    default: false
+  8b8tcore.viewdistance.13:
+    description: Permission to set a view distance of 13 chunks
+    default: false
+  8b8tcore.viewdistance.15:
+    description: Permission to set a view distance of 15 chunks
+    default: false
   8b8tcore.viewdistance.16:
     description: Permission to set a view distance of 16 chunks
+    default: false
+  8b8tcore.viewdistance.17:
+    description: Permission to set a view distance of 17 chunks
+    default: false
+  8b8tcore.viewdistance.19:
+    description: Permission to set a view distance of 19 chunks
     default: false
   8b8tcore.viewdistance.32:
     description: Permission to set a view distance of 32 chunks

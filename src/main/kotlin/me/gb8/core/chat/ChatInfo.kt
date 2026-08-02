@@ -48,6 +48,18 @@ class ChatInfo @JvmOverloads constructor(
     var nameSpeed: Int = 0
     var nameDecorations: String? = null
     var hideAnnouncements: Boolean = false
+    @Volatile var hideDeathMessages: Boolean = false
+    @Volatile var hideBadges: Boolean = false
+    @Volatile var preventPhantomSpawn: Boolean = true
+    @Volatile var coordinateSpoofing: Boolean = false
+    @Volatile var menuCloseTpaAccept: Boolean = true
+    @Volatile var menuCloseHelp: Boolean = true
+    @Volatile var menuCloseVote: Boolean = true
+    @Volatile var menuCloseUptime: Boolean = true
+    @Volatile var menuCloseDiscord: Boolean = true
+    @Volatile var menuNoConfirmKill: Boolean = false
+    @Volatile var menuHomeColumns: Int = 4
+    @Volatile var menuDisableTableColor: Boolean = false
     @Volatile var dataLoaded: Boolean = false
 
     fun isIgnoring(player: UUID): Boolean = ignoring.contains(player)

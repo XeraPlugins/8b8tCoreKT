@@ -21,14 +21,14 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.TimeUnit
 
 class FrameDupe(private val plugin: Main) : Listener {
 
     private val cooldowns: Cache<UUID, Long> = CacheBuilder.newBuilder()
-        .expireAfterWrite(5, TimeUnit.MINUTES)
+        .expireAfterWrite(Duration.ofMinutes(5))
         .build()
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

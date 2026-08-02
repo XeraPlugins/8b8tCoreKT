@@ -413,12 +413,20 @@ class CosmeticsCommand(private val plugin: Main) : BaseTabCommand("cosmetics", "
     }
 
     private fun setNickname(player: Player, args: Array<String>, startIndex: Int) {
+        setNicknameFromDialog(player, args.drop(startIndex).joinToString(" ").trim())
+    }
+
+    fun setNicknameFromDialog(player: Player, rawInput: String) {
         if (!player.hasPermission("8b8tcore.command.nick")) {
             sendPrefixedLocalizedMessage(player, "nick_no_permission")
             return
         }
 
-        val raw = args.drop(startIndex).joinToString(" ").trim()
+        val raw = rawInput.trim()
+        if (raw.isEmpty()) {
+            sendMessage(player, "&cNickname cannot be empty. Use /cosmetics nick clear to reset it.")
+            return
+        }
         val mmFormat = GlobalUtils.convertToMiniMessageFormat(raw) ?: raw
         val plain = PlainTextComponentSerializer.plainText()
             .serialize(miniMessage.deserialize(mmFormat)).trim()

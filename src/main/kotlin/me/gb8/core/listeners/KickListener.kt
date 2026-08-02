@@ -36,10 +36,10 @@ class KickListener(private val main: Main) : Listener {
         if (event.loginResult != AsyncPlayerPreLoginEvent.Result.ALLOWED) return
         
         val profile = event.playerProfile
-        @Suppress("UNCHECKED_CAST")
-        val banList = main.server.getBanList(BanList.Type.PROFILE) as? BanList<com.destroystokyo.paper.profile.PlayerProfile>
+        val banList: BanList<com.destroystokyo.paper.profile.PlayerProfile> =
+            main.server.getBanList(BanList.Type.PROFILE)
         
-        if (banList != null && banList.isBanned(profile)) {
+        if (banList.isBanned(profile)) {
             val message = main.config.getString("AnonymousKickMessages.Message", "You have been disconnected from the server")
                 ?: "You have been disconnected from the server"
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_BANNED, message)

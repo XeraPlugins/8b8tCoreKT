@@ -32,6 +32,8 @@ class ToggleAchievementsCommand : BaseCommand(
         database.getPlayerHideBadgesAsync(player.name).thenAcceptAsync { current ->
             val newValue = !current
             database.updateHideBadges(player.name, newValue)
+            val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+            chatSection?.getInfo(player)?.hideBadges = newValue
 
             FoliaCompat.schedule(player, Main.instance) {
                 sendMessage(player, if (newValue) "&aYou will no longer see other players achievements." else "&aYou will now see other players achievements.")

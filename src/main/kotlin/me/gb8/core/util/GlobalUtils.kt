@@ -417,8 +417,6 @@ object GlobalUtils {
         Bukkit.getRegionScheduler().run(Main.instance, player.location) {
             try {
                 val chestPlate = player.inventory.chestplate
-                if (chestPlate == null)
-                    return@run
                 if (chestPlate.type == Material.AIR)
                     return@run
                 if (chestPlate.type == Material.ELYTRA) {

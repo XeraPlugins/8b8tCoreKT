@@ -23,6 +23,7 @@ import me.gb8.core.listeners.CommandWhitelist
 import me.gb8.core.listeners.JoinLeaveListener
 import me.gb8.core.listeners.VanishTabListener
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.coordinate.CoordinateSpoofing
 import me.gb8.core.util.GlobalUtils
 import org.bukkit.Bukkit
 import org.bukkit.configuration.ConfigurationSection
@@ -114,6 +115,18 @@ class ChatSection(override val plugin: Main) : Section {
             info.nameSpeed = pd.getInt("gradient_speed", 5)
             info.nameDecorations = pd.getString("nameDecorations")
             info.hideAnnouncements = pd.getBoolean("hideAnnouncements", false)
+            info.hideDeathMessages = pd.getBoolean("hideDeathMessages", false)
+            info.hideBadges = pd.getBoolean("hideBadges", false)
+            info.preventPhantomSpawn = pd.getBoolean("preventPhantomSpawn", true)
+            info.coordinateSpoofing = pd.getBoolean("coordinateSpoofing", false)
+            info.menuCloseTpaAccept = pd.getBoolean("menuCloseTpaAccept", true)
+            info.menuCloseHelp = pd.getBoolean("menuCloseHelp", true)
+            info.menuCloseVote = pd.getBoolean("menuCloseVote", true)
+            info.menuCloseUptime = pd.getBoolean("menuCloseUptime", true)
+            info.menuCloseDiscord = pd.getBoolean("menuCloseDiscord", true)
+            info.menuNoConfirmKill = pd.getBoolean("menuNoConfirmKill", false)
+            info.menuHomeColumns = pd.getInt("menuHomeColumns", 4).coerceIn(1, 7)
+            info.menuDisableTableColor = pd.getBoolean("menuDisableTableColor", false)
             info.hidePrefix = pd.getBoolean("hidePrefix", false)
             info.selectedRank = pd.getString("selectedRank")
             info.customGradient = pd.getString("prefixGradient")
@@ -121,6 +134,11 @@ class ChatSection(override val plugin: Main) : Section {
             info.prefixSpeed = pd.getInt("prefix_speed", 5)
             info.prefixDecorations = pd.getString("prefixDecorations")
             info.dataLoaded = true
+            info.player.scheduler.run(plugin, {
+                if (info.player.isOnline) {
+                    CoordinateSpoofing.applyLoadedPreference(info.player, info.coordinateSpoofing)
+                }
+            }, null)
         }.exceptionally { e ->
             e.printStackTrace()
             null

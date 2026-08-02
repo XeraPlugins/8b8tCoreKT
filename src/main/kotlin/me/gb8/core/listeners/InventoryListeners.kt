@@ -122,7 +122,7 @@ class InventoryListeners(private val main: AntiIllegalMain) : Listener {
             var totalWeight = 0
 
             contents.contents().forEach { bundleItem ->
-                val contentItem = bundleItem?.takeUnless { it.type.isAir } ?: return@forEach
+                val contentItem = bundleItem.takeUnless { it.type.isAir } ?: return@forEach
                 when {
                     isBundle(contentItem.type) || contentItem.amount > contentItem.type.maxStackSize -> {
                         bundle.amount = 0

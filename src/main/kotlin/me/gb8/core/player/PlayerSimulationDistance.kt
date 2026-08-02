@@ -13,13 +13,13 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.permissions.PermissionAttachmentInfo
 import org.bukkit.plugin.java.JavaPlugin
 
 import java.util.logging.Level
 import me.gb8.core.util.GlobalUtils.log
 
 class PlayerSimulationDistance(private val plugin: JavaPlugin) : Listener {
+    @Volatile
     private var defaultDistance: Int = 0
 
     init {
@@ -33,9 +33,13 @@ class PlayerSimulationDistance(private val plugin: JavaPlugin) : Listener {
     fun handlePlayerJoin(player: Player) {
         FoliaCompat.scheduleDelayed(player, plugin, {
             if (player.isOnline) {
-                setSimulationDistance(player)
+                applyTo(player)
             }
         }, 10L)
+    }
+
+    fun applyTo(player: Player) {
+        setSimulationDistance(player)
     }
 
     @EventHandler
@@ -58,6 +62,8 @@ class PlayerSimulationDistance(private val plugin: JavaPlugin) : Listener {
         var maxDistance = defaultDistance
 
         for (permInfo in player.effectivePermissions) {
+            if (!permInfo.value) continue
+
             val permission = permInfo.permission
             if (permission.startsWith("8b8tcore.simulationdistance.")) {
                 try {

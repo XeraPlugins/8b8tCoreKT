@@ -24,14 +24,14 @@ import org.bukkit.event.Listener
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffectType
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.ThreadLocalRandom
-import java.util.concurrent.TimeUnit
 
 class ZombieDupe(private val plugin: Main) : Listener {
 
     private val cooldowns: Cache<UUID, Long> = CacheBuilder.newBuilder()
-        .expireAfterWrite(5, TimeUnit.MINUTES)
+        .expireAfterWrite(Duration.ofMinutes(5))
         .build()
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -74,8 +74,8 @@ class ZombieDupe(private val plugin: Main) : Listener {
                 return
             }
 
-            val itemInHand = zombie.equipment?.itemInMainHand
-            if (itemInHand != null && itemInHand.type != Material.AIR) {
+            val itemInHand = zombie.equipment.itemInMainHand
+            if (itemInHand.type != Material.AIR) {
                 zombie.world.dropItemNaturally(zombie.location, itemInHand.clone())
 
                 val fleshChance = plugin.config.getInt("ZombieDupe.rottenFleshDropPercentage", 50)

@@ -35,6 +35,14 @@ class PlayerSettingsListener(private val main: Main) : Listener, Reloadable {
         playerPrefix.reloadConfig()
         playerSimulationDistance.reloadConfig()
         playerViewDistance.reloadConfig()
+
+        for (player in Bukkit.getOnlinePlayers()) {
+            FoliaCompat.schedule(player, main) {
+                if (!player.isOnline) return@schedule
+                playerSimulationDistance.applyTo(player)
+                playerViewDistance.handlePlayerJoin(player)
+            }
+        }
     }
 
     @EventHandler

@@ -45,8 +45,11 @@ class GeneralDatabase : Listener {
         "displayname", "muted", "showJoinMsg", "hidePrefix", "hideDeathMessages",
         "hideAnnouncements", "hideBadges", "selectedRank", "customGradient",
         "hideCustomTab", "useVanillaLeaderboard", "gradient_animation",
-        "gradient_speed", "nameDecorations", "preventPhantomSpawn",
-        "prefixGradient", "prefix_animation", "prefix_speed", "prefixDecorations"
+        "gradient_speed", "nameDecorations", "preventPhantomSpawn", "coordinateSpoofing",
+        "prefixGradient", "prefix_animation", "prefix_speed", "prefixDecorations",
+        "menuCloseTpaAccept", "menuCloseHelp", "menuCloseVote", "menuCloseUptime",
+        "menuCloseDiscord", "menuNoConfirmKill", "menuHomeColumns",
+        "menuDisableTableColor"
     )
 
     private fun validateColumn(column: String) {
@@ -134,10 +137,19 @@ class GeneralDatabase : Listener {
                     addColumnIfNotExists(conn, stmt, "gradient_speed", "INTEGER DEFAULT 5")
                     addColumnIfNotExists(conn, stmt, "nameDecorations", "TEXT")
                     addColumnIfNotExists(conn, stmt, "preventPhantomSpawn", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "coordinateSpoofing", "BOOLEAN DEFAULT FALSE")
                     addColumnIfNotExists(conn, stmt, "prefixGradient", "TEXT")
                     addColumnIfNotExists(conn, stmt, "prefix_animation", "TEXT DEFAULT 'none'")
                     addColumnIfNotExists(conn, stmt, "prefix_speed", "INTEGER DEFAULT 5")
                     addColumnIfNotExists(conn, stmt, "prefixDecorations", "TEXT")
+                    addColumnIfNotExists(conn, stmt, "menuCloseTpaAccept", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "menuCloseHelp", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "menuCloseVote", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "menuCloseUptime", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "menuCloseDiscord", "BOOLEAN DEFAULT TRUE")
+                    addColumnIfNotExists(conn, stmt, "menuNoConfirmKill", "BOOLEAN DEFAULT FALSE")
+                    addColumnIfNotExists(conn, stmt, "menuHomeColumns", "INTEGER DEFAULT 4")
+                    addColumnIfNotExists(conn, stmt, "menuDisableTableColor", "BOOLEAN DEFAULT FALSE")
                 }
             }
         } catch (e: SQLException) {

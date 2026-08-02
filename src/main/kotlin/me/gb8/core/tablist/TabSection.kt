@@ -34,8 +34,8 @@ class TabSection(override val plugin: Main) : Section {
     private var cachedChatSection: me.gb8.core.chat.ChatSection? = null
     private val tagCache = ConcurrentHashMap<String, Component>()
     private val tagCacheOrder = ConcurrentLinkedQueue<CachedTag>()
-    private val localeCache = ConcurrentHashMap<String, Localization>()
-    private val templateCache = ConcurrentHashMap<String, TabTemplates>()
+    @Volatile
+    private var localizationCaches = LocalizationCaches()
 
     override fun enable() {
         val cfg = plugin.getSectionConfig(this).also { config = it }
@@ -74,8 +74,12 @@ class TabSection(override val plugin: Main) : Section {
         config = plugin.getSectionConfig(this)
         tagCache.clear()
         tagCacheOrder.clear()
-        localeCache.clear()
-        templateCache.clear()
+        localizationCaches = LocalizationCaches()
+        Bukkit.getOnlinePlayers().forEach { player ->
+            FoliaCompat.schedule(player, plugin) {
+                if (player.isOnline) setTab(player, true)
+            }
+        }
     }
 
     override val name: String = "TabList"
@@ -116,8 +120,9 @@ class TabSection(override val plugin: Main) : Section {
             @Suppress("DEPRECATION")
             val locale = player.locale()
             val lang = locale.language
-            val loc = localeCache.computeIfAbsent(lang) { Localization.getLocalization(lang) }
-            val templates = templateCache.computeIfAbsent(lang) {
+            val caches = localizationCaches
+            val loc = caches.locales.computeIfAbsent(lang) { Localization.getLocalization(lang) }
+            val templates = caches.templates.computeIfAbsent(lang) {
                 TabTemplates(
                     loc.getStringList("TabList.Header").joinToString("\n"),
                     loc.getStringList("TabList.Footer").joinToString("\n")
@@ -164,6 +169,10 @@ class TabSection(override val plugin: Main) : Section {
 
     private data class TabTemplates(val header: String, val footer: String)
     private data class CachedTag(val key: String, val component: Component)
+    private data class LocalizationCaches(
+        val locales: ConcurrentHashMap<String, Localization> = ConcurrentHashMap(),
+        val templates: ConcurrentHashMap<String, TabTemplates> = ConcurrentHashMap()
+    )
 
     private companion object {
         const val MAX_TAG_CACHE_SIZE = 512

@@ -18,10 +18,13 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
     val commandMap: Map<String, BaseCommand> get() = commands
 
     fun registerCommands() {
+        val cosmeticsCommand = CosmeticsCommand(main.plugin)
         listOf(
             BaseCmd(main),
             DiscordCommand(main),
             HelpCommand(),
+            SettingsCommand(main.plugin, cosmeticsCommand),
+            CoordinateSpoofCommand(main.plugin),
             OpenInv(),
             SayCommand(),
             SpawnCommand(),
@@ -43,12 +46,13 @@ class CommandHandler(private val main: CommandSection) : TabExecutor {
             GmSpectatorCommand(),
             GmSurvivalCommand(),
             TableCommand(),
+            JihadCommand(main.plugin),
             JoinDateCommand(main.plugin),
             KillCommand(main.plugin),
             LastSeenCommand(main.plugin),
             ToggleLeaderboardCommand(main.plugin),
             DpsCommand(),
-            CosmeticsCommand(main.plugin),
+            cosmeticsCommand,
             ReloadConfigCommand(main.plugin)
         ).forEach(::addCommand)
     }

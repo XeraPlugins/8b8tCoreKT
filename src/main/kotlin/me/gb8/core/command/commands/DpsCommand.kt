@@ -8,8 +8,10 @@
 
 package me.gb8.core.command.commands
 
+import me.gb8.core.Main
 import me.gb8.core.command.BaseCommand
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.util.FoliaCompat
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
@@ -32,9 +34,13 @@ class DpsCommand : BaseCommand(
         database.getPreventPhantomSpawnAsync(player.name).thenAccept { current ->
             val newValue = !current
             database.updatePreventPhantomSpawn(player.name, newValue)
+            val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+            chatSection?.getInfo(player)?.preventPhantomSpawn = newValue
 
             val statusKey = if (newValue) "dps_disabled" else "dps_enabled"
-            sendPrefixedLocalizedMessage(player, statusKey)
+            FoliaCompat.schedule(player, Main.instance) {
+                sendPrefixedLocalizedMessage(player, statusKey)
+            }
         }
     }
 }

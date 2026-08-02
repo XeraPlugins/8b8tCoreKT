@@ -243,11 +243,10 @@ class VoteSection(override val plugin: Main) : Section {
 
             plugin.logger.info("VoteSection: Vote registered for $username. Total tracked votes: ${toReward.size}")
 
-            val persistenceFuture = persistence
             when {
                 updated == null -> CompletableFuture.failedFuture(IllegalStateException("Vote map rejected update for $username"))
-                persistenceFuture == null -> CompletableFuture.failedFuture(IllegalStateException("Vote storage is unavailable"))
-                else -> persistenceFuture.thenApply { true }
+                persistence == null -> CompletableFuture.failedFuture(IllegalStateException("Vote storage is unavailable"))
+                else -> persistence!!.thenApply { true }
             }
         }
 

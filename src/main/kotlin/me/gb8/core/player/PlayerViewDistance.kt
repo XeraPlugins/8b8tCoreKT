@@ -13,11 +13,11 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.permissions.PermissionAttachmentInfo
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.logging.Level
 
 class PlayerViewDistance(private val plugin: JavaPlugin) : Listener {
+    @Volatile
     private var defaultDistance = 6
 
     init {
@@ -39,10 +39,7 @@ class PlayerViewDistance(private val plugin: JavaPlugin) : Listener {
 
     private fun setRenderDistance(player: Player) {
         try {
-            val renderDistance = maxOf(4, minOf(32, calculateRenderDistance(player)))
-            val simulationDistance = maxOf(2, minOf(renderDistance, calculateSimulationDistance(player)))
-            
-            player.setSimulationDistance(simulationDistance)
+            val renderDistance = calculateRenderDistance(player).coerceIn(MIN_DISTANCE, MAX_DISTANCE)
             player.setSendViewDistance(renderDistance)
             player.setViewDistance(renderDistance)
         } catch (e: Exception) {
@@ -51,15 +48,24 @@ class PlayerViewDistance(private val plugin: JavaPlugin) : Listener {
     }
 
     private fun calculateRenderDistance(player: Player): Int {
+        if (player.isOp) return MAX_DISTANCE
+
         var maxDistance = defaultDistance
 
+        for ((permission, distance) in RANK_DISTANCES) {
+            if (player.hasPermission(permission)) {
+                maxDistance = maxOf(maxDistance, distance)
+            }
+        }
+
         for (permInfo in player.effectivePermissions) {
+            if (!permInfo.value) continue
+
             val permission = permInfo.permission
             if (permission.startsWith("8b8tcore.viewdistance.")) {
                 try {
                     val chunksStr = permission.substring("8b8tcore.viewdistance.".length)
-                    var chunks = chunksStr.toInt()
-                    chunks = maxOf(4, minOf(32, chunks))
+                    val chunks = chunksStr.toInt().coerceIn(MIN_DISTANCE, MAX_DISTANCE)
                     maxDistance = maxOf(maxDistance, chunks)
                 } catch (ignored: NumberFormatException) {
                 }
@@ -68,23 +74,18 @@ class PlayerViewDistance(private val plugin: JavaPlugin) : Listener {
 
         return maxDistance
     }
-    
-    private fun calculateSimulationDistance(player: Player): Int {
-        var maxDistance = defaultDistance
 
-        for (permInfo in player.effectivePermissions) {
-            val permission = permInfo.permission
-            if (permission.startsWith("8b8tcore.simulationdistance.")) {
-                try {
-                    val chunksStr = permission.substring("8b8tcore.simulationdistance.".length)
-                    var chunks = chunksStr.toInt()
-                    chunks = maxOf(2, minOf(32, chunks))
-                    maxDistance = maxOf(maxDistance, chunks)
-                } catch (ignored: NumberFormatException) {
-                }
-            }
-        }
+    companion object {
+        private const val MIN_DISTANCE = 4
+        private const val MAX_DISTANCE = 32
 
-        return maxDistance
+        private val RANK_DISTANCES = mapOf(
+            "8b8tcore.prefix.donator1" to 9,
+            "8b8tcore.prefix.donator2" to 11,
+            "8b8tcore.prefix.donator3" to 13,
+            "8b8tcore.prefix.donator4" to 15,
+            "8b8tcore.prefix.donator5" to 17,
+            "8b8tcore.prefix.donator6" to 19
+        )
     }
 }

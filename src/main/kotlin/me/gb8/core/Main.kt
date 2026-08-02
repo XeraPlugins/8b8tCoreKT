@@ -15,9 +15,13 @@ import me.gb8.core.listeners.KickListener
 import me.gb8.core.listeners.OpWhiteListListener
 import me.gb8.core.chat.AnnouncementTask
 import me.gb8.core.command.CommandSection
+import me.gb8.core.coordinate.CoordinateCollisionFix
+import me.gb8.core.coordinate.CoordinateSpoofingBackend
+import me.gb8.core.coordinate.CoordinateSpoofingService
 import me.gb8.core.listeners.PlayerSettingsListener
 import me.gb8.core.database.GeneralDatabase
 import me.gb8.core.deathmessages.DeathMessageListener
+import me.gb8.core.dialog.DialogDatapackInstaller
 import me.gb8.core.dupe.DupeSection
 import me.gb8.core.home.HomeManager
 import me.gb8.core.patch.PatchSection
@@ -66,6 +70,8 @@ class Main : JavaPlugin(), Listener {
     }
 
     internal val sections = mutableListOf<Section>()
+    internal var coordinateSpoofingService: CoordinateSpoofingBackend? = null
+        private set
     private val reloadables = mutableListOf<Reloadable>()
     private val configReloadLock = Any()
     @Volatile
@@ -102,6 +108,18 @@ class Main : JavaPlugin(), Listener {
         saveVanishedPlayers()
     }
 
+    override fun onLoad() {
+        runCatching {
+            DialogDatapackInstaller.installBeforeWorldLoad(this)
+        }.onSuccess { changed ->
+            if (changed) {
+                logger.info("Updated the native settings dialog datapack before world loading.")
+            }
+        }.onFailure {
+            logger.log(Level.WARNING, "Failed to pre-install the native settings dialog datapack", it)
+        }
+    }
+
     override fun onEnable() {
         Bukkit.getConsoleSender().sendMessage("\u00A73   ___    _        \u00A73___    _      \u00A77____                       ")
         Bukkit.getConsoleSender().sendMessage("\u00A73  ( _ )  | |__    \u00A73( _ )  | |_   \u00A77/ ___|   ___    _ __    ___ ")
@@ -119,6 +137,11 @@ class Main : JavaPlugin(), Listener {
         executorService = Executors.newScheduledThreadPool(4)
         startTime = System.currentTimeMillis()
         saveDefaultConfig()
+        val dialogDatapackChanged = runCatching {
+            DialogDatapackInstaller.install(this)
+        }.onFailure {
+            logger.log(Level.WARNING, "Failed to install the native settings dialog datapack", it)
+        }.getOrDefault(false)
         loadVanishedPlayers()
         prefix = config.getString("prefix", "&8[&98b&78t&8]") ?: "&8[&98b&78t&8]"
         logger.addHandler(LoggerHandler())
@@ -126,6 +149,25 @@ class Main : JavaPlugin(), Listener {
 
         GeneralDatabase.initialize(dataFolder.absolutePath)
         GlobalUtils.log(Level.INFO, "GeneralDatabase initialized successfully")
+
+        val packetEvents = Bukkit.getPluginManager().plugins.firstOrNull {
+            it.name.equals("packetevents", ignoreCase = true) && it.isEnabled
+        }
+        if (packetEvents == null) {
+            logger.warning("CoordinateSpoof couldn't be enabled because PacketEvents was not found.")
+        } else {
+            runCatching {
+                CoordinateSpoofingService(this).also {
+                    it.enable()
+                    coordinateSpoofingService = it
+                }
+                CoordinateCollisionFix(this).enable()
+            }.onFailure {
+                coordinateSpoofingService?.disable()
+                coordinateSpoofingService = null
+                logger.log(Level.SEVERE, "Coordinate spoofing couldn't be enabled.", it)
+            }
+        }
 
         Bukkit.getAsyncScheduler().runAtFixedRate(this, { violationManagers.forEach { it.decrementAll() } }, 0L, 1L, TimeUnit.SECONDS)
         Bukkit.getAsyncScheduler().runAtFixedRate(this, { AnnouncementTask().run() }, 10L, config.getInt("AnnouncementInterval").toLong(), TimeUnit.SECONDS)
@@ -165,7 +207,13 @@ class Main : JavaPlugin(), Listener {
         register(KickListener(this))
 
         if (config.getBoolean("AntiIllegal.Enabled", true)) register(AntiIllegalMain(this))
-        register(VoteSection(this))
+        if (server.pluginManager.isPluginEnabled("Votifier") ||
+            server.pluginManager.isPluginEnabled("VotifierPlus")
+        ) {
+            register(VoteSection(this))
+        } else {
+            logger.warning("NuVotifier was not found; vote tracking is disabled.")
+        }
         register(GeneralDatabase.getInstance())
 
         for (section in sections.toList()) {
@@ -177,6 +225,13 @@ class Main : JavaPlugin(), Listener {
             }
         }
         register(this)
+
+        if (dialogDatapackChanged) {
+            logger.info(
+                "The native settings dialog datapack was installed. " +
+                    "Restart the server once more for it to take effect."
+            )
+        }
     }
 
     @EventHandler
@@ -186,6 +241,8 @@ class Main : JavaPlugin(), Listener {
     }
 
     override fun onDisable() {
+        coordinateSpoofingService?.disable()
+        coordinateSpoofingService = null
         violationManagers.clear()
         sections.forEach { it.disable() }
         sections.clear()
@@ -235,15 +292,20 @@ class Main : JavaPlugin(), Listener {
     override fun reloadConfig() {
         super.reloadConfig()
         prefix = config.getString("prefix", "&8[&98b&78t&8]") ?: "&8[&98b&78t&8]"
-        Localization.loadLocalizations(dataFolder)
+        val localizationCount = Localization.loadLocalizations(dataFolder)
         val reloaded = Collections.newSetFromMap(IdentityHashMap<Reloadable, Boolean>())
         sections.forEach { section ->
-            val sectionConfig = config.getConfigurationSection(section.name)
-            if (sectionConfig != null && reloaded.add(section)) section.reloadConfig()
+            if (reloaded.add(section)) section.reloadConfig()
         }
         reloadables.forEach { reloadable ->
             if (reloaded.add(reloadable)) reloadable.reloadConfig()
         }
+        GlobalUtils.log(
+            Level.INFO,
+            "Reloaded config.yml, %s localization files, and %s reloadable components",
+            localizationCount,
+            reloaded.size
+        )
     }
 
     fun reloadConfigOnGlobalScheduler(): CompletableFuture<Void> {

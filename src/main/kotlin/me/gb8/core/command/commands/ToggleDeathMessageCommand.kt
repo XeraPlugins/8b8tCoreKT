@@ -11,6 +11,7 @@ package me.gb8.core.command.commands
 import me.gb8.core.Main
 import me.gb8.core.command.BaseCommand
 import me.gb8.core.database.GeneralDatabase
+import me.gb8.core.util.FoliaCompat
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
@@ -32,11 +33,15 @@ class ToggleDeathMessageCommand(private val plugin: Main) : BaseCommand(
         database.getPlayerHideDeathMessagesAsync(player.name).thenAccept { current ->
             val newValue = !current
             database.updateHideDeathMessages(player.name, newValue)
+            val chatSection = Main.instance.getSectionByName("ChatControl") as? me.gb8.core.chat.ChatSection
+            chatSection?.getInfo(player)?.hideDeathMessages = newValue
 
-            if (newValue) {
-                sendMessage(player, "&aYou will no longer see death messages.")
-            } else {
-                sendMessage(player, "&aYou will now see death messages.")
+            FoliaCompat.schedule(player, plugin) {
+                if (newValue) {
+                    sendMessage(player, "&aYou will no longer see death messages.")
+                } else {
+                    sendMessage(player, "&aYou will now see death messages.")
+                }
             }
         }
     }

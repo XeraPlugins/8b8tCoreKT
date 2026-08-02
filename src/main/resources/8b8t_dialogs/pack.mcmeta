@@ -1,0 +1,10 @@
+{
+  "pack": {
+    "description": "8b8tCore native settings dialog",
+    "max_format": 107,
+    "min_format": [
+      107,
+      1
+    ]
+  }
+}

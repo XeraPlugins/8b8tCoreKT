@@ -1,0 +1,128 @@
+{
+  "type": "minecraft:multi_action",
+  "title": {
+    "text": "8b8t Settings",
+    "color": "aqua",
+    "bold": true
+  },
+  "external_title": {
+    "text": "8b8t Settings",
+    "color": "aqua"
+  },
+  "pause": false,
+  "columns": 1,
+  "actions": [
+    {
+      "label": {
+        "text": "Player",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Player settings"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings player"
+      }
+    },
+    {
+      "label": {
+        "text": "Homes",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Select a home"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings homes"
+      }
+    },
+    {
+      "label": {
+        "text": "Hotspots",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Create or delete your public hotspot"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings hotspots"
+      }
+    },
+    {
+      "label": {
+        "text": "TPA Controls",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Manage incoming and pending TPA requests"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings tpa"
+      }
+    },
+    {
+      "label": {
+        "text": "Server Information",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Help, voting, uptime, TPS, and Discord"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings info"
+      }
+    },
+    {
+      "label": {
+        "text": "Crafter Tables",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Open a crafting table"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings tables"
+      }
+    },
+    {
+      "label": {
+        "text": "Menu",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "Choose menu behavior"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings menu"
+      }
+    },
+    {
+      "label": {
+        "text": "Misc",
+        "color": "white"
+      },
+      "tooltip": {
+        "text": "More menu options"
+      },
+      "width": 300,
+      "action": {
+        "type": "minecraft:run_command",
+        "command": "/settings misc"
+      }
+    }
+  ]
+}

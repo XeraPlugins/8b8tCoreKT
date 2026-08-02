@@ -44,7 +44,6 @@ NbtBanItemChecker:
   maxItemSizeAllowed: 50000
 ChatControl:
   PreventLinks: true
-  Cooldown: 2
   Blocked:
     - 'Anar Anarchy'
     - '5b5t'
@@ -165,6 +164,7 @@ ChatControl:
     - '/hotspot'
     - '/suicide'
     - '/table'
+    - '/settings'
     - '/shadowmute'
     - '/vanish'
     - '/clearentities'
@@ -179,6 +179,7 @@ ChatControl:
     - '/togglelb'
     - '/tlb'
     - '/cosmetics'
+    - '/coordinatespoof'
     - '/ic'
     - '/itemcolor'
     - '/setcolor'

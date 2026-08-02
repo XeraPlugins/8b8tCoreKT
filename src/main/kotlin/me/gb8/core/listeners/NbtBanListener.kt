@@ -59,7 +59,10 @@ class NbtBanListener(private val plugin: JavaPlugin) : Listener {
         when (entity) {
             is Item -> {
                 if (isIllegalItem(entity.itemStack)) {
-                    entity.remove()
+                    entity.itemStack = ItemStack(Material.AIR)
+                    FoliaCompat.schedule(entity, plugin) {
+                        if (entity.isValid) entity.remove()
+                    }
                     return
                 }
             }

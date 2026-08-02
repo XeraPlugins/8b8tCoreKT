@@ -12,6 +12,7 @@ import me.gb8.core.util.GlobalUtils
 import org.bukkit.configuration.Configuration
 import org.bukkit.configuration.file.YamlConfiguration
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.logging.Level
 
@@ -32,11 +33,11 @@ class Localization(private val config: Configuration) {
 
         private val DEFAULT_PREFIX = "&8[&98b&78t&8]"
 
-        fun loadLocalizations(dataFolder: File) {
+        fun loadLocalizations(dataFolder: File): Int {
             val localeDir = File(dataFolder, "Localization")
             if (!localeDir.exists() && !localeDir.mkdirs()) {
                 GlobalUtils.log(Level.SEVERE, "Could not create localization directory: %s", localeDir.absolutePath)
-                return
+                return 0
             }
 
             listOf("ar", "en", "es", "fr", "he", "hi", "it", "ja", "nl", "pt", "ru", "tr", "zh").forEach { locale ->
@@ -48,7 +49,7 @@ class Localization(private val config: Configuration) {
             localeDir.listFiles { f -> f.isFile && f.name.endsWith(".yml") }?.forEach { ymlFile ->
                 runCatching {
                     val cfg = YamlConfiguration.loadConfiguration(ymlFile)
-                    val key = ymlFile.nameWithoutExtension
+                    val key = ymlFile.nameWithoutExtension.lowercase(Locale.ROOT)
                     loaded[key] = Localization(cfg)
                 }.onFailure { e ->
                     GlobalUtils.log(Level.SEVERE, "Failed to load localization file %s: %s", ymlFile.name, e.message)
@@ -56,16 +57,18 @@ class Localization(private val config: Configuration) {
                 }
             }
             state = LocalizationState(loaded.toMap())
+            return loaded.size
         }
 
         fun getLocalization(locale: String): Localization {
             val snapshot = state
-            return snapshot.localeCache.getOrPut(locale) {
+            val normalizedLocale = locale.lowercase(Locale.ROOT)
+            return snapshot.localeCache.getOrPut(normalizedLocale) {
                 if (snapshot.localizations.isEmpty()) {
                     Localization(YamlConfiguration.loadConfiguration(File("")))
                 } else {
-                    snapshot.localizations[locale] ?: run {
-                        val base = locale.split("[_-]".toRegex()).first()
+                    snapshot.localizations[normalizedLocale] ?: run {
+                        val base = normalizedLocale.substringBefore('_').substringBefore('-')
                         snapshot.localizations[base] ?: snapshot.localizations["en"]
                         ?: Localization(YamlConfiguration.loadConfiguration(File("")))
                     }

@@ -13,8 +13,8 @@
 	<description>8b8tCore Kotlin by 8b8tTeam</description>
 
     <properties>
-        <java.version>21</java.version>
-        <kotlin.version>1.9.24</kotlin.version>
+        <java.version>25</java.version>
+        <kotlin.version>2.4.10</kotlin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
@@ -23,6 +23,16 @@
             <resource>
                 <directory>${project.basedir}/src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>**/*.gz</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>**/*.gz</include>
+                </includes>
             </resource>
         </resources>
         <plugins>
@@ -34,7 +44,7 @@
                     <sourceDirs>
                         <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
                     </sourceDirs>
-                    <jvmTarget>21</jvmTarget>
+                    <jvmTarget>${java.version}</jvmTarget>
                     <args>
                         <arg>-Xlambdas=indy</arg>
                     </args>
@@ -52,8 +62,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <release>${java.version}</release>
                     <showDeprecation>true</showDeprecation>
                     <compilerArgs>
                         <arg>-Xlint:deprecation</arg>
@@ -63,7 +72,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.2</version>
                 <executions>
                     <execution>
                         <phase>package</phase>
@@ -78,6 +87,9 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>META-INF/maven/**</exclude>
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/**/module-info.class</exclude>
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
@@ -103,8 +115,8 @@
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
         <repository>
-            <id>local-repo</id>
-            <url>file://${project.basedir}/local-repo</url>
+            <id>codemc-releases</id>
+            <url>https://repo.codemc.io/repository/maven-releases/</url>
         </repository>
     </repositories>
 
@@ -112,7 +124,13 @@
         <dependency>
             <groupId>dev.folia</groupId>
             <artifactId>folia-api</artifactId>
-            <version>1.21.11-R0.1-SNAPSHOT</version>
+            <version>26.2.build.1-beta</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.retrooper</groupId>
+            <artifactId>packetevents-api</artifactId>
+            <version>2.13.0</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -122,10 +140,9 @@
         </dependency>
         <dependency>
             <groupId>com.vexsoftware</groupId>
-            <artifactId>nuvotifier-universal</artifactId>
+            <artifactId>nuvotifier-bukkit</artifactId>
             <version>3.0.0-SNAPSHOT</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/nuvotifier.jar</systemPath>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.zaxxer</groupId>
